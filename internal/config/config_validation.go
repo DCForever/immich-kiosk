@@ -173,12 +173,18 @@ func (c *Config) checkSecrets() {
 // checkRequiredFields verifies that required configuration fields are set for the selected source.
 // When source is "photoprism", requires photoprism_url and photoprism_token.
 // When source is "immich" (or empty/default), requires immich_url and immich_api_key.
-// Source defaults to "immich" when empty for backward compatibility.
+// If source is empty or "immich" but only PhotoPrism fields are set (photoprism_url and photoprism_token),
+// source is inferred as "photoprism" so configs without explicit source still work.
 // Returns an error describing the first missing requirement; callers may log.Fatal(err) or test the error.
 func (c *Config) checkRequiredFields() error {
 	source := strings.ToLower(strings.TrimSpace(c.Source))
 	if source == "" {
 		source = SourceImmich
+		c.Source = source
+	}
+	// Infer photoprism when immich is not configured but PhotoPrism is
+	if (source == SourceImmich) && c.ImmichURL == "" && c.PhotoprismURL != "" && c.PhotoprismToken != "" {
+		source = SourcePhotoPrism
 		c.Source = source
 	}
 	switch source {

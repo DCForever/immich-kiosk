@@ -256,6 +256,8 @@ func TestCheckSourceRequiredFields(t *testing.T) {
 		{"photoprism missing url", "photoprism", "", "", "", "token", true, "photoprism_url"},
 		{"photoprism missing token", "photoprism", "", "", "http://localhost", "", true, "photoprism_token"},
 		{"unknown source defaults to immich", "other", "http://localhost", "key", "", "", false, ""},
+		{"infer photoprism when only PhotoPrism fields set (empty source)", "", "", "", "http://localhost:2342", "token", false, ""},
+		{"infer photoprism when only PhotoPrism fields set (source immich)", "immich", "", "", "http://localhost:2342", "token", false, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
