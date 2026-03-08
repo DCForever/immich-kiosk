@@ -149,6 +149,7 @@ func OfflineMode(baseConfig *config.Config, com *common.Common) echo.HandlerFunc
 		return Render(c, http.StatusOK, partials.Error(partials.ErrorData{
 			Title:   "No offline assets found",
 			Message: "Check Kiosk logs for more information",
+			Source:  requestConfig.Source,
 		}))
 
 	}
@@ -369,7 +370,6 @@ func saveMsgpackZstd(ctx context.Context, filename string, data common.ViewData,
 	if err != nil {
 		return err
 	}
-	defer encoder.Close()
 
 	if _, err = encoder.Write(buf.Bytes()); err != nil {
 		return err
@@ -379,11 +379,21 @@ func saveMsgpackZstd(ctx context.Context, filename string, data common.ViewData,
 		return err
 	}
 
+	// Close encoder and temp file before rename. On Windows, rename fails if the file is still open.
+	if err = encoder.Close(); err != nil {
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	tmp = nil
+
 	if cancelledErr := checkCanceled(ctx); cancelledErr != nil {
 		return cancelledErr
 	}
 
-	fi, statErr := tmp.Stat()
+	fi, statErr := os.Stat(tmpPath)
 	if statErr != nil {
 		return statErr
 	}
@@ -394,12 +404,10 @@ func saveMsgpackZstd(ctx context.Context, filename string, data common.ViewData,
 		return ErrMaxStorageReached
 	}
 
-	if err = os.Rename(tmp.Name(), filename); err != nil {
+	if err = os.Rename(tmpPath, filename); err != nil {
 		offlineSize.Add(-fi.Size())
 		return err
 	}
-
-	tmp = nil
 	filename = ""
 
 	return nil
