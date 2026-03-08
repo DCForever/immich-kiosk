@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/log"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
@@ -96,6 +97,16 @@ func (p *Provider) fetchPhotos(albumUID string, order string, count int, searchQ
 	}
 	preview := headers["x-preview-token"]
 	download := headers["x-download-token"]
+	if p.cfg.Kiosk.Debug && len(list) > 0 {
+		log.Debug("PhotoPrism: fetched photos", "count", len(list), "preview_token_set", preview != "", "download_token_set", download != "")
+		for i, ph := range list {
+			if i > 0 && !p.cfg.Kiosk.DebugVerbose {
+				log.Debug("PhotoPrism: ... and more photos", "total", len(list))
+				break
+			}
+			p.logPhotoRetrieved(&ph, i+1, len(list))
+		}
+	}
 	return list, preview, download, nil
 }
 
@@ -131,6 +142,10 @@ func (p *Provider) fetchPhotosWithCache(albumUID, order, label, dateFilter, pers
 					p.current = []Photo{first}
 					p.previewToken = batch.PreviewToken
 					p.downloadToken = batch.DownloadToken
+					if p.cfg.Kiosk.Debug {
+						log.Debug("PhotoPrism: using photo from cache", "uid", first.UID, "remaining", len(batch.List)-1)
+						p.logPhotoRetrieved(&first, 1, len(batch.List))
+					}
 					if len(batch.List) > 1 {
 						rest := cachedPhotoBatch{
 							List:          batch.List[1:],
@@ -187,6 +202,49 @@ func (p *Provider) bucketForDisplay() kiosk.Source {
 		return p.currentBucket
 	}
 	return kiosk.SourceAlbum
+}
+
+// logPhotoRetrieved logs metadata and markers for a photo when debug is enabled.
+func (p *Provider) logPhotoRetrieved(ph *Photo, index, total int) {
+	if ph == nil || !p.cfg.Kiosk.Debug {
+		return
+	}
+	args := []any{"index", index, "total", total, "uid", ph.UID, "type", ph.Type, "taken_at", ph.TakenAt, "file_name", ph.FileName}
+	if ph.Title != "" {
+		args = append(args, "title", ph.Title)
+	}
+	if ph.Description != "" {
+		args = append(args, "description", ph.Description)
+	}
+	args = append(args, "favorite", ph.Favorite, "files", len(ph.Files))
+	markerCount := 0
+	var markerNames []string
+	for _, f := range ph.Files {
+		for _, m := range f.Markers {
+			markerCount++
+			if m.Name != "" {
+				markerNames = append(markerNames, m.Name)
+			} else if m.SubjUID != "" {
+				markerNames = append(markerNames, m.SubjUID)
+			}
+		}
+	}
+	args = append(args, "markers", markerCount)
+	if markerCount > 0 {
+		args = append(args, "people", markerNames)
+	}
+	if p.cfg.Kiosk.DebugVerbose {
+		args = append(args, "width", ph.Width, "height", ph.Height, "camera_make", ph.CameraMake, "camera_model", ph.CameraModel)
+		if len(ph.Files) > 0 {
+			for fi, f := range ph.Files {
+				args = append(args, fmt.Sprintf("file_%d_uid", fi), f.UID, fmt.Sprintf("file_%d_markers", fi), len(f.Markers))
+				for mi, m := range f.Markers {
+					args = append(args, fmt.Sprintf("file_%d_marker_%d", fi, mi), fmt.Sprintf("%s (SubjUID:%s)", m.Name, m.SubjUID))
+				}
+			}
+		}
+	}
+	log.Debug("PhotoPrism: photo retrieved", args...)
 }
 
 // photoMarkersToPeople collects unique people from a photo's file markers (face/subject data).
@@ -381,6 +439,13 @@ func (p *Provider) DisplayAsset(requestID, deviceID string) source.DisplayAsset 
 		TimeZone:          ph.TimeZone,
 	}
 	people := photoMarkersToPeople(ph)
+	if p.cfg.Kiosk.Debug && ph != nil {
+		names := make([]string, 0, len(people))
+		for _, pe := range people {
+			names = append(names, pe.Name)
+		}
+		log.Debug("PhotoPrism: DisplayAsset", "uid", ph.UID, "type", assetType, "people", names, "file_name", ph.FileName)
+	}
 	return source.DisplayAsset{
 		ID:               ph.UID,
 		Type:             assetType,
