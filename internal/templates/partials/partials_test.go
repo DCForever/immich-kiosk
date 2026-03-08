@@ -3,18 +3,18 @@ package partials
 import (
 	"testing"
 
-	"github.com/damongolding/immich-kiosk/internal/immich"
+	"github.com/damongolding/immich-kiosk/internal/source"
 )
 
 func TestAssetCameraData(t *testing.T) {
 	tests := []struct {
 		name string
-		exif immich.ExifInfo
+		exif source.ExifInfo
 		want string
 	}{
 		{
 			name: "Make already in model (whole word)",
-			exif: immich.ExifInfo{
+			exif: source.ExifInfo{
 				Make:  "Canon",
 				Model: "Canon EOS 5D Mark IV",
 			},
@@ -22,7 +22,7 @@ func TestAssetCameraData(t *testing.T) {
 		},
 		{
 			name: "Make not in model",
-			exif: immich.ExifInfo{
+			exif: source.ExifInfo{
 				Make:  "Canon",
 				Model: "EOS 5D Mark IV",
 			},
@@ -30,7 +30,7 @@ func TestAssetCameraData(t *testing.T) {
 		},
 		{
 			name: "Make is substring but not whole word",
-			exif: immich.ExifInfo{
+			exif: source.ExifInfo{
 				Make:  "Canon",
 				Model: "Canonic EOS 5D Mark IV",
 			},
@@ -38,7 +38,7 @@ func TestAssetCameraData(t *testing.T) {
 		},
 		{
 			name: "Extra whitespace trimmed",
-			exif: immich.ExifInfo{
+			exif: source.ExifInfo{
 				Make:  " Canon ",
 				Model: " EOS 5D Mark IV ",
 			},
@@ -46,7 +46,7 @@ func TestAssetCameraData(t *testing.T) {
 		},
 		{
 			name: "Empty make",
-			exif: immich.ExifInfo{
+			exif: source.ExifInfo{
 				Make:  "",
 				Model: "EOS 5D Mark IV",
 			},
@@ -54,7 +54,7 @@ func TestAssetCameraData(t *testing.T) {
 		},
 		{
 			name: "Empty model",
-			exif: immich.ExifInfo{
+			exif: source.ExifInfo{
 				Make:  "Canon",
 				Model: "",
 			},
@@ -62,7 +62,7 @@ func TestAssetCameraData(t *testing.T) {
 		},
 		{
 			name: "Both empty",
-			exif: immich.ExifInfo{
+			exif: source.ExifInfo{
 				Make:  "",
 				Model: "",
 			},
@@ -70,7 +70,7 @@ func TestAssetCameraData(t *testing.T) {
 		},
 		{
 			name: "Case insensitive whole word match",
-			exif: immich.ExifInfo{
+			exif: source.ExifInfo{
 				Make:  "canon",
 				Model: "Canon EOS 5D Mark IV",
 			},
@@ -78,7 +78,7 @@ func TestAssetCameraData(t *testing.T) {
 		},
 		{
 			name: "My camera",
-			exif: immich.ExifInfo{
+			exif: source.ExifInfo{
 				Make:  "NIKON CORPORATION",
 				Model: "NIKON D90",
 			},

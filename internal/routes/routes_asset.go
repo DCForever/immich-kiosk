@@ -13,8 +13,8 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/i18n"
-	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	imageComponent "github.com/damongolding/immich-kiosk/internal/templates/components/image"
 	videoComponent "github.com/damongolding/immich-kiosk/internal/templates/components/video"
 	"github.com/damongolding/immich-kiosk/internal/templates/partials"
@@ -84,7 +84,7 @@ func NewAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 
 		go webhooks.Trigger(com.Context(), requestData, KioskVersion, webhooks.NewAsset, viewData)
 
-		if len(viewData.Assets) > 0 && requestConfig.ShowVideos && viewData.Assets[0].ImmichAsset.Type == immich.VideoType {
+		if len(viewData.Assets) > 0 && requestConfig.ShowVideos && viewData.Assets[0].Asset.Type == source.TypeVideo {
 			return Render(c, http.StatusOK, videoComponent.Video(viewData, com.Secret()))
 		}
 
@@ -123,19 +123,18 @@ func Image(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 			"requestConfig", requestConfig.String(),
 		)
 
-		immichAsset := immich.New(com.Context(), requestConfig)
-
+		provider := getProvider(com.Context(), requestConfig)
 		switch layout {
 		case kiosk.PortraitOrientation:
-			immichAsset.RatioWanted = immich.PortraitOrientation
+			provider.SetRatioWanted("PORTRAIT")
 		case kiosk.LandscapeOrientation:
-			immichAsset.RatioWanted = immich.LandscapeOrientation
+			provider.SetRatioWanted("LANDSCAPE")
 		default:
 		}
 
 		fakeDeviceID := requestID
 
-		img, err := processAsset(&immichAsset, requestConfig, requestID, fakeDeviceID, "", false)
+		img, err := processAsset(provider, requestConfig, requestID, fakeDeviceID, "", false)
 		if err != nil {
 			return err
 		}
@@ -211,17 +210,13 @@ func ImageWithID(baseConfig *config.Config, com *common.Common) echo.HandlerFunc
 			return echo.NewHTTPError(http.StatusBadRequest, "Image ID is required")
 		}
 
-		immichAsset := immich.New(com.Context(), requestConfig)
-		immichAsset.ID = imageID
-
-		if requestConfig.UseOriginalImage {
-			if assetInfoErr := immichAsset.AssetInfo(requestID, ""); assetInfoErr != nil {
-				log.Error(requestID, "error getting asset info", "imageID", imageID, "error", assetInfoErr)
-				return assetInfoErr
-			}
+		provider := getProvider(com.Context(), requestConfig)
+		if assetInfoErr := provider.AssetInfo(imageID, requestID, ""); assetInfoErr != nil {
+			log.Error(requestID, "error getting asset info", "imageID", imageID, "error", assetInfoErr)
+			return assetInfoErr
 		}
 
-		imgBytes, _, previewErr := immichAsset.ImagePreview()
+		imgBytes, _, previewErr := provider.ImagePreview()
 		if previewErr != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "unable to retrieve image")
 		}
@@ -266,21 +261,19 @@ func TagAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, "Tag name is required")
 		}
 
-		immichAsset := immich.New(com.Context(), requestConfig)
-		immichAsset.ID = assetID
-
-		tag := immich.Tag{
-			Name: tagName,
+		provider := getProvider(com.Context(), requestConfig)
+		if infoErr := provider.AssetInfo(assetID, requestID, requestData.DeviceID); infoErr != nil {
+			log.Error(requestID+" error getting asset info", "assetID", assetID, "error", infoErr)
+			return echo.NewHTTPError(http.StatusBadRequest, "unable to load asset")
 		}
-
-		addTagErr := immichAsset.AddTag(tag)
+		addTagErr := provider.AddTag(source.Tag{Name: tagName})
 		if addTagErr != nil {
 			log.Error(requestID+" error adding tag", "assetID", assetID, "tagName", tagName, "error", addTagErr)
 			return echo.NewHTTPError(http.StatusInternalServerError, "unable to add tag")
 		}
 
 		// remove asset data from cache as we've changed its tags
-		cacheErr := immichAsset.RemoveAssetCache(requestData.DeviceID)
+		cacheErr := provider.RemoveAssetCache(requestData.DeviceID)
 		if cacheErr != nil {
 			log.Error(requestID+" error removing asset from cache", "assetID", assetID, "error", cacheErr)
 		}
@@ -337,9 +330,8 @@ func LikeAsset(baseConfig *config.Config, com *common.Common, setAssetAsLiked bo
 			return Render(c, http.StatusOK, partials.LikeButton(assetID, user, true, true, true, com.Secret()))
 		}
 
-		immichAsset := immich.New(com.Context(), requestConfig)
-		immichAsset.ID = assetID
-		infoErr := immichAsset.AssetInfo(requestID, requestData.DeviceID)
+		provider := getProvider(com.Context(), requestConfig)
+		infoErr := provider.AssetInfo(assetID, requestID, requestData.DeviceID)
 		if infoErr != nil {
 			log.Error(requestID+" error getting asset info", "assetID", assetID, "error", infoErr)
 			return infoErr
@@ -349,7 +341,7 @@ func LikeAsset(baseConfig *config.Config, com *common.Common, setAssetAsLiked bo
 
 		// Favourite Asset
 		if slices.Contains(requestConfig.LikeButtonAction, kiosk.LikeButtonActionFavorite) {
-			favouriteErr := immichAsset.FavouriteStatus(requestData.DeviceID, setAssetAsLiked)
+			favouriteErr := provider.FavouriteStatus(requestData.DeviceID, setAssetAsLiked)
 			if favouriteErr != nil {
 				log.Error(requestID+" error favouriting asset", "assetID", assetID, "error", favouriteErr)
 				eg = errors.Join(eg, favouriteErr)
@@ -360,13 +352,13 @@ func LikeAsset(baseConfig *config.Config, com *common.Common, setAssetAsLiked bo
 		if slices.Contains(requestConfig.LikeButtonAction, kiosk.LikeButtonActionAlbum) {
 			switch setAssetAsLiked {
 			case true:
-				addErr := immichAsset.AddToKioskLikedAlbum(requestID, requestData.DeviceID)
+				addErr := provider.AddToKioskLikedAlbum(requestID, requestData.DeviceID)
 				if addErr != nil {
 					log.Error(requestID+" error adding asset to kiosk liked album", "assetID", assetID, "error", addErr)
 					eg = errors.Join(eg, addErr)
 				}
 			case false:
-				rmErr := immichAsset.RemoveFromKioskLikedAlbum(requestID, requestData.DeviceID)
+				rmErr := provider.RemoveFromKioskLikedAlbum(requestID, requestData.DeviceID)
 				if rmErr != nil {
 					log.Error(requestID+" error removing asset from kiosk liked album", "assetID", assetID, "error", rmErr)
 					eg = errors.Join(eg, rmErr)
@@ -434,9 +426,8 @@ func HideAsset(baseConfig *config.Config, com *common.Common, hideAsset bool) ec
 			return Render(c, http.StatusOK, partials.HideButton(assetID, user, !hideAsset, true, com.Secret()))
 		}
 
-		immichAsset := immich.New(com.Context(), requestConfig)
-		immichAsset.ID = assetID
-		infoErr := immichAsset.AssetInfo(requestID, requestData.DeviceID)
+		provider := getProvider(com.Context(), requestConfig)
+		infoErr := provider.AssetInfo(assetID, requestID, requestData.DeviceID)
 		if infoErr != nil {
 			log.Error(requestID+" error getting asset info", "assetID", assetID, "error", infoErr)
 			return infoErr
@@ -445,19 +436,19 @@ func HideAsset(baseConfig *config.Config, com *common.Common, hideAsset bool) ec
 		var eg error
 
 		if slices.Contains(requestConfig.HideButtonAction, kiosk.HideButtonActionTag) {
-			tag := immich.Tag{
+			tag := source.Tag{
 				Name: tagName,
 			}
 
 			switch hideAsset {
 			case true:
-				addTagErr := immichAsset.AddTag(tag)
+				addTagErr := provider.AddTag(tag)
 				if addTagErr != nil {
 					log.Error(requestID+" error adding tag to asset", "assetID", assetID, "error", addTagErr)
 					eg = errors.Join(eg, addTagErr)
 				}
 			case false:
-				rmTagErr := immichAsset.RemoveTag(tag)
+				rmTagErr := provider.RemoveTag(tag)
 				if rmTagErr != nil {
 					log.Error(requestID+" error removing tag from asset", "assetID", assetID, "error", rmTagErr)
 					eg = errors.Join(eg, rmTagErr)
@@ -466,7 +457,7 @@ func HideAsset(baseConfig *config.Config, com *common.Common, hideAsset bool) ec
 		}
 
 		if slices.Contains(requestConfig.HideButtonAction, kiosk.HideButtonActionArchive) {
-			archivedErr := immichAsset.ArchiveStatus(requestData.DeviceID, hideAsset)
+			archivedErr := provider.ArchiveStatus(requestData.DeviceID, hideAsset)
 			if archivedErr != nil {
 				log.Error(requestID+" error archiving asset", "assetID", assetID, "error", archivedErr)
 				eg = errors.Join(eg, archivedErr)

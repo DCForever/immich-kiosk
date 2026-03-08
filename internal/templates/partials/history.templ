@@ -91,7 +91,7 @@ func newHistoryEntry(images []common.ViewImageData) string {
 	}
 	newImages := make([]string, len(images))
 	for i, entry := range images {
-		assetHistory := fmt.Sprintf("%s:%s", entry.ImmichAsset.ID, entry.User)
+		assetHistory := fmt.Sprintf("%s:%s", entry.Asset.ID, entry.User)
 		sanitisedID := template.HTMLEscapeString(assetHistory)
 		newImages[i] = sanitisedID
 	}

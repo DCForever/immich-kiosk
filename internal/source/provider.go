@@ -36,6 +36,10 @@ type ProviderOps interface {
 	ApplyDefaultUser()
 	SelectedUser() string
 
+	// SetRatioWanted sets the preferred orientation for the next retrieval (e.g. portrait/landscape for split view).
+	// Values: "PORTRAIT", "LANDSCAPE", or "" for any.
+	SetRatioWanted(orientation string)
+
 	// Counts for weighting (gatherAssetBuckets).
 	PersonAssetCount(personID, requestID, deviceID string) (int, error)
 	AlbumImageCount(albumID, requestID, deviceID string) (int, error)
@@ -52,6 +56,10 @@ type ProviderOps interface {
 	// Tags.
 	AllTags(requestID, deviceID string) (Tags, string, error)
 	ExpandTagPatterns(tags []string, requestID, deviceID string) []string
+
+	// URL builder: list people, albums (for dropdowns).
+	AllNamedPeople(requestID, deviceID string) ([]Person, error)
+	AllAlbums(requestID, deviceID string) (Albums, error)
 
 	// Image/video bytes for the current asset.
 	ImagePreview() ([]byte, string, error)

@@ -4,6 +4,7 @@ package source
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
@@ -37,6 +38,16 @@ type Tag struct {
 
 // Tags is a slice of Tag (used for display and HasTag checks).
 type Tags []Tag
+
+// Get returns a Tag by value or ID (case-insensitive), or an error if not found.
+func (t Tags) Get(tagValue string) (Tag, error) {
+	for _, tag := range t {
+		if strings.EqualFold(tag.Value, tagValue) || strings.EqualFold(tag.ID, tagValue) {
+			return tag, nil
+		}
+	}
+	return Tag{}, errors.New("tag not found")
+}
 
 // Album is an album that can contain assets.
 type Album struct {
@@ -103,6 +114,7 @@ type DisplayAsset struct {
 	LocalDateTime    time.Time
 	LivePhotoVideoID string
 	MemoryTitle      string
+	OriginalFileName string
 
 	People    []Person
 	Tags      Tags

@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
-	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/templates/partials"
 	"github.com/damongolding/immich-kiosk/internal/templates/views"
 	"github.com/google/go-querystring/query"
@@ -128,7 +127,7 @@ func URLBuilderPage(baseConfig *config.Config, com *common.Common, extended bool
 			"requestConfig", requestConfig.String(),
 		)
 
-		im := immich.New(com.Context(), requestConfig)
+		im := getProvider(com.Context(), requestConfig)
 
 		ppl, pplErr := im.AllNamedPeople(requestID, deviceID)
 		if pplErr != nil {

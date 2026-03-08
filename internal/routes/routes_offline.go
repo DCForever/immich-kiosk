@@ -245,7 +245,7 @@ func downloadOfflineAssets(requestConfig config.Config, requestCtx common.Contex
 
 				var sb strings.Builder
 				for _, asset := range viewData.Assets {
-					sb.WriteString(asset.ImmichAsset.ID)
+					sb.WriteString(asset.Asset.ID)
 					sb.WriteString(asset.User)
 				}
 

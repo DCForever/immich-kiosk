@@ -16,6 +16,7 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	"github.com/damongolding/immich-kiosk/internal/utils"
 )
 
@@ -167,8 +168,9 @@ func (v *Manager) GetVideo(id string) (Video, error) {
 	return Video{}, errors.New("video not found")
 }
 
-// AddVideoToViewCache adds a downloaded video to the cache
-func (v *Manager) AddVideoToViewCache(id, fileName, filePath, contentType string, requestConfig *config.Config, deviceID, requestURL string, immichAsset immich.Asset, imageData, imageBlurData string) {
+// AddVideoToViewCache adds a downloaded video to the cache.
+// displayAsset is the source-agnostic asset for the view; immichAsset is used for video serving (ETag, etc.).
+func (v *Manager) AddVideoToViewCache(id, fileName, filePath, contentType string, requestConfig *config.Config, deviceID, requestURL string, immichAsset immich.Asset, displayAsset source.DisplayAsset, imageData, imageBlurData string) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -186,7 +188,7 @@ func (v *Manager) AddVideoToViewCache(id, fileName, filePath, contentType string
 		Config:   *requestConfig,
 		Assets: []common.ViewImageData{
 			{
-				ImmichAsset:   immichAsset,
+				Asset:         displayAsset,
 				ImageData:     imageData,
 				ImageBlurData: imageBlurData,
 			},
@@ -219,8 +221,9 @@ func (v *Manager) addToQueue(id string) {
 	v.DownloadQueue = append(v.DownloadQueue, id)
 }
 
-// DownloadVideo downloads a video file and adds it to the cache
-func (v *Manager) DownloadVideo(immichAsset immich.Asset, requestConfig config.Config, deviceID string, requestURL string) {
+// DownloadVideo downloads a video file and adds it to the cache.
+// displayAsset is the source-agnostic asset for the view (from provider.DisplayAsset).
+func (v *Manager) DownloadVideo(immichAsset immich.Asset, displayAsset source.DisplayAsset, requestConfig config.Config, deviceID string, requestURL string) {
 
 	videoID := immichAsset.ID
 
@@ -266,7 +269,7 @@ func (v *Manager) DownloadVideo(immichAsset immich.Asset, requestConfig config.C
 
 	defer func() {
 		log.Debug(kiosk.DebugID+" Downloaded video", "path", filePath)
-		v.AddVideoToViewCache(videoID, filename, filePath, contentType, &requestConfig, deviceID, requestURL, immichAsset, imageData, imageBlurData)
+		v.AddVideoToViewCache(videoID, filename, filePath, contentType, &requestConfig, deviceID, requestURL, immichAsset, displayAsset, imageData, imageBlurData)
 	}()
 
 	imgBytes, _, imgBytesErr := immichAsset.ImagePreview()

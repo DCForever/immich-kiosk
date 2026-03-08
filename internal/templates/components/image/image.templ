@@ -8,8 +8,8 @@ import (
 
 func modifyGIFAssets(viewData *common.ViewData) {
 	for i, asset := range viewData.Assets {
-		if asset.ImmichAsset.OriginalMimeType == "image/gif" {
-			viewData.Assets[i].ImageData = fmt.Sprintf("/image/%s?use_original_image=true", asset.ImmichAsset.ID)
+		if asset.Asset.OriginalMimeType == "image/gif" {
+			viewData.Assets[i].ImageData = fmt.Sprintf("/image/%s?use_original_image=true", asset.Asset.ID)
 		}
 	}
 }

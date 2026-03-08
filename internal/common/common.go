@@ -13,8 +13,8 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/damongolding/immich-kiosk/internal/config"
-	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	"github.com/damongolding/immich-kiosk/internal/utils"
 	"github.com/labstack/echo/v5"
 )
@@ -88,7 +88,7 @@ type ViewImageData struct {
 	ImageBlurData      string       // ImageBlurData contains the blurred image as base64 data
 	ImageDate          string       // ImageDate contains the date of the image
 	User               string       // User the user api key used
-	ImmichAsset        immich.Asset // ImmichAsset contains immich asset data
+	Asset              source.DisplayAsset // Asset contains backend-agnostic asset data for display
 	ImageDominantColor color.RGBA   // ImageDominantColor contains the dominant color of the image
 }
 
@@ -106,7 +106,7 @@ type ViewData struct {
 type ViewImageDataOptions struct {
 	RelativeAssetBucket   kiosk.Source
 	RelativeAssetBucketID string
-	ImageOrientation      immich.ImageOrientation
+	ImageOrientation      string // "PORTRAIT", "LANDSCAPE", or "" for any
 	RelativeAssetWanted   bool
 }
 
@@ -132,9 +132,9 @@ func CopyContext(c *echo.Context) ContextCopy {
 }
 
 type URLViewData struct {
-	People []immich.Person
-	Albums []immich.Album
-	Tags   []immich.Tag
+	People []source.Person
+	Albums []source.Album
+	Tags   source.Tags
 }
 
 type URLBuilderRequest struct {

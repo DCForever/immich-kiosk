@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/damongolding/immich-kiosk/internal/common"
-	"github.com/damongolding/immich-kiosk/internal/immich"
+	"github.com/damongolding/immich-kiosk/internal/source"
 )
 
 func TestModifyGIFAssets(t *testing.T) {
@@ -19,7 +19,7 @@ func TestModifyGIFAssets(t *testing.T) {
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "original-data-1",
-						ImmichAsset: immich.Asset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-123",
 							OriginalMimeType: "image/gif",
 						},
@@ -34,7 +34,7 @@ func TestModifyGIFAssets(t *testing.T) {
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "original-data-1",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-456",
 							OriginalMimeType: "image/jpeg",
 						},
@@ -49,14 +49,14 @@ func TestModifyGIFAssets(t *testing.T) {
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "original-data-1",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-111",
 							OriginalMimeType: "image/gif",
 						},
 					},
 					{
 						ImageData: "original-data-2",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-222",
 							OriginalMimeType: "image/gif",
 						},
@@ -74,28 +74,28 @@ func TestModifyGIFAssets(t *testing.T) {
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "original-data-1",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-gif",
 							OriginalMimeType: "image/gif",
 						},
 					},
 					{
 						ImageData: "original-data-2",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-jpeg",
 							OriginalMimeType: "image/jpeg",
 						},
 					},
 					{
 						ImageData: "original-data-3",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-png",
 							OriginalMimeType: "image/png",
 						},
 					},
 					{
 						ImageData: "original-data-4",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-gif2",
 							OriginalMimeType: "image/gif",
 						},
@@ -122,21 +122,21 @@ func TestModifyGIFAssets(t *testing.T) {
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "webp-data",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-webp",
 							OriginalMimeType: "image/webp",
 						},
 					},
 					{
 						ImageData: "bmp-data",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-bmp",
 							OriginalMimeType: "image/bmp",
 						},
 					},
 					{
 						ImageData: "gif-data",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-animated",
 							OriginalMimeType: "image/gif",
 						},
@@ -155,7 +155,7 @@ func TestModifyGIFAssets(t *testing.T) {
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "gif-data",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "",
 							OriginalMimeType: "image/gif",
 						},
@@ -170,7 +170,7 @@ func TestModifyGIFAssets(t *testing.T) {
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "original-data",
-						ImmichAsset: immich.Asset{
+Asset: source.DisplayAsset{
 							ID:               "asset-case",
 							OriginalMimeType: "image/GIF", // uppercase
 						},
@@ -211,7 +211,7 @@ func TestModifyGIFAssetsDoesNotModifyOriginalAsset(t *testing.T) {
 		Assets: []common.ViewImageData{
 			{
 				ImageData: originalImageData,
-				ImmichAsset: immich.Asset{
+				Asset: source.DisplayAsset{
 					ID:               originalID,
 					OriginalMimeType: originalMimeType,
 				},
@@ -221,13 +221,13 @@ func TestModifyGIFAssetsDoesNotModifyOriginalAsset(t *testing.T) {
 
 	modifyGIFAssets(viewData)
 
-	// Verify ImmichAsset fields are unchanged
-	if viewData.Assets[0].ImmichAsset.ID != originalID {
-		t.Errorf("ImmichAsset.ID was modified, got %q, want %q", viewData.Assets[0].ImmichAsset.ID, originalID)
+	// Verify Asset fields are unchanged
+	if viewData.Assets[0].Asset.ID != originalID {
+		t.Errorf("Asset.ID was modified, got %q, want %q", viewData.Assets[0].Asset.ID, originalID)
 	}
 
-	if viewData.Assets[0].ImmichAsset.OriginalMimeType != originalMimeType {
-		t.Errorf("ImmichAsset.OriginalMimeType was modified, got %q, want %q", viewData.Assets[0].ImmichAsset.OriginalMimeType, originalMimeType)
+	if viewData.Assets[0].Asset.OriginalMimeType != originalMimeType {
+		t.Errorf("Asset.OriginalMimeType was modified, got %q, want %q", viewData.Assets[0].Asset.OriginalMimeType, originalMimeType)
 	}
 
 	// Verify ImageData was modified
@@ -259,14 +259,14 @@ func TestModifyGIFAssetsConcurrency(t *testing.T) {
 		Assets: []common.ViewImageData{
 			{
 				ImageData: "data-1",
-				ImmichAsset: immich.Asset{
+				Asset: source.DisplayAsset{
 					ID:               "asset-1",
 					OriginalMimeType: "image/gif",
 				},
 			},
 			{
 				ImageData: "data-2",
-				ImmichAsset: immich.Asset{
+				Asset: source.DisplayAsset{
 					ID:               "asset-2",
 					OriginalMimeType: "image/jpeg",
 				},

@@ -3,8 +3,8 @@ package components
 import (
 	"fmt"
 	"github.com/damongolding/immich-kiosk/internal/common"
-	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	"github.com/damongolding/immich-kiosk/internal/templates/components"
 	"github.com/damongolding/immich-kiosk/internal/templates/partials"
 	"github.com/damongolding/immich-kiosk/internal/utils"
@@ -67,24 +67,24 @@ templ renderImageBackground(viewData common.ViewData, imageData common.ViewImage
 //
 // Parameters:
 //   - viewData: ViewData containing image effect and refresh settings.
-//   - imageData: ImageData containing the image data and ImmichAsset.
+//   - imageData: ImageData containing the image data and Asset.
 //
 // The function uses frameWithZoom for zoom effects and frame for default rendering.
 // It delegates to RenderImageWithCoverFit or renderImageFit based on the image effect.
-templ renderImage(viewData common.ViewData, imageData common.ViewImageData, tags ...immich.Tag) {
+templ renderImage(viewData common.ViewData, imageData common.ViewImageData, tags ...source.Tag) {
 	{{
 		imageOrientation := kiosk.LandscapeOrientation
-		if imageData.ImmichAsset.IsPortrait {
+		if imageData.Asset.IsPortrait {
 			imageOrientation = kiosk.PortraitOrientation
 		}
 	}}
 	switch viewData.ImageEffect {
 		case "zoom":
-			@frameWithZoom(viewData.Duration, viewData.ImageEffect, imageData.ImmichAsset) {
+			@frameWithZoom(viewData.Duration, viewData.ImageEffect, imageData.Asset) {
 				@renderImageFit(imageData.ImageData, viewData.ImageFit, imageOrientation, tags...)
 			}
 		case "smart-zoom":
-			@frameWithZoom(viewData.Duration, viewData.ImageEffect, imageData.ImmichAsset) {
+			@frameWithZoom(viewData.Duration, viewData.ImageEffect, imageData.Asset) {
 				@RenderImageWithCoverFit(imageData.ImageData, imageOrientation, tags...)
 			}
 		default:
@@ -97,7 +97,7 @@ templ renderImage(viewData common.ViewData, imageData common.ViewImageData, tags
 templ renderLivePhoto(viewData common.ViewData, imageData common.ViewImageData) {
 	<div
 		style="display: none"
-		hx-get={ "/live/" + imageData.ImmichAsset.LivePhotoVideoID }
+		hx-get={ "/live/" + imageData.Asset.LivePhotoVideoID }
 		hx-swap="outerHTML"
 		hx-trigger="load, every 1s"
 	></div>
@@ -111,7 +111,7 @@ templ renderLivePhoto(viewData common.ViewData, imageData common.ViewImageData) 
 //   - imageIndex: The index of the image in the viewData.Images slice.
 templ renderSingleImage(viewData common.ViewData, imageData common.ViewImageData, imageIndex int) {
 	{{
-		livePhotos := viewData.LivePhotos && imageData.ImmichAsset.LivePhotoVideoID != ""
+		livePhotos := viewData.LivePhotos && imageData.Asset.LivePhotoVideoID != ""
 
 		if livePhotos {
 			viewData.ImageEffect = "none"
@@ -120,7 +120,7 @@ templ renderSingleImage(viewData common.ViewData, imageData common.ViewImageData
 		}
 	}}
 	@renderImageBackground(viewData, imageData)
-	@renderImage(viewData, imageData, viewData.Assets[imageIndex].ImmichAsset.Tags...)
+	@renderImage(viewData, imageData, viewData.Assets[imageIndex].Asset.Tags...)
 	if livePhotos {
 		@renderLivePhoto(viewData, imageData)
 	}
@@ -129,7 +129,7 @@ templ renderSingleImage(viewData common.ViewData, imageData common.ViewImageData
 			@partials.AssetMetadata(viewData, imageIndex)
 			<div class="asset-metadata-qr">
 				if (viewData.ShowImageQR) {
-					<img src={ utils.CreateQrCode(partials.ImmichAssetUrl(viewData.ImmichURL, viewData.ImmichExternalURL, imageData.ImmichAsset.ID)) }/>
+					<img src={ utils.CreateQrCode(partials.ImmichAssetUrl(viewData.ImmichURL, viewData.ImmichExternalURL, imageData.Asset.ID)) }/>
 				}
 			</div>
 		</div>
@@ -147,7 +147,7 @@ templ renderSingleImage(viewData common.ViewData, imageData common.ViewImageData
 //   - "cover": Uses RenderImageWithCoverFit
 //   - "none": Uses RenderImageWithoutFit
 //   - Any other value: Uses RenderImageWithContainFit (default behavior)
-templ renderImageFit(imageData, imageFit, imageOrientation string, tags ...immich.Tag) {
+templ renderImageFit(imageData, imageFit, imageOrientation string, tags ...source.Tag) {
 	switch imageFit {
 		case "cover":
 			@RenderImageWithCoverFit(imageData, imageOrientation, tags...)
@@ -163,7 +163,7 @@ templ renderImageFit(imageData, imageFit, imageOrientation string, tags ...immic
 // Parameters:
 //   - ImageData: A string containing the image data (typically a URL or base64-encoded image).
 //   - imageOrientation: A string specifying the image orientation ("portrait", "landscape", or "square").
-templ RenderImageWithCoverFit(ImageData, imageOrientation string, tags ...immich.Tag) {
+templ RenderImageWithCoverFit(ImageData, imageOrientation string, tags ...source.Tag) {
 	<img
 		class={ "frame--image-fit-cover", "frame--image--"+imageOrientation }
 		if len(tags) > 0 {
@@ -179,7 +179,7 @@ templ RenderImageWithCoverFit(ImageData, imageOrientation string, tags ...immich
 // Parameters:
 //   - ImageData: A string containing the image data (typically a URL or base64-encoded image).
 //   - imageOrientation: A string specifying the image orientation ("portrait", "landscape", or "square").
-templ RenderImageWithoutFit(ImageData, imageOrientation string, tags ...immich.Tag) {
+templ RenderImageWithoutFit(ImageData, imageOrientation string, tags ...source.Tag) {
 	<img
 		class={ "frame--image--" + imageOrientation }
 		if len(tags) > 0 {
@@ -195,7 +195,7 @@ templ RenderImageWithoutFit(ImageData, imageOrientation string, tags ...immich.T
 // Parameters:
 //   - ImageData: A string containing the image data (typically a URL or base64-encoded image).
 //   - imageOrientation: A string specifying the image orientation ("portrait", "landscape", or "square").
-templ RenderImageWithContainFit(ImageData, imageOrientation string, tags ...immich.Tag) {
+templ RenderImageWithContainFit(ImageData, imageOrientation string, tags ...source.Tag) {
 	<img
 		class={ "frame--image-fit-contain", "frame--image--"+imageOrientation }
 		src={ ImageData }

@@ -26,6 +26,11 @@ func NewAdapter(ctx context.Context, cfg config.Config) source.ProviderOps {
 	return &Adapter{asset: New(ctx, cfg)}
 }
 
+// Asset returns the underlying Immich asset (for VideoManager and other Immich-specific use).
+func (ad *Adapter) Asset() *Asset {
+	return &ad.asset
+}
+
 // assetOrder maps string order to Immich AssetOrder.
 func assetOrder(order string) AssetOrder {
 	switch strings.ToLower(order) {
@@ -90,6 +95,7 @@ func displayAssetFromImmich(a *Asset, requestID, deviceID string) source.Display
 		LocalDateTime:    a.LocalDateTime,
 		LivePhotoVideoID: a.LivePhotoVideoID,
 		MemoryTitle:      a.MemoryTitle,
+		OriginalFileName: a.OriginalFileName,
 		People:           people,
 		Tags:             tags,
 		AppearsIn:        albums,
@@ -155,6 +161,10 @@ func (ad *Adapter) ApplyDefaultUser() {
 	ad.asset.ApplyDefaultUser()
 }
 
+func (ad *Adapter) SetRatioWanted(orientation string) {
+	ad.asset.RatioWanted = ImageOrientation(orientation)
+}
+
 func (ad *Adapter) SelectedUser() string {
 	return ad.asset.SelectedUser()
 }
@@ -209,6 +219,30 @@ func (ad *Adapter) AllTags(requestID, deviceID string) (source.Tags, string, err
 
 func (ad *Adapter) ExpandTagPatterns(tags []string, requestID, deviceID string) []string {
 	return ad.asset.ExpandTagPatterns(tags, requestID, deviceID)
+}
+
+func (ad *Adapter) AllNamedPeople(requestID, deviceID string) ([]source.Person, error) {
+	people, err := ad.asset.AllNamedPeople(requestID, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]source.Person, len(people))
+	for i, p := range people {
+		out[i] = source.Person{ID: p.ID, Name: p.Name, BirthDate: source.BirthDate(p.BirthDate)}
+	}
+	return out, nil
+}
+
+func (ad *Adapter) AllAlbums(requestID, deviceID string) (source.Albums, error) {
+	albums, err := ad.asset.AllAlbums(requestID, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	out := make(source.Albums, len(albums))
+	for i, a := range albums {
+		out[i] = source.Album{ID: a.ID, AlbumName: a.AlbumName}
+	}
+	return out, nil
 }
 
 func (ad *Adapter) ImagePreview() ([]byte, string, error) {

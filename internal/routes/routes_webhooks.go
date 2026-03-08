@@ -10,7 +10,6 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/i18n"
-	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/utils"
 	"github.com/damongolding/immich-kiosk/internal/webhooks"
@@ -117,17 +116,15 @@ func Webhooks(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 
 				g.Go(func(currentAssetID string) func() error {
 					return func() error {
-						image := immich.New(com.Context(), requestConfig)
-						image.ID = currentAssetID
-
-						assetInfoErr := image.AssetInfo(requestID, deviceID)
+						provider := getProvider(com.Context(), requestConfig)
+						assetInfoErr := provider.AssetInfo(currentAssetID, requestID, deviceID)
 						if assetInfoErr != nil {
 							log.Error(assetInfoErr)
 							return assetInfoErr
 						}
 
 						viewData.Assets[i] = common.ViewImageData{
-							ImmichAsset: image,
+							Asset: provider.DisplayAsset(requestID, deviceID),
 						}
 						return nil
 					}

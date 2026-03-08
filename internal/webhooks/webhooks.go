@@ -12,7 +12,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
-	"github.com/damongolding/immich-kiosk/internal/immich"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	"github.com/damongolding/immich-kiosk/internal/utils"
 )
 
@@ -54,7 +54,7 @@ type Payload struct {
 	Timestamp  string         `json:"timestamp"`
 	DeviceID   string         `json:"deviceID"`
 	ClientName string         `json:"clientName"`
-	Assets     []immich.Asset `json:"assets"`
+	Assets     []source.DisplayAsset `json:"assets"`
 	Config     config.Config  `json:"config"`
 	AssetCount int            `json:"assetCount"`
 }
@@ -102,10 +102,10 @@ func Trigger(ctx context.Context, requestData *common.RouteRequestData, kioskVer
 			continue
 		}
 
-		images := make([]immich.Asset, len(viewData.Assets))
+		images := make([]source.DisplayAsset, len(viewData.Assets))
 
 		for i, image := range viewData.Assets {
-			images[i] = image.ImmichAsset
+			images[i] = image.Asset
 		}
 
 		payload := Payload{

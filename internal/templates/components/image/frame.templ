@@ -2,7 +2,7 @@ package components
 
 import (
 	"fmt"
-	"github.com/damongolding/immich-kiosk/internal/immich"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	"github.com/damongolding/immich-kiosk/internal/utils"
 )
 
@@ -28,34 +28,16 @@ templ frame() {
 }
 
 // smartZoom calculates the transform origin for an image based on detected faces.
-// It returns a templ.CSSClass for the transform-origin CSS property.
-//
-// If no faces are detected, it returns a random corner as the transform origin.
-// If faces are detected, it uses the center point of all faces as the transform origin.
-//
-// Parameters:
-//   - image: An immich.Asset containing information about detected faces.
-//
-// Returns:
-//   - templ.CSSClass: A CSS class for the transform-origin property.
-func smartZoom(image immich.Asset) templ.CSSClass {
-	if len(image.People) == 0 && len(image.UnassignedFaces) == 0 {
+// For source.DisplayAsset only People count is available; face center is not, so a random origin is used when people exist.
+func smartZoom(image source.DisplayAsset) templ.CSSClass {
+	if len(image.People) == 0 {
 		return transformOrigin(fmt.Sprintf("%s%% %s%%", utils.RandomItem([]string{"30", "70"}), utils.RandomItem([]string{"30", "70"})))
 	}
-
-	x, y := image.FacesCenterPoint()
-
-	if x == 0 || y == 0 {
-		return transformOrigin(fmt.Sprintf("%s%% %s%%", utils.RandomItem([]string{"30", "70"}), utils.RandomItem([]string{"30", "70"})))
-	}
-
-	return transformOrigin(fmt.Sprintf("%f%% %f%%", x, y))
+	return transformOrigin(fmt.Sprintf("%s%% %s%%", utils.RandomItem([]string{"30", "70"}), utils.RandomItem([]string{"30", "70"})))
 }
 
 // frameWithZoom is a template function that renders a frame with zoom effect for an image.
-// It takes the duration interval, image effect type, and the image asset as parameters.
-// Depending on the image effect, it applies different CSS classes for zooming.
-templ frameWithZoom(duration int, imageEffect string, img immich.Asset) {
+templ frameWithZoom(duration int, imageEffect string, img source.DisplayAsset) {
 	switch imageEffect {
 		case "smart-zoom":
 			<div class={ "frame--image", "frame--image-zoom" , animationDuration(float32(duration)), zoomInOrOut(imageEffect), smartZoom(img) }>

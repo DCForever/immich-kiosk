@@ -21,7 +21,7 @@ templ Video(viewData common.ViewData, secret string) {
 	{{ video := viewData.Assets[0] }}
 	{{
 		videoOrientation := kiosk.LandscapeOrientation
-		if video.ImmichAsset.IsPortrait {
+		if video.Asset.IsPortrait {
 			videoOrientation = kiosk.PortraitOrientation
 		}
 	}}
@@ -33,8 +33,8 @@ templ Video(viewData common.ViewData, secret string) {
 			<video
 				id={ ID }
 				class={ "frame--video--" + videoOrientation }
-				if len(video.ImmichAsset.Tags) > 0 {
-					data-tags={ components.CreateDataTag(video.ImmichAsset.Tags) }
+				if len(video.Asset.Tags) > 0 {
+					data-tags={ components.CreateDataTag(video.Asset.Tags) }
 				}
 				autoplay
 				muted
@@ -45,12 +45,12 @@ templ Video(viewData common.ViewData, secret string) {
 			>
 				<source
 					if viewData.Kiosk.Password != "" {
-						src={ fmt.Sprintf("/video/%s?password=%s", video.ImmichAsset.ID, url.QueryEscape(viewData.Kiosk.Password)) }
+						src={ fmt.Sprintf("/video/%s?password=%s", video.Asset.ID, url.QueryEscape(viewData.Kiosk.Password)) }
 					} else {
-						src={ fmt.Sprintf("/video/%s", video.ImmichAsset.ID) }
+						src={ fmt.Sprintf("/video/%s", video.Asset.ID) }
 					}
-					if video.ImmichAsset.ServedMimeType != "" {
-						type={ video.ImmichAsset.ServedMimeType }
+					if video.Asset.ServedMimeType != "" {
+						type={ video.Asset.ServedMimeType }
 					} else {
 						data-type="empty"
 					}
@@ -62,7 +62,7 @@ templ Video(viewData common.ViewData, secret string) {
 				@partials.AssetMetadata(viewData, 0)
 				<div class="asset-metadata-qr">
 					if (viewData.ShowImageQR) {
-						<img src={ utils.CreateQrCode(partials.ImmichAssetUrl(viewData.ImmichURL, viewData.ImmichExternalURL, video.ImmichAsset.ID)) }/>
+						<img src={ utils.CreateQrCode(partials.ImmichAssetUrl(viewData.ImmichURL, viewData.ImmichExternalURL, video.Asset.ID)) }/>
 					}
 				</div>
 			</div>

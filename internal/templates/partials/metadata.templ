@@ -9,7 +9,7 @@ import (
 
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
-	"github.com/damongolding/immich-kiosk/internal/immich"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	"github.com/damongolding/immich-kiosk/internal/utils"
 	"github.com/goodsign/monday"
 	"golang.org/x/text/cases"
@@ -43,9 +43,9 @@ func bubbleBackground(c string, asset common.ViewImageData) string {
 templ AssetMetadata(viewData common.ViewData, assetIndex int) {
 	// {{ showSourceName := shouldShowSourceName(viewData, assetIndex) }}
 	{{ showDateTime := viewData.ShowImageDate || viewData.ShowImageTime }}
-	{{ showDescription := viewData.ShowImageDescription && viewData.Assets[assetIndex].ImmichAsset.ExifInfo.Description != "" }}
+	{{ showDescription := viewData.ShowImageDescription && viewData.Assets[assetIndex].Asset.ExifInfo.Description != "" }}
 	{{ rightAlignIcons := len(viewData.Assets) > 1 && assetIndex == 1 }}
-	{{ names := peopleNames(viewData.Assets[assetIndex].ImmichAsset.People, viewData.ShowPersonName, viewData.ShowPersonAge, viewData.ShowAgeYearUnit, viewData.AgeSwitchToYearsAfter, viewData.Assets[assetIndex].ImmichAsset.LocalDateTime) }}
+	{{ names := peopleNames(viewData.Assets[assetIndex].Asset.People, viewData.ShowPersonName, viewData.ShowPersonAge, viewData.ShowAgeYearUnit, viewData.AgeSwitchToYearsAfter, viewData.Assets[assetIndex].Asset.LocalDateTime) }}
 	{{ showUser := viewData.ShowUser }}
 	{{ className := "frame-" + utils.GenerateUUID() }}
 	if viewData.Theme == "bubble" {
@@ -53,40 +53,40 @@ templ AssetMetadata(viewData common.ViewData, assetIndex int) {
 	}
 	<div class={ "asset--metadata", fmt.Sprintf("asset--metadata--theme-%s", viewData.Theme), templ.KV("right-align-icons", rightAlignIcons), className }>
 		if viewData.ShowImageRating {
-			@ratingStars(viewData.Assets[assetIndex].ImmichAsset.ExifInfo.Rating)
+			@ratingStars(viewData.Assets[assetIndex].Asset.ExifInfo.Rating)
 		}
 		if showUser && viewData.Assets[assetIndex].User != "" {
 			@userIcon(cases.Title(language.English).String(viewData.Assets[assetIndex].User))
 		}
 		if viewData.ShowOwner {
-			@uploadIcon(viewData.Assets[assetIndex].ImmichAsset.Owner.Name)
+			@uploadIcon(viewData.Assets[assetIndex].Asset.Owner.Name)
 		}
-		if viewData.Assets[assetIndex].ImmichAsset.MemoryTitle != "" {
-			@memoryIcon(viewData.Assets[assetIndex].ImmichAsset.MemoryTitle)
+		if viewData.Assets[assetIndex].Asset.MemoryTitle != "" {
+			@memoryIcon(viewData.Assets[assetIndex].Asset.MemoryTitle)
 		}
 		if (viewData.ShowPersonName || viewData.ShowPersonAge) && names != "" {
 			@templ.Raw(AssetPeople(names))
 		}
-		if viewData.ShowAlbumName && len(viewData.Assets[assetIndex].ImmichAsset.AppearsIn) != 0 {
-			@albumIcon(joinAlbumNames(viewData.Assets[assetIndex].ImmichAsset.AppearsIn))
+		if viewData.ShowAlbumName && len(viewData.Assets[assetIndex].Asset.AppearsIn) != 0 {
+			@albumIcon(joinAlbumNames(viewData.Assets[assetIndex].Asset.AppearsIn))
 		}
 		if showDateTime {
 			@calendarIcon(AssetDateTime(viewData, assetIndex, false))
 		}
-		if showDescription && len(viewData.Assets[assetIndex].ImmichAsset.ExifInfo.Description) > 0 {
-			@descriptionIcon(viewData.Assets[assetIndex].ImmichAsset.ExifInfo.Description)
+		if showDescription && len(viewData.Assets[assetIndex].Asset.ExifInfo.Description) > 0 {
+			@descriptionIcon(viewData.Assets[assetIndex].Asset.ExifInfo.Description)
 		}
 		if viewData.ShowImageCamera {
-			@cameraIcon(AssetCameraData(viewData.Assets[assetIndex].ImmichAsset.ExifInfo))
+			@cameraIcon(AssetCameraData(viewData.Assets[assetIndex].Asset.ExifInfo))
 		}
 		if viewData.ShowImageExif {
-			@exifIcon(AssetExif(viewData.Assets[assetIndex].ImmichAsset.ExifInfo))
+			@exifIcon(AssetExif(viewData.Assets[assetIndex].Asset.ExifInfo))
 		}
 		if viewData.ShowImageLocation {
-			@locationIcon(AssetLocation(viewData.Assets[assetIndex].ImmichAsset.ExifInfo, viewData.ImageLocation, viewData.HideCountries))
+			@locationIcon(AssetLocation(viewData.Assets[assetIndex].Asset.ExifInfo, viewData.ImageLocation, viewData.HideCountries))
 		}
 		if viewData.ShowImageID {
-			@idIcon(viewData.Assets[assetIndex].ImmichAsset.ID)
+			@idIcon(viewData.Assets[assetIndex].Asset.ID)
 		}
 	</div>
 }
@@ -104,7 +104,7 @@ templ AssetMetadata(viewData common.ViewData, assetIndex int) {
 // Returns:
 //   - string: Comma-separated location with optional line break before country,
 //     or empty string if no location data present
-func AssetLocation(info immich.ExifInfo, l config.ImageLocation, hideCountries []string) string {
+func AssetLocation(info source.ExifInfo, l config.ImageLocation, hideCountries []string) string {
 	var parts []string
 
 	if info.City != "" && !l.HideCity {
@@ -139,7 +139,7 @@ func AssetLocation(info immich.ExifInfo, l config.ImageLocation, hideCountries [
 //
 // Returns:
 //   - string: HTML-formatted EXIF information string, or empty if no EXIF data
-func AssetExif(info immich.ExifInfo) string {
+func AssetExif(info source.ExifInfo) string {
 	var stats strings.Builder
 
 	if info.FNumber == 0 && info.ExposureTime == "" && info.FocalLength == 0 && info.Iso == 0 {
@@ -174,7 +174,7 @@ func AssetExif(info immich.ExifInfo) string {
 	return stats.String()
 }
 
-func AssetCameraData(exifInfo immich.ExifInfo) string {
+func AssetCameraData(exifInfo source.ExifInfo) string {
 	ma := strings.TrimSpace(exifInfo.Make)
 	mo := strings.TrimSpace(exifInfo.Model)
 
@@ -201,7 +201,7 @@ func AssetDateTime(viewData common.ViewData, assetIndex int, moreInfo bool) stri
 	if assetIndex < 0 || assetIndex >= len(viewData.Assets) {
 		return ""
 	}
-	if viewData.Assets[assetIndex].ImmichAsset.LocalDateTime.IsZero() {
+	if viewData.Assets[assetIndex].Asset.LocalDateTime.IsZero() {
 		return ""
 	}
 
@@ -217,12 +217,12 @@ func AssetDateTime(viewData common.ViewData, assetIndex int, moreInfo bool) stri
 		assetDateFormat = config.DefaultDateLayout
 	}
 
-	parsedDateTime := viewData.Assets[assetIndex].ImmichAsset.LocalDateTime
-	timeZone := viewData.Assets[assetIndex].ImmichAsset.ExifInfo.TimeZone
+	parsedDateTime := viewData.Assets[assetIndex].Asset.LocalDateTime
+	timeZone := viewData.Assets[assetIndex].Asset.ExifInfo.TimeZone
 	if timeZone != "" {
 		loc, err := time.LoadLocation(timeZone)
 		if err == nil {
-			parsedDateTime = viewData.Assets[assetIndex].ImmichAsset.ExifInfo.DateTimeOriginal.In(loc)
+			parsedDateTime = viewData.Assets[assetIndex].Asset.ExifInfo.DateTimeOriginal.In(loc)
 		}
 	}
 	switch {
@@ -316,7 +316,7 @@ func pluralize(count int, unit string) string {
 //
 // Returns:
 //   - string: Comma-separated list of formatted person names with optional ages
-func peopleNames(people []immich.Person, showName, showAge, addYearUnit bool, switchToYears int, assetDate time.Time) string {
+func peopleNames(people []source.Person, showName, showAge, addYearUnit bool, switchToYears int, assetDate time.Time) string {
 	var names []string
 
 	for _, person := range people {
@@ -345,7 +345,7 @@ func peopleNames(people []immich.Person, showName, showAge, addYearUnit bool, sw
 //
 // Returns:
 //   - string: Formatted name with optional age in parentheses
-func formatPersonName(person immich.Person, showName, showAge, addYearUnit bool, switchToYears int, assetDate time.Time) string {
+func formatPersonName(person source.Person, showName, showAge, addYearUnit bool, switchToYears int, assetDate time.Time) string {
 	if !showName && !showAge {
 		return ""
 	}
@@ -373,7 +373,7 @@ func formatPersonName(person immich.Person, showName, showAge, addYearUnit bool,
 //
 // Returns:
 //   - string: Formatted age string or empty string if birth date is invalid
-func getPersonAge(person immich.Person, addYearUnit bool, switchToYears int, assetDate time.Time) string {
+func getPersonAge(person source.Person, addYearUnit bool, switchToYears int, assetDate time.Time) string {
 	birthDate, err := person.BirthDate.Time()
 	if err != nil {
 		return ""
@@ -389,7 +389,7 @@ func getPersonAge(person immich.Person, addYearUnit bool, switchToYears int, ass
 //
 // Returns:
 //   - string: Comma-separated list of album names
-func joinAlbumNames(albums immich.Albums) string {
+func joinAlbumNames(albums source.Albums) string {
 	albumNames := make([]string, len(albums))
 
 	for i, album := range albums {

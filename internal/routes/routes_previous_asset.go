@@ -18,6 +18,7 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/i18n"
 	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	imageComponent "github.com/damongolding/immich-kiosk/internal/templates/components/image"
 	videoComponent "github.com/damongolding/immich-kiosk/internal/templates/components/video"
 	"github.com/damongolding/immich-kiosk/internal/utils"
@@ -152,7 +153,7 @@ func historyAsset(baseConfig *config.Config, com *common.Common, c *echo.Context
 
 	go webhooks.Trigger(com.Context(), requestData, KioskVersion, webhookEvent, viewData)
 
-	if len(viewData.Assets) > 0 && requestConfig.ShowTime && viewData.Assets[0].ImmichAsset.Type == immich.VideoType {
+	if len(viewData.Assets) > 0 && requestConfig.ShowTime && viewData.Assets[0].Asset.Type == source.TypeVideo {
 		return Render(c, http.StatusOK, videoComponent.Video(viewData, com.Secret()))
 	}
 
@@ -166,60 +167,54 @@ func getHistoryAsset(requestConfig config.Config, com *common.Common, requestID,
 	return func() error {
 		requestConfig.SelectedUser = selectedUser
 
-		asset := immich.New(com.Context(), requestConfig)
-		asset.ID = currentAssetID
-		if requestConfig.Memories {
-			if ok, memory, assetIndex := asset.IsMemory(); ok {
-				asset.Bucket = kiosk.SourceMemories
-				asset.MemoryTitle = humanize.Time(memory.Assets[assetIndex].LocalDateTime)
-			}
+		provider := getProvider(com.Context(), requestConfig)
+		if assetInfoErr := provider.AssetInfo(currentAssetID, requestID, deviceID); assetInfoErr != nil {
+			return fmt.Errorf("failed to get asset info: %w", assetInfoErr)
 		}
 
 		var wg sync.WaitGroup
 		wg.Add(1)
-
-		// Fetch asset info and album details in a goroutine.
-		go func(asset *immich.Asset, requestID string, wg *sync.WaitGroup) {
+		go func() {
 			defer wg.Done()
-			var processingErr error
-
-			if assetInfoErr := asset.AssetInfo(requestID, deviceID); assetInfoErr != nil {
-				processingErr = fmt.Errorf("failed to get asset info: %w", assetInfoErr)
-				log.Error(processingErr)
+			if ad, ok := provider.(*immich.Adapter); ok {
+				asset := ad.Asset()
+				asset.AddRatio()
+				if requestConfig.ShowAlbumName {
+					asset.AlbumsThatContainAsset(requestID, deviceID)
+				}
+				if requestConfig.Memories {
+					if ok, memory, assetIndex := asset.IsMemory(); ok {
+						asset.Bucket = kiosk.SourceMemories
+						asset.MemoryTitle = humanize.Time(memory.Assets[assetIndex].LocalDateTime)
+					}
+				}
 			}
-
-			asset.AddRatio()
-
-			if requestConfig.ShowAlbumName {
-				asset.AlbumsThatContainAsset(requestID, deviceID)
-			}
-
-		}(&asset, requestID, &wg)
+		}()
 
 		var imgString, imgBlurString string
 		var dominantColor color.RGBA
 		var err error
 
-		// Populate the viewData.Assets entry for this asset after processing.
 		defer func() {
+			displayAsset := provider.DisplayAsset(requestID, deviceID)
 			viewData.Assets[prevAssetsID] = common.ViewImageData{
-				ImmichAsset:        asset,
-				ImageData:          imgString,
-				ImageBlurData:      imgBlurString,
-				ImageDominantColor: dominantColor,
-				User:               selectedUser,
+				Asset:               displayAsset,
+				ImageData:           imgString,
+				ImageBlurData:       imgBlurString,
+				ImageDominantColor:  dominantColor,
+				User:                selectedUser,
 			}
 		}()
 
-		// Image processing isn't required for video, audio, or other types.
-		// If preview fails for an image, return error; for other types, proceed.
-		imgBytes, _, previewErr := asset.ImagePreview()
+		imgBytes, _, previewErr := provider.ImagePreview()
 		if previewErr != nil {
-			switch asset.Type {
-			case immich.ImageType:
+			switch provider.DisplayAsset(requestID, deviceID).Type {
+			case source.TypeImage:
 				return fmt.Errorf("retrieving asset: %w", previewErr)
-
-			case immich.VideoType, immich.AudioType, immich.OtherType:
+			case source.TypeVideo:
+				wg.Wait()
+				return nil
+			default:
 				wg.Wait()
 				return nil
 			}
@@ -235,7 +230,8 @@ func getHistoryAsset(requestConfig config.Config, com *common.Common, requestID,
 			return fmt.Errorf("converting image to base64: %w", base64Err)
 		}
 
-		imgBlurString, blurErr := processBlurredImage(img, asset.Type, requestConfig, requestID, deviceID, false)
+		displayAsset := provider.DisplayAsset(requestID, deviceID)
+		imgBlurString, blurErr := processBlurredImage(img, immich.AssetType(displayAsset.Type), requestConfig, requestID, deviceID, false)
 		if blurErr != nil {
 			return fmt.Errorf("converting blurred image to base64: %w", blurErr)
 		}
