@@ -101,6 +101,37 @@ func (c *Client) getJSON(ctx context.Context, path string, query url.Values, v a
 	return headers, nil
 }
 
+// fileDecode is used when decoding GetPhoto response to capture "markers" (lowercase) as well as "Markers".
+type fileDecode struct {
+	File
+	MarkersLower []Marker `json:"markers"`
+}
+
+// GetPhoto fetches full details for one photo by UID (GET /api/v1/photos/{uid}).
+// The detail response may include Files with Markers (faces/subjects) when the list endpoint omits them.
+// Handles both "Files"/"files" and "Markers"/"markers" JSON key casings.
+func (c *Client) GetPhoto(ctx context.Context, uid string) (*Photo, error) {
+	var out struct {
+		Photo
+		FilesLower []fileDecode `json:"files"`
+	}
+	path := apiPrefix + "/photos/" + url.PathEscape(uid)
+	_, err := c.getJSON(ctx, path, nil, &out)
+	if err != nil {
+		return nil, err
+	}
+	if len(out.Photo.Files) == 0 && len(out.FilesLower) > 0 {
+		out.Photo.Files = make([]File, len(out.FilesLower))
+		for i := range out.FilesLower {
+			out.Photo.Files[i] = out.FilesLower[i].File
+			if len(out.Photo.Files[i].Markers) == 0 && len(out.FilesLower[i].MarkersLower) > 0 {
+				out.Photo.Files[i].Markers = out.FilesLower[i].MarkersLower
+			}
+		}
+	}
+	return &out.Photo, nil
+}
+
 // getBytes performs a GET request and returns the raw body (e.g. for thumbnail/video binary).
 func (c *Client) getBytes(ctx context.Context, path string) ([]byte, string, error) {
 	rawURL := c.BaseURL + path

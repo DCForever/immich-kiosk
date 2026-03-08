@@ -157,6 +157,7 @@ func (p *Provider) fetchPhotosWithCache(albumUID, order, label, dateFilter, pers
 					} else {
 						cache.Delete(cacheKey)
 					}
+					p.enrichCurrentPhotoWithMarkers()
 					return nil
 				} else {
 					cache.Delete(cacheKey)
@@ -185,7 +186,32 @@ func (p *Provider) fetchPhotosWithCache(albumUID, order, label, dateFilter, pers
 		jsonBytes, _ := json.Marshal(rest)
 		cache.Set(cacheKey, jsonBytes, p.cfg.Duration)
 	}
+	p.enrichCurrentPhotoWithMarkers()
 	return nil
+}
+
+// enrichCurrentPhotoWithMarkers fetches full photo details (GET /api/v1/photos/:uid) when
+// ShowPersonName is true, so we get Files with Markers (faces/subjects) that the list endpoint often omits.
+func (p *Provider) enrichCurrentPhotoWithMarkers() {
+	if !p.cfg.ShowPersonName || len(p.current) == 0 {
+		return
+	}
+	uid := p.current[0].UID
+	detailed, err := p.client.GetPhoto(p.ctx, uid)
+	if err != nil {
+		if p.cfg.Kiosk.Debug {
+			log.Debug("PhotoPrism: GetPhoto failed (markers may be missing)", "uid", uid, "err", err)
+		}
+		return
+	}
+	p.current[0] = *detailed
+	if p.cfg.Kiosk.Debug {
+		markers := 0
+		for _, f := range detailed.Files {
+			markers += len(f.Markers)
+		}
+		log.Debug("PhotoPrism: enriched photo with details", "uid", uid, "markers", markers)
+	}
 }
 
 // currentPhoto returns the first current photo or nil.
