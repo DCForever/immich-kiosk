@@ -10,7 +10,7 @@ The kiosk supports two media backends: **Immich** and **PhotoPrism**. Most behav
 | **Tags / labels** | ✅ | ✅ (labels) |
 | **Date range** | ✅ | ✅ |
 | **Favourites** | ✅ | ✅ (favourite filter) |
-| **People** | ✅ | ❌ Not supported |
+| **People** | ✅ | ✅ (by subject name; subject list if API supports it) |
 | **Memories** | ✅ | ❌ Not supported |
 | **Star rating** | ✅ | ❌ Not supported |
 | **Like / Hide / Tag actions** | ✅ (writes to Immich) | No-op (UI only) |
@@ -20,4 +20,4 @@ The kiosk supports two media backends: **Immich** and **PhotoPrism**. Most behav
 | **Prefetch** | ✅ | ✅ |
 | **Offline mode** | ✅ | ✅ (same flow) |
 
-When `source: photoprism`, config options for people, memories, and rating are ignored. The URL builder still shows albums and labels (tags); people list is empty for PhotoPrism.
+When `source: photoprism`, config options for memories and rating are ignored. People filtering uses PhotoPrism subject names (config `people`); if GET /api/v1/subjects is available, the URL builder shows people in the dropdown.

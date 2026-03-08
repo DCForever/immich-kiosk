@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/damongolding/immich-kiosk/internal/config"
+	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/source"
 )
 
@@ -97,5 +98,153 @@ func TestProvider_DisplayAsset_Mapping(t *testing.T) {
 	}
 	if got.ExifInfo.Latitude != 52.52 || got.ExifInfo.Longitude != 13.405 {
 		t.Errorf("ExifInfo Lat/Lng = %f / %f", got.ExifInfo.Latitude, got.ExifInfo.Longitude)
+	}
+}
+
+func TestBuildPersonSearchQuery(t *testing.T) {
+	t.Run("single person", func(t *testing.T) {
+		cfg := config.Config{People: []string{"Jane Doe"}}
+		got := buildPersonSearchQuery(cfg, "Jane Doe")
+		if got != `person:"Jane Doe"` {
+			t.Errorf("got %q", got)
+		}
+	})
+	t.Run("require all people", func(t *testing.T) {
+		cfg := config.Config{RequireAllPeople: true, People: []string{"Alice", "Bob"}}
+		got := buildPersonSearchQuery(cfg, "Alice")
+		if got != `people:"Alice & Bob"` {
+			t.Errorf("got %q", got)
+		}
+	})
+}
+
+func TestProvider_PersonAssetCount(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/photos" {
+			t.Errorf("path = %s", r.URL.Path)
+			return
+		}
+		q := r.URL.Query().Get("q")
+		if q != `person:"Jane"` {
+			t.Errorf("q = %q", q)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		photos := []Photo{{UID: "p1", Type: "image"}, {UID: "p2", Type: "image"}}
+		_ = json.NewEncoder(w).Encode(photos)
+	}))
+	defer server.Close()
+
+	cfg := config.Config{PhotoprismURL: server.URL, PhotoprismToken: "t", People: []string{"Jane"}}
+	client := NewClient(server.URL, "t")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: cfg, ctx: context.Background()}
+
+	count, err := p.PersonAssetCount("Jane", "req", "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Errorf("count = %d, want 2", count)
+	}
+}
+
+func TestProvider_RandomAssetOfPerson_setsBucket(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/photos" {
+			t.Errorf("path = %s", r.URL.Path)
+			return
+		}
+		w.Header().Set("X-Preview-Token", "pt")
+		w.Header().Set("X-Download-Token", "dt")
+		w.Header().Set("Content-Type", "application/json")
+		photos := []Photo{{UID: "p1", Type: "image", Files: []File{{Primary: true, Mime: "image/jpeg"}}}}
+		_ = json.NewEncoder(w).Encode(photos)
+	}))
+	defer server.Close()
+
+	cfg := config.Config{PhotoprismURL: server.URL, PhotoprismToken: "t", Kiosk: config.KioskSettings{Cache: false}}
+	client := NewClient(server.URL, "t")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: cfg, ctx: context.Background()}
+
+	err := p.RandomAssetOfPerson("Jane", "req", "dev", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := p.DisplayAsset("req", "dev")
+	if got.Bucket != kiosk.SourcePerson {
+		t.Errorf("Bucket = %v, want SourcePerson", got.Bucket)
+	}
+	if got.BucketID != "Jane" {
+		t.Errorf("BucketID = %q, want Jane", got.BucketID)
+	}
+}
+
+func TestProvider_AllNamedPeople_returnsList(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/subjects" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		subjects := []Subject{{UID: "s1", Name: "Alice"}, {UID: "s2", Name: "Bob"}}
+		_ = json.NewEncoder(w).Encode(subjects)
+	}))
+	defer server.Close()
+
+	cfg := config.Config{PhotoprismURL: server.URL, PhotoprismToken: "t"}
+	client := NewClient(server.URL, "t")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: cfg, ctx: context.Background()}
+
+	people, err := p.AllNamedPeople("req", "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(people) != 2 {
+		t.Fatalf("len(people) = %d, want 2", len(people))
+	}
+	if people[0].ID != "s1" || people[0].Name != "Alice" {
+		t.Errorf("people[0] = %+v", people[0])
+	}
+	if people[1].ID != "s2" || people[1].Name != "Bob" {
+		t.Errorf("people[1] = %+v", people[1])
+	}
+}
+
+func TestProvider_AllNamedPeople_emptyOnFail(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	cfg := config.Config{PhotoprismURL: server.URL, PhotoprismToken: "t"}
+	client := NewClient(server.URL, "t")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: cfg, ctx: context.Background()}
+
+	people, err := p.AllNamedPeople("req", "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if people != nil {
+		t.Errorf("people = %v, want nil on 404", people)
+	}
+}
+
+func TestProvider_RandomPersonFromAllPeople_errorWhenNoList(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	cfg := config.Config{PhotoprismURL: server.URL, PhotoprismToken: "t"}
+	client := NewClient(server.URL, "t")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: cfg, ctx: context.Background()}
+
+	_, err := p.RandomPersonFromAllPeople("req", "dev", true)
+	if err == nil {
+		t.Fatal("expected error when no subject list")
 	}
 }

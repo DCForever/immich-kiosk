@@ -78,3 +78,11 @@ type Label struct {
 	Name string `json:"Name"`
 	Slug string `json:"Slug"`
 }
+
+// Subject from PhotoPrism GET /api/v1/subjects (list). Used for AllNamedPeople when the endpoint exists.
+// See https://docs.photoprism.app/developer-guide/api/ (subjects).
+type Subject struct {
+	UID       string `json:"UID"`
+	Name      string `json:"Name"`
+	BirthDate string `json:"BirthDate,omitempty"`
+}
