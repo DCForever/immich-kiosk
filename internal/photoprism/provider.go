@@ -6,16 +6,27 @@ package photoprism
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/source"
 )
+
+const cacheBatchSize = 30
+
+// cachedPhotoBatch is stored in cache (JSON) to reuse API responses.
+type cachedPhotoBatch struct {
+	List          []Photo `json:"list"`
+	PreviewToken  string  `json:"preview_token"`
+	DownloadToken string  `json:"download_token"`
+}
 
 // Provider implements source.ProviderOps for PhotoPrism.
 type Provider struct {
@@ -66,6 +77,72 @@ func (p *Provider) fetchPhotos(albumUID string, order string, count int) ([]Phot
 	return list, preview, download, nil
 }
 
+// fetchPhotosWithCache returns one photo by either popping from cache or fetching a batch from the API.
+// When cache is enabled, it stores batches (cachedPhotoBatch) keyed by apiURL+deviceID+date and reuses them.
+// label is optional (for tag/label filter); dateFilter is optional (e.g. "after:2020-01-01").
+func (p *Provider) fetchPhotosWithCache(albumUID, order, label, dateFilter, requestID, deviceID string) error {
+	q := p.photosQuery(cacheBatchSize, order, albumUID)
+	if label != "" {
+		q.Set("label", label)
+	}
+	if dateFilter != "" {
+		q.Set("q", dateFilter)
+	}
+	apiURL := p.client.BaseURL + apiPrefix + "/photos?" + q.Encode()
+	cacheKey := cache.APICacheKey(apiURL, deviceID, "")
+
+	if p.cfg.Kiosk.Cache {
+		if data, found := cache.Get(cacheKey); found {
+			if b, ok := data.([]byte); ok {
+				var batch cachedPhotoBatch
+				if err := json.Unmarshal(b, &batch); err != nil {
+					cache.Delete(cacheKey)
+				} else if len(batch.List) > 0 {
+					first := batch.List[0]
+					p.current = []Photo{first}
+					p.previewToken = batch.PreviewToken
+					p.downloadToken = batch.DownloadToken
+					if len(batch.List) > 1 {
+						rest := cachedPhotoBatch{
+							List:          batch.List[1:],
+							PreviewToken:  batch.PreviewToken,
+							DownloadToken: batch.DownloadToken,
+						}
+						jsonBytes, _ := json.Marshal(rest)
+						cache.Set(cacheKey, jsonBytes, p.cfg.Duration)
+					} else {
+						cache.Delete(cacheKey)
+					}
+					return nil
+				} else {
+					cache.Delete(cacheKey)
+				}
+			}
+		}
+	}
+
+	list, preview, download, err := p.fetchPhotos(albumUID, order, cacheBatchSize)
+	if err != nil {
+		return err
+	}
+	if len(list) == 0 {
+		return fmt.Errorf("photoprism: no photos")
+	}
+	p.current = []Photo{list[0]}
+	p.previewToken = preview
+	p.downloadToken = download
+	if p.cfg.Kiosk.Cache && len(list) > 1 {
+		rest := cachedPhotoBatch{
+			List:          list[1:],
+			PreviewToken:  preview,
+			DownloadToken: download,
+		}
+		jsonBytes, _ := json.Marshal(rest)
+		cache.Set(cacheKey, jsonBytes, p.cfg.Duration)
+	}
+	return nil
+}
+
 // currentPhoto returns the first current photo or nil.
 func (p *Provider) currentPhoto() *Photo {
 	if len(p.current) == 0 {
@@ -75,17 +152,7 @@ func (p *Provider) currentPhoto() *Photo {
 }
 
 func (p *Provider) RandomAsset(requestID, deviceID string, isPrefetch bool) error {
-	list, preview, download, err := p.fetchPhotos("", "random", 1)
-	if err != nil {
-		return err
-	}
-	if len(list) == 0 {
-		return fmt.Errorf("photoprism: no photos")
-	}
-	p.current = list
-	p.previewToken = preview
-	p.downloadToken = download
-	return nil
+	return p.fetchPhotosWithCache("", "random", "", "", requestID, deviceID)
 }
 
 func (p *Provider) RandomAssetFromFavourites(requestID, deviceID string, isPrefetch bool) error {
@@ -115,36 +182,21 @@ func (p *Provider) AssetFromAlbum(albumID, order string, requestID, deviceID str
 	default:
 		ord = "random"
 	}
-	list, preview, download, err := p.fetchPhotos(albumID, ord, 1)
-	if err != nil {
+	if err := p.fetchPhotosWithCache(albumID, ord, "", "", requestID, deviceID); err != nil {
 		return err
 	}
-	if len(list) == 0 {
+	if len(p.current) == 0 {
 		return fmt.Errorf("photoprism: no photos in album %s", albumID)
 	}
-	p.current = list
-	p.previewToken = preview
-	p.downloadToken = download
 	return nil
 }
 
 func (p *Provider) RandomAssetInDateRange(dateRange, requestID, deviceID string, isPrefetch bool) error {
-	q := p.photosQuery(1, "random", "")
+	dateFilter := ""
 	if dateRange != "" {
-		q.Set("q", "after:"+dateRange)
+		dateFilter = "after:" + dateRange
 	}
-	var list []Photo
-	headers, err := p.client.getJSON(p.ctx, apiPrefix+"/photos", q, &list)
-	if err != nil {
-		return err
-	}
-	if len(list) == 0 {
-		return fmt.Errorf("photoprism: no photos in date range")
-	}
-	p.current = list
-	p.previewToken = headers["x-preview-token"]
-	p.downloadToken = headers["x-download-token"]
-	return nil
+	return p.fetchPhotosWithCache("", "random", "", dateFilter, requestID, deviceID)
 }
 
 // RandomAssetOfPerson is not supported by PhotoPrism (no people API in same way). Return error so bucket is skipped.
@@ -158,19 +210,12 @@ func (p *Provider) RandomMemoryAsset(requestID, deviceID string) error {
 }
 
 func (p *Provider) RandomAssetWithTag(tagID, requestID, deviceID string, isPrefetch bool) error {
-	q := p.photosQuery(1, "random", "")
-	q.Set("label", tagID)
-	var list []Photo
-	headers, err := p.client.getJSON(p.ctx, apiPrefix+"/photos", q, &list)
-	if err != nil {
+	if err := p.fetchPhotosWithCache("", "random", tagID, "", requestID, deviceID); err != nil {
 		return err
 	}
-	if len(list) == 0 {
+	if len(p.current) == 0 {
 		return fmt.Errorf("photoprism: no photos with label %s", tagID)
 	}
-	p.current = list
-	p.previewToken = headers["x-preview-token"]
-	p.downloadToken = headers["x-download-token"]
 	return nil
 }
 

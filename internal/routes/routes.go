@@ -105,7 +105,7 @@ func InitializeRequestData(c *echo.Context, baseConfig *config.Config) (*common.
 	}, nil
 }
 
-func RenderError(c *echo.Context, err error, message string, refresh int) error {
+func RenderError(c *echo.Context, err error, message string, refresh int, source string) error {
 	log.Error(message, "err", err)
 
 	retry := refresh > 5
@@ -114,6 +114,7 @@ func RenderError(c *echo.Context, err error, message string, refresh int) error 
 		Title:   "Error " + message,
 		Message: err.Error(),
 		Retry:   retry,
+		Source:  source,
 	}))
 }
 

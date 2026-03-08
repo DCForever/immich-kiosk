@@ -143,7 +143,7 @@ func historyAsset(baseConfig *config.Config, com *common.Common, c *echo.Context
 	errGroupWait := g.Wait()
 	if errGroupWait != nil {
 		t := i18n.T()
-		return RenderError(c, errGroupWait, t("processing_images"), requestConfig.Duration)
+		return RenderError(c, errGroupWait, t("processing_images"), requestConfig.Duration, requestConfig.Source)
 	}
 
 	webhookEvent := webhooks.PreviousHistoryAsset

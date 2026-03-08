@@ -50,6 +50,9 @@ var SchemaJSON string
 
 func init() {
 	routes.KioskVersion = version
+	if routes.KioskVersion == "" {
+		routes.KioskVersion = "dev"
+	}
 	config.SchemaJSON = SchemaJSON
 	i18n.LocaleFS = localeFS
 }

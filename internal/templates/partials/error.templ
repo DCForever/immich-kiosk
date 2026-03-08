@@ -6,6 +6,7 @@ type ErrorData struct {
 	Title   string
 	Message string
 	Retry   bool
+	Source  string // "immich" or "photoprism" for source-specific hint; empty falls back to immich
 }
 
 templ Error(data ErrorData) {
@@ -31,7 +32,11 @@ templ Error(data ErrorData) {
 						<li>{ t("error_message_sources") }</li>
 						<li>{ t("error_message_assets") }</li>
 						<li>{ t("error_message_filters") }</li>
-						<li>{ t("error_message_immich") }</li>
+						if data.Source == "photoprism" {
+							<li>{ t("error_message_photoprism") }</li>
+						} else {
+							<li>{ t("error_message_immich") }</li>
+						}
 					</ul>
 					<p>
 						{ t("error_message_full_error") }:

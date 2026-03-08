@@ -73,14 +73,16 @@ Default port is **3000**. Open:
 
 ## 6. Running integration tests against live PhotoPrism
 
-The `internal/photoprism` package includes optional tests that call a real PhotoPrism API to verify Bearer token authentication. They are skipped unless the required environment variables are set, so CI does not need a PhotoPrism instance.
+The `internal/photoprism` package includes optional tests that call a real PhotoPrism API to verify Bearer token authentication. They are skipped unless credentials are available from **environment variables** or, if those are not set, from **config.yaml** (so CI without a config file still skips).
 
 1. **Set credentials** (use the same app password or token as for the kiosk, e.g. from **Settings → Account → Apps and Devices**):
-
-   ```bash
-   export KIOSK_PHOTOPRISM_URL="http://localhost:2342"
-   export KIOSK_PHOTOPRISM_TOKEN="your-app-password-or-token"
-   ```
+   - **Option A – environment variables:**
+     ```bash
+     export KIOSK_PHOTOPRISM_URL="http://localhost:2342"
+     export KIOSK_PHOTOPRISM_TOKEN="your-app-password-or-token"
+     ```
+   - **Option B – config.yaml:**  
+     If `KIOSK_PHOTOPRISM_URL` and `KIOSK_PHOTOPRISM_TOKEN` are not set, the tests use `photoprism_url` and `photoprism_token` from `config.yaml` in the project root (when the test can find it).
 
 2. **Run the live tests:**
 
@@ -91,7 +93,7 @@ The `internal/photoprism` package includes optional tests that call a real Photo
    - `TestClient_Live_ValidToken` – GET `/api/v1/photos?count=1` with your token; expects 200 and valid JSON.
    - `TestClient_Live_InvalidToken` – same endpoint with an invalid token; expects an error (e.g. 401).
 
-Without `KIOSK_PHOTOPRISM_URL` and `KIOSK_PHOTOPRISM_TOKEN`, these tests are skipped.
+If neither env nor config provides URL and token, the tests are skipped.
 
 ## 7. Features per source
 

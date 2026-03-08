@@ -59,8 +59,12 @@ templ RenderMoreInfo(viewData common.ViewData, secret string) {
 					@tags(img.Asset.Tags)
 					<div class="more-info--button-group">
 						if viewData.ShowMoreInfoImageLink {
-							<a class="more-info--image-link" href={ templ.SafeURL(ImmichAssetUrl(viewData.ImmichURL, viewData.ImmichExternalURL, img.Asset.ID)) } target="_blank">
-								{ t("immich_link_btn") }
+							<a class="more-info--image-link" href={ templ.SafeURL(AssetViewUrl(viewData.Source, viewData.ImmichURL, viewData.ImmichExternalURL, viewData.PhotoprismURL, img.Asset.ID)) } target="_blank">
+								if viewData.Source == "photoprism" {
+									{ t("photoprism_link_btn") }
+								} else {
+									{ t("immich_link_btn") }
+								}
 							</a>
 						}
 						if viewData.Webhooks.ContainsEvent(webhooks.UserWebhookTriggerInfoOverlay.String()) {
@@ -79,7 +83,7 @@ templ RenderMoreInfo(viewData common.ViewData, secret string) {
 				</div>
 				if viewData.ShowMoreInfoQrCode {
 					<div class="more-info--image--qr-code">
-						<img src={ utils.CreateQrCode(ImmichAssetUrl(viewData.ImmichURL, viewData.ImmichExternalURL, img.Asset.ID)) }/>
+						<img src={ utils.CreateQrCode(AssetViewUrl(viewData.Source, viewData.ImmichURL, viewData.ImmichExternalURL, viewData.PhotoprismURL, img.Asset.ID)) }/>
 					</div>
 				}
 			</div>
@@ -377,6 +381,28 @@ func tags(tags source.Tags) templ.Component {
 			</div>
 		`).Render(ctx, w)
 	})
+}
+
+// AssetViewUrl returns the URL for viewing an asset in the configured source (Immich or PhotoPrism).
+func AssetViewUrl(source, immichURL, immichExtURL, photoprismURL, imageID string) string {
+	if source == config.SourcePhotoPrism {
+		return photoPrismAssetUrl(photoprismURL, imageID)
+	}
+	return ImmichAssetUrl(immichURL, immichExtURL, imageID)
+}
+
+// photoPrismAssetUrl constructs the URL for viewing a photo in PhotoPrism (/photos/uid).
+func photoPrismAssetUrl(baseURL, imageID string) string {
+	if baseURL == "" {
+		return "#"
+	}
+	u, err := url.Parse(strings.TrimSuffix(baseURL, "/"))
+	if err != nil {
+		log.Warn("Failed to parse PhotoPrism URL", "error", err)
+		return "#"
+	}
+	u.Path = path.Join("/", "photos", imageID)
+	return u.String()
 }
 
 // ImmichAssetUrl constructs the URL for viewing an image in Immich
