@@ -1,11 +1,34 @@
 package photoprism
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
+
+// flexString unmarshals from either a JSON string or number (PhotoPrism list returns string ID, detail returns number id).
+type flexString string
+
+func (s *flexString) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && (b[0] == '"' || b[0] == '\'') {
+		var str string
+		if err := json.Unmarshal(b, &str); err != nil {
+			return err
+		}
+		*s = flexString(str)
+		return nil
+	}
+	var n json.Number
+	if err := json.Unmarshal(b, &n); err != nil {
+		return err
+	}
+	*s = flexString(n.String())
+	return nil
+}
 
 // Photo represents a photo from GET /api/v1/photos (single item or from list).
 // API reference: https://docs.photoprism.dev/
 type Photo struct {
-	ID            string    `json:"ID"`
+	ID            flexString `json:"ID"`            // list may send string, detail sends number
 	UID           string    `json:"UID"`
 	Type          string    `json:"Type"` // "image" or "video"
 	Hash          string    `json:"Hash"`
