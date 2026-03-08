@@ -16,6 +16,7 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/immich"
+	"github.com/damongolding/immich-kiosk/internal/photoprism"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/source"
 	imageComponent "github.com/damongolding/immich-kiosk/internal/templates/components/image"
@@ -28,8 +29,12 @@ import (
 
 var errVideoNotReady = errors.New("video not ready")
 
-// getProvider returns a media source provider for the given config. Currently always returns the Immich adapter.
+// getProvider returns a media source provider for the given config.
+// When config.Source is "photoprism" returns a PhotoPrism provider; otherwise returns the Immich adapter.
 func getProvider(ctx context.Context, cfg config.Config) source.ProviderOps {
+	if cfg.Source == config.SourcePhotoPrism {
+		return photoprism.NewProvider(ctx, cfg)
+	}
 	return immich.NewAdapter(ctx, cfg)
 }
 
