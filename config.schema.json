@@ -210,10 +210,16 @@
       "type": "integer"
     },
     "theme": {
-      "type": "string"
+      "type": "string",
+      "enum": ["fade", "solid", "bubble", "blur"],
+      "default": "fade",
+      "description": "Theme to use for the UI (clock, weather, metadata)."
     },
     "layout": {
-      "type": "string"
+      "type": "string",
+      "enum": ["single", "portrait", "landscape", "splitview", "splitview-landscape"],
+      "default": "single",
+      "description": "How images are arranged on the screen."
     },
     "sleep_start": {
       "type": ["string", "integer"]
@@ -231,7 +237,9 @@
       "type": "boolean"
     },
     "transition": {
-      "type": "string"
+      "type": "string",
+      "enum": ["none", "fade", "cross-fade"],
+      "description": "Transition when changing images."
     },
     "fade_transition_duration": {
       "type": "number",
@@ -257,10 +265,15 @@
       "type": "string"
     },
     "image_fit": {
-      "type": "string"
+      "type": "string",
+      "enum": ["none", "contain", "cover"],
+      "default": "contain",
+      "description": "How the image fits on the screen."
     },
     "image_effect": {
-      "type": "string"
+      "type": "string",
+      "enum": ["", "none", "zoom", "smart-zoom"],
+      "description": "Effect applied to images (empty or none for no effect)."
     },
     "image_effect_amount": {
       "type": "integer"
