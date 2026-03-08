@@ -40,16 +40,25 @@ type Photo struct {
 }
 
 // File is a file belonging to a photo (e.g. primary image or video part of live photo).
+// Markers contain face/subject data when present (see https://docs.photoprism.dev/).
 type File struct {
-	UID       string `json:"UID"`
-	Hash      string `json:"Hash"`
-	Width     int    `json:"Width"`
-	Height    int    `json:"Height"`
-	Primary   bool   `json:"Primary"`
-	FileType  string `json:"FileType"`
-	MediaType string `json:"MediaType"`
-	Mime      string `json:"Mime"`
-	Size      int64  `json:"Size"`
+	UID       string    `json:"UID"`
+	Hash      string    `json:"Hash"`
+	Width     int       `json:"Width"`
+	Height    int       `json:"Height"`
+	Primary   bool      `json:"Primary"`
+	FileType  string    `json:"FileType"`
+	MediaType string    `json:"MediaType"`
+	Mime      string    `json:"Mime"`
+	Size      int64     `json:"Size"`
+	Markers   []Marker  `json:"Markers,omitempty"`
+}
+
+// Marker represents a face/subject on a file (entity.Marker in PhotoPrism API).
+type Marker struct {
+	UID    string `json:"UID"`
+	Name   string `json:"Name"`
+	SubjUID string `json:"SubjUID"`
 }
 
 // PrimaryHash returns the hash of the primary file for thumbnails/originals, or the first file's hash.

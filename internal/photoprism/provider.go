@@ -189,6 +189,41 @@ func (p *Provider) bucketForDisplay() kiosk.Source {
 	return kiosk.SourceAlbum
 }
 
+// photoMarkersToPeople collects unique people from a photo's file markers (face/subject data).
+// Deduplicates by SubjUID so each person appears once; uses Name for display.
+func photoMarkersToPeople(ph *Photo) []source.Person {
+	if ph == nil {
+		return nil
+	}
+	seen := make(map[string]string) // SubjUID -> Name
+	for _, f := range ph.Files {
+		for _, m := range f.Markers {
+			uid := strings.TrimSpace(m.SubjUID)
+			name := strings.TrimSpace(m.Name)
+			if uid == "" && name == "" {
+				continue
+			}
+			if uid == "" {
+				uid = name
+			}
+			if _, ok := seen[uid]; !ok {
+				seen[uid] = name
+			}
+		}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	out := make([]source.Person, 0, len(seen))
+	for uid, name := range seen {
+		if name == "" {
+			name = uid
+		}
+		out = append(out, source.Person{ID: uid, Name: name})
+	}
+	return out
+}
+
 func (p *Provider) RandomAsset(requestID, deviceID string, isPrefetch bool) error {
 	p.currentBucket = kiosk.SourceAlbum
 	p.currentBucketID = ""
@@ -345,6 +380,7 @@ func (p *Provider) DisplayAsset(requestID, deviceID string) source.DisplayAsset 
 		Country:           ph.PlaceCountry,
 		TimeZone:          ph.TimeZone,
 	}
+	people := photoMarkersToPeople(ph)
 	return source.DisplayAsset{
 		ID:               ph.UID,
 		Type:             assetType,
@@ -353,7 +389,7 @@ func (p *Provider) DisplayAsset(requestID, deviceID string) source.DisplayAsset 
 		LocalDateTime:    taken,
 		MemoryTitle:      "",
 		OriginalFileName: ph.FileName,
-		People:           nil,
+		People:           people,
 		Tags:             nil,
 		AppearsIn:        nil,
 		ExifInfo:         exif,

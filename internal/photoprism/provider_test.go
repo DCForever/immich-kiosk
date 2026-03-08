@@ -101,6 +101,64 @@ func TestProvider_DisplayAsset_Mapping(t *testing.T) {
 	}
 }
 
+func TestProvider_DisplayAsset_PeopleFromMarkers(t *testing.T) {
+	takenAt := time.Date(2024, 6, 15, 14, 30, 0, 0, time.UTC)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/photos" {
+			t.Errorf("path = %s", r.URL.Path)
+			return
+		}
+		w.Header().Set("X-Preview-Token", "preview-tok")
+		w.Header().Set("X-Download-Token", "dl-tok")
+		w.Header().Set("Content-Type", "application/json")
+		photos := []Photo{{
+			UID:          "photo-with-faces",
+			Type:         "image",
+			TakenAt:      takenAt,
+			TakenAtLocal: takenAt,
+			FileName:     "IMG_002.jpg",
+			Width:        1920,
+			Height:       1080,
+			Portrait:     false,
+			Files: []File{{
+				Hash:    "def456",
+				Primary: true,
+				Mime:    "image/jpeg",
+				Markers: []Marker{
+					{UID: "m1", SubjUID: "subj-alice", Name: "Alice"},
+					{UID: "m2", SubjUID: "subj-bob", Name: "Bob"},
+				},
+			}},
+		}}
+		_ = json.NewEncoder(w).Encode(photos)
+	}))
+	defer server.Close()
+
+	cfg := config.Config{PhotoprismURL: server.URL, PhotoprismToken: "token", Kiosk: config.KioskSettings{Cache: false}}
+	client := NewClient(server.URL, "token")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: cfg, ctx: context.Background()}
+
+	err := p.RandomAsset("req1", "dev1", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := p.DisplayAsset("req1", "dev1")
+	if got.ID != "photo-with-faces" {
+		t.Errorf("ID = %q", got.ID)
+	}
+	if len(got.People) != 2 {
+		t.Fatalf("len(People) = %d, want 2", len(got.People))
+	}
+	names := make(map[string]string)
+	for _, p := range got.People {
+		names[p.ID] = p.Name
+	}
+	if names["subj-alice"] != "Alice" || names["subj-bob"] != "Bob" {
+		t.Errorf("People = %+v", got.People)
+	}
+}
+
 func TestBuildPersonSearchQuery(t *testing.T) {
 	t.Run("single person", func(t *testing.T) {
 		cfg := config.Config{People: []string{"Jane Doe"}}
@@ -247,4 +305,58 @@ func TestProvider_RandomPersonFromAllPeople_errorWhenNoList(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when no subject list")
 	}
+}
+
+func TestPhotoMarkersToPeople(t *testing.T) {
+	t.Run("nil photo", func(t *testing.T) {
+		got := photoMarkersToPeople(nil)
+		if got != nil {
+			t.Errorf("got %v, want nil", got)
+		}
+	})
+	t.Run("no markers", func(t *testing.T) {
+		ph := &Photo{Files: []File{{Primary: true}}}
+		got := photoMarkersToPeople(ph)
+		if got != nil {
+			t.Errorf("got %v, want nil", got)
+		}
+	})
+	t.Run("one marker", func(t *testing.T) {
+		ph := &Photo{Files: []File{{
+			Primary: true,
+			Markers: []Marker{{UID: "m1", SubjUID: "subj-1", Name: "Alice"}},
+		}}}
+		got := photoMarkersToPeople(ph)
+		if len(got) != 1 {
+			t.Fatalf("len(got) = %d, want 1", len(got))
+		}
+		if got[0].ID != "subj-1" || got[0].Name != "Alice" {
+			t.Errorf("got[0] = %+v", got[0])
+		}
+	})
+	t.Run("dedupe by SubjUID", func(t *testing.T) {
+		ph := &Photo{Files: []File{
+			{Markers: []Marker{{SubjUID: "s1", Name: "Bob"}}},
+			{Markers: []Marker{{SubjUID: "s1", Name: "Bob"}}},
+		}}
+		got := photoMarkersToPeople(ph)
+		if len(got) != 1 {
+			t.Fatalf("len(got) = %d, want 1", len(got))
+		}
+		if got[0].Name != "Bob" {
+			t.Errorf("got[0].Name = %q", got[0].Name)
+		}
+	})
+	t.Run("name fallback when empty", func(t *testing.T) {
+		ph := &Photo{Files: []File{{
+			Markers: []Marker{{SubjUID: "s2", Name: ""}},
+		}}}
+		got := photoMarkersToPeople(ph)
+		if len(got) != 1 {
+			t.Fatalf("len(got) = %d, want 1", len(got))
+		}
+		if got[0].Name != "s2" {
+			t.Errorf("got[0].Name = %q, want s2", got[0].Name)
+		}
+	})
 }
