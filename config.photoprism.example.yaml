@@ -1,0 +1,16 @@
+# Minimal config for testing the kiosk with PhotoPrism.
+# Copy to config.yaml and set photoprism_url and photoprism_token.
+#
+#   cp config.photoprism.example.yaml config.yaml
+#   # Edit config.yaml: set photoprism_url and photoprism_token
+#   go run .
+
+source: photoprism
+photoprism_url: "http://10.0.0.49:2342"
+photoprism_token: "1V0NPe-iM9pv8-EwGrM1-9jkUai"  # Set your app password or API token from PhotoPrism Settings → Account
+
+# Kiosk behaviour
+kiosk:
+  port: 3000
+  debug: false
+  enable_url_builder: true  # Optional: use URL builder to pick albums/labels
