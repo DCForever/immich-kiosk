@@ -11,20 +11,19 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/source"
 )
 
-// Adapter wraps *Asset and implements source.ProviderOps by delegating to the asset.
+// Adapter wraps Asset and implements source.ProviderOps by delegating to the asset.
 type Adapter struct {
-	asset *Asset
+	asset Asset
 }
 
 // Ensure Adapter implements source.ProviderOps.
 var _ source.ProviderOps = (*Adapter)(nil)
 
-func (*Adapter) _provider() {}
+func (*Adapter) Provider() {}
 
 // NewAdapter returns a source.ProviderOps that uses the Immich API via the given config.
 func NewAdapter(ctx context.Context, cfg config.Config) source.ProviderOps {
-	a := New(ctx, cfg)
-	return &Adapter{asset: a}
+	return &Adapter{asset: New(ctx, cfg)}
 }
 
 // assetOrder maps string order to Immich AssetOrder.
@@ -108,7 +107,7 @@ func displayAssetFromImmich(a *Asset, requestID, deviceID string) source.Display
 
 // DisplayAsset returns the current asset as a source.DisplayAsset.
 func (ad *Adapter) DisplayAsset(requestID, deviceID string) source.DisplayAsset {
-	return displayAssetFromImmich(ad.asset, requestID, deviceID)
+	return displayAssetFromImmich(&ad.asset, requestID, deviceID)
 }
 
 func (ad *Adapter) RandomAsset(requestID, deviceID string, isPrefetch bool) error {

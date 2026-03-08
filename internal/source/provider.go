@@ -4,8 +4,9 @@
 package source
 
 // Provider is a marker interface for the media-source abstraction.
+// Export the method so implementations in other packages (e.g. immich) can satisfy it.
 type Provider interface {
-	_provider()
+	Provider()
 }
 
 // ProviderOps is the set of operations routes perform on a provider.
