@@ -23,7 +23,7 @@ const (
 // Client performs authenticated requests to a PhotoPrism instance.
 type Client struct {
 	BaseURL    string       // e.g. https://photoprism.example.com (no trailing slash)
-	Token      string       // Bearer token (app password or session token)
+	Token      string       // Bearer token: app password (Settings → Account) or session/access token per Client Authentication docs
 	HTTPClient *http.Client // nil uses default with timeout
 }
 
