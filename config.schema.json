@@ -13,6 +13,20 @@
       "type": "string",
       "format": "uri"
     },
+    "source": {
+      "type": "string",
+      "enum": ["immich", "photoprism"],
+      "default": "immich",
+      "description": "Media backend: immich (default) or photoprism. When photoprism, photoprism_url and photoprism_token are required."
+    },
+    "photoprism_url": {
+      "type": "string",
+      "description": "PhotoPrism instance base URL (required when source is photoprism)."
+    },
+    "photoprism_token": {
+      "type": "string",
+      "description": "PhotoPrism API token (required when source is photoprism)."
+    },
     "show_time": {
       "type": "boolean"
     },
@@ -579,5 +593,5 @@
       "required": []
     }
   },
-  "required": ["immich_api_key", "immich_url"]
+  "required": []
 }

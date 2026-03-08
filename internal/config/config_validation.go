@@ -40,15 +40,18 @@ func validateConfigFile(path string) error {
 // checkURLScheme checks given url has correct scheme and adds http:// if none is found.
 // The function checks for http:// and https:// prefixes in a case-insensitive way.
 // If neither prefix is found, it prepends the default scheme (http://).
+// Applies to ImmichURL and, when source is photoprism, to PhotoprismURL.
 func (c *Config) checkURLScheme() {
-	// check for correct scheme
-	switch {
-	case strings.HasPrefix(strings.ToLower(c.ImmichURL), "http://"):
-		break
-	case strings.HasPrefix(strings.ToLower(c.ImmichURL), "https://"):
-		break
-	default:
-		c.ImmichURL = defaultScheme + c.ImmichURL
+	for _, u := range []*string{&c.ImmichURL, &c.PhotoprismURL} {
+		if *u == "" {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(strings.ToLower(*u), "http://"):
+		case strings.HasPrefix(strings.ToLower(*u), "https://"):
+		default:
+			*u = defaultScheme + *u
+		}
 	}
 }
 
@@ -167,17 +170,39 @@ func (c *Config) checkSecrets() {
 	}
 }
 
-// checkRequiredFields verifies that all required configuration fields are set.
-// Currently checks for:
-// - ImmichUrl: The base URL for the Immich server
-// - ImmichApiKey: The API key for authentication
-// If any required field is missing, the function logs a fatal error and exits.
-func (c *Config) checkRequiredFields() {
-	switch {
-	case c.ImmichURL == "":
-		log.Fatal("Immich URL is missing")
-	case c.ImmichAPIKey == "":
-		log.Fatal("Immich API key is missing")
+// checkRequiredFields verifies that required configuration fields are set for the selected source.
+// When source is "photoprism", requires photoprism_url and photoprism_token.
+// When source is "immich" (or empty/default), requires immich_url and immich_api_key.
+// Source defaults to "immich" when empty for backward compatibility.
+// Returns an error describing the first missing requirement; callers may log.Fatal(err) or test the error.
+func (c *Config) checkRequiredFields() error {
+	source := strings.ToLower(strings.TrimSpace(c.Source))
+	if source == "" {
+		source = SourceImmich
+		c.Source = source
+	}
+	switch source {
+	case SourcePhotoPrism:
+		if c.PhotoprismURL == "" {
+			return fmt.Errorf("photoprism_url is missing (required when source is photoprism)")
+		}
+		if c.PhotoprismToken == "" {
+			return fmt.Errorf("photoprism_token is missing (required when source is photoprism)")
+		}
+		return nil
+	default:
+		// immich or any unknown value
+		if source != SourceImmich {
+			log.Warn("Unknown source, defaulting to immich", "source", c.Source)
+			c.Source = SourceImmich
+		}
+		if c.ImmichURL == "" {
+			return fmt.Errorf("immich_url is missing")
+		}
+		if c.ImmichAPIKey == "" {
+			return fmt.Errorf("immich_api_key is missing")
+		}
+		return nil
 	}
 }
 
@@ -525,13 +550,28 @@ func checkSchema(config map[string]any, level string) bool {
 		return true
 	}
 
-	// if we are using a config.yaml file but supplying immich_api_key || immich_url via ENVs get them
+	// if we are using a config.yaml file but supplying credentials via ENVs get them
 	if v, ok := config["immich_api_key"]; !ok || v == "" {
 		config["immich_api_key"] = os.Getenv("KIOSK_IMMICH_API_KEY")
 	}
-
 	if v, ok := config["immich_url"]; !ok || v == "" {
 		config["immich_url"] = os.Getenv("KIOSK_IMMICH_URL")
+	}
+	sourceVal, _ := config["source"].(string)
+	if sourceVal == "" {
+		sourceVal = os.Getenv("KIOSK_SOURCE")
+		if sourceVal == "" {
+			sourceVal = "immich"
+		}
+	}
+	sourceVal = strings.ToLower(strings.TrimSpace(sourceVal))
+	if sourceVal == "photoprism" {
+		if v, ok := config["photoprism_url"]; !ok || v == "" {
+			config["photoprism_url"] = os.Getenv("KIOSK_PHOTOPRISM_URL")
+		}
+		if v, ok := config["photoprism_token"]; !ok || v == "" {
+			config["photoprism_token"] = os.Getenv("KIOSK_PHOTOPRISM_TOKEN")
+		}
 	}
 
 	typed := ConfigTypes(config, Config{})

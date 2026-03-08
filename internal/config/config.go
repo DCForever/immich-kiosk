@@ -46,6 +46,10 @@ const (
 	defaultScheme     = "http://"
 	DefaultDateLayout = "02/01/2006"
 
+	// SourceBackend selects the media backend: "immich" or "photoprism".
+	SourceImmich     = "immich"
+	SourcePhotoPrism = "photoprism"
+
 	AlbumOrderRandom     = "random"
 	AlbumOrderAscending  = "ascending"
 	AlbumOrderAsc        = "asc"
@@ -264,6 +268,13 @@ type Config struct {
 	// the Immich instance is accessed through a different URL externally vs internally
 	// (e.g., when using reverse proxies or different network paths)
 	ImmichExternalURL string `json:"-" yaml:"immich_external_url" mapstructure:"immich_external_url" default:"" redact:"true"`
+
+	// Source selects the media backend: "immich" (default) or "photoprism".
+	Source string `json:"-" yaml:"source" mapstructure:"source" default:"immich" lowercase:"true"`
+	// PhotoprismURL is the base URL of the PhotoPrism instance (required when source is photoprism).
+	PhotoprismURL string `json:"-" yaml:"photoprism_url" mapstructure:"photoprism_url" default:"" redact:"true"`
+	// PhotoprismToken is the token for PhotoPrism API auth (required when source is photoprism).
+	PhotoprismToken string `json:"-" yaml:"photoprism_token" mapstructure:"photoprism_token" default:"" redact:"true"`
 
 	// ShowTime whether to display clock
 	ShowTime bool `json:"showTime" yaml:"show_time" mapstructure:"show_time" query:"show_time" form:"show_time" default:"false"`
@@ -524,6 +535,9 @@ func bindEnvironmentVariables(v *viper.Viper) error {
 		{"kiosk.debug_verbose", "KIOSK_DEBUG_VERBOSE"},
 		{"kiosk.demo_mode", "KIOSK_DEMO_MODE"},
 		{"kiosk.config_validation_level", "KIOSK_CONFIG_VALIDATION_LEVEL"},
+		{"source", "KIOSK_SOURCE"},
+		{"photoprism_url", "KIOSK_PHOTOPRISM_URL"},
+		{"photoprism_token", "KIOSK_PHOTOPRISM_TOKEN"},
 		{"offline_mode.enabled", "KIOSK_OFFLINE_MODE_ENABLED"},
 		{"offline_mode.number_of_assets", "KIOSK_OFFLINE_MODE_NUMBER_OF_ASSETS"},
 		{"offline_mode.max_size", "KIOSK_OFFLINE_MODE_MAX_SIZE"},
@@ -608,7 +622,9 @@ func (c *Config) Load() error {
 	}
 
 	c.checkSecrets()
-	c.checkRequiredFields()
+	if err := c.checkRequiredFields(); err != nil {
+		log.Fatal(err)
+	}
 	c.checkUsersAPIKeys()
 	c.checkLowercaseTaggedFields()
 	c.checkAssetBuckets()

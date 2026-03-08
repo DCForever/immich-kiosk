@@ -236,6 +236,48 @@ func TestAlbumAndPerson(t *testing.T) {
 	}
 }
 
+// TestCheckSourceRequiredFields validates checkRequiredFields for source/url/token combinations.
+func TestCheckSourceRequiredFields(t *testing.T) {
+	tests := []struct {
+		name        string
+		source      string
+		immichURL   string
+		immichKey   string
+		ppURL       string
+		ppToken     string
+		wantErr     bool
+		errContains string
+	}{
+		{"immich ok", "immich", "http://localhost", "key", "", "", false, ""},
+		{"immich default (empty source) ok", "", "http://localhost", "key", "", "", false, ""},
+		{"immich missing url", "immich", "", "key", "", "", true, "immich_url"},
+		{"immich missing api key", "immich", "http://localhost", "", "", "", true, "immich_api_key"},
+		{"photoprism ok", "photoprism", "", "", "http://localhost:2342", "token", false, ""},
+		{"photoprism missing url", "photoprism", "", "", "", "token", true, "photoprism_url"},
+		{"photoprism missing token", "photoprism", "", "", "http://localhost", "", true, "photoprism_token"},
+		{"unknown source defaults to immich", "other", "http://localhost", "key", "", "", false, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := New()
+			c.Source = tt.source
+			c.ImmichURL = tt.immichURL
+			c.ImmichAPIKey = tt.immichKey
+			c.PhotoprismURL = tt.ppURL
+			c.PhotoprismToken = tt.ppToken
+			err := c.checkRequiredFields()
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestCheckWeatherLocations(t *testing.T) {
 	tests := []struct {
 		name     string

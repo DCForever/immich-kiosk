@@ -4,6 +4,12 @@
 immich_api_key: ""
 immich_url: ""
 
+## Media source: "immich" (default) or "photoprism"
+## When source is photoprism, set photoprism_url and photoprism_token instead of immich_*.
+# source: immich
+# photoprism_url: ""
+# photoprism_token: ""
+
 ## Clock
 show_time: false
 time_format: 24 # 12 or 24
