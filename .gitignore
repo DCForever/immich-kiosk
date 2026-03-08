@@ -54,3 +54,6 @@ frontend/public/assets/js/*.js
 /tmp/
 
 /secrets/
+
+# Windows reserved device name (accidental redirect creates this file)
+nul
