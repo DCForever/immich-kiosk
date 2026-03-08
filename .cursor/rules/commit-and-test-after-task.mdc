@@ -1,0 +1,13 @@
+---
+description: Commit and run tests after every task
+alwaysApply: true
+---
+
+# Workflow: Commit and test after every task
+
+After completing each discrete task (or logical unit of work):
+
+1. **Run tests** for the changed area (e.g. `go test ./internal/photoprism/...` or `go test ./...`).
+2. **Commit** with a clear message that describes what was done (e.g. "PhotoPrism: add API response caching", "Add unit test for Photo→DisplayAsset mapping").
+
+Do not batch multiple unrelated tasks into a single commit without running tests in between. If a task spans several steps, run tests and commit once the task is fully done and passing.

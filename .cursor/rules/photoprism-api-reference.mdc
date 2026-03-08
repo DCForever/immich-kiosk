@@ -1,0 +1,12 @@
+---
+description: Use PhotoPrism Swagger as API reference when working on PhotoPrism integration
+globs: internal/photoprism/**/*.go,.specify/**/photoprism*
+---
+
+# PhotoPrism API reference
+
+When implementing or debugging PhotoPrism integration, use the **official Swagger API docs** as the source of truth:
+
+- **https://docs.photoprism.dev/** — interactive Swagger UI for all `/api/v1` endpoints, request/response schemas, and parameters.
+
+Use this instead of guessing from blog posts or older docs. For auth details, the developer guide (e.g. docs.photoprism.app) can supplement the Swagger reference.
