@@ -76,3 +76,7 @@ Requirements are aligned with the project constitution (code quality, testing, U
 - **Subjects/people in PhotoPrism**: Confirm API support and field names (e.g. “subjects”) so that person-based filtering and “show person name” can be specified precisely.
 - **Memories**: Decide whether to hide “memories” in UI when source is PhotoPrism or show a disabled state with tooltip; same for any other Immich-only feature.
 - **Backward compatibility**: Whether `source` defaults to `immich` when omitted and Immich URL/key are set, so that existing configs keep working without change.
+
+## Reference
+
+- **PhotoPrism API (Swagger):** https://docs.photoprism.dev/

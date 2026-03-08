@@ -75,6 +75,7 @@ All work must comply with `.specify/memory/constitution.md`:
 
 ## Reference
 
+- **PhotoPrism API (Swagger):** https://docs.photoprism.dev/
 - Spec: `.specify/specs/photoprism-source.md`
 - Immich people: `internal/immich/immich_person.go`, `internal/immich/immich_faces.go`
 - Provider interface: `internal/source/provider.go`

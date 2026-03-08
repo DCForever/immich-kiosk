@@ -3,7 +3,7 @@ package photoprism
 import "time"
 
 // Photo represents a photo from GET /api/v1/photos (single item or from list).
-// See https://docs.photoprism.app/developer-guide/api/search/
+// API reference: https://docs.photoprism.dev/
 type Photo struct {
 	ID            string    `json:"ID"`
 	UID           string    `json:"UID"`
@@ -80,7 +80,7 @@ type Label struct {
 }
 
 // Subject from PhotoPrism GET /api/v1/subjects (list). Used for AllNamedPeople when the endpoint exists.
-// See https://docs.photoprism.app/developer-guide/api/ (subjects).
+// API reference: https://docs.photoprism.dev/
 type Subject struct {
 	UID       string `json:"UID"`
 	Name      string `json:"Name"`
