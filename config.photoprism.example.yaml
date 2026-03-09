@@ -6,9 +6,8 @@
 #   go run .
 
 source: photoprism
-photoprism_url: "http://10.0.0.49:2342"
-photoprism_token: "1V0NPe-iM9pv8-EwGrM1-9jkUai"  # Set your app password or API token from PhotoPrism Settings → Account
-
+photoprism_url: "http://localhost:2342"
+photoprism_token: "your-app-password-or-token"
 # Kiosk behaviour
 kiosk:
   port: 3000

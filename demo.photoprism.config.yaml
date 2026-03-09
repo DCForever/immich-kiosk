@@ -11,9 +11,9 @@
 
 # yaml-language-server: $schema=https://raw.githubusercontent.com/damongolding/immich-kiosk/main/config.schema.json
 
-source: photoprism  # https://docs.immichkiosk.app/configuration/core-required/
-photoprism_url: "http://10.0.0.49:2342"   # Your PhotoPrism URL (or set KIOSK_PHOTOPRISM_URL). https://docs.immichkiosk.app/configuration/core-required/
-photoprism_token: "XOFQVk-K1UKvX-uw0rVP-j2Ni9o"                      # App password / API token from PhotoPrism Settings → Account (or set KIOSK_PHOTOPRISM_TOKEN). https://docs.immichkiosk.app/configuration/core-required/
+source: photoprism
+photoprism_url: "http://localhost:2342"
+photoprism_token: "your-app-password-or-token"
 
 # Clock: https://docs.immichkiosk.app/configuration/clock/
 show_time: true
