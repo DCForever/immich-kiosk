@@ -49,9 +49,9 @@
 
 **Independent Test**: Display a photo with one or more identified people and valid birthdates in the external source; verify each person’s age (years or months when under 1) matches the difference between photo taken date and birthdate.
 
-- [ ] T008 [US1] Add 120-year maximum age check in calculateAge in internal/templates/partials/metadata.templ (return empty string when computed age &gt; 120)
-- [ ] T009 [US1] Verify under-1 year displays as whole months (no "0 years") in internal/templates/partials/metadata.templ
-- [ ] T010 [US1] In internal/photoprism/provider.go, after photoMarkersToPeople(ph), enrich each Person with BirthDate from birthdate loader (lookup by Person.ID then Person.Name); only set when loader is available and Lookup returns non-empty valid DOB
+- [x] T008 [US1] Add 120-year maximum age check in calculateAge in internal/templates/partials/metadata.templ (return empty string when computed age &gt; 120)
+- [x] T009 [US1] Verify under-1 year displays as whole months (no "0 years") in internal/templates/partials/metadata.templ
+- [x] T010 [US1] In internal/photoprism/provider.go, after photoMarkersToPeople(ph), enrich each Person with BirthDate from birthdate loader (lookup by Person.ID then Person.Name); only set when loader is available and Lookup returns non-empty valid DOB
 
 **Checkpoint**: User Story 1 is testable — photos with mapped birthdates show correct ages (years or months).
 

@@ -477,6 +477,14 @@ func (p *Provider) DisplayAsset(requestID, deviceID string) source.DisplayAsset 
 		TimeZone:          ph.TimeZone,
 	}
 	people := photoMarkersToPeople(ph)
+	if p.birthdateLoader != nil {
+		for i := range people {
+			dob := p.birthdateLoader.Lookup(people[i].ID, people[i].Name)
+			if dob != "" {
+				people[i].BirthDate = source.BirthDate(dob)
+			}
+		}
+	}
 	if p.cfg.Kiosk.Debug && ph != nil {
 		names := make([]string, 0, len(people))
 		for _, pe := range people {
