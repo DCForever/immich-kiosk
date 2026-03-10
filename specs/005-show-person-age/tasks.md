@@ -35,7 +35,7 @@
 
 - [x] T003 Add BirthdateFilePath and BirthdateMappingPath to Config struct in internal/config/config.go (yaml, mapstructure, env KIOSK_BIRTHDATE_FILE_PATH, KIOSK_BIRTHDATE_MAPPING_PATH)
 - [x] T004 [P] Add birthdate_file_path and birthdate_mapping_path to config.example.yaml and config.schema.json at repo root
-- [ ] T005 Implement Load(birthdatePath, mappingPath) and Lookup(personID, personName) in internal/birthdate/loader.go; log warning via slog when either file missing or unreadable; parse JSON; validate DOB as YYYY-MM-DD; skip invalid entries
+- [x] T005 Implement Load(birthdatePath, mappingPath) and Lookup(personID, personName) in internal/birthdate/loader.go; log warning via slog when either file missing or unreadable; parse JSON; validate DOB as YYYY-MM-DD; skip invalid entries
 - [ ] T006 Write unit tests for loader in internal/birthdate/loader_test.go (valid load, missing file, unreadable file, invalid date, lookup by ID then name, duplicate keys last-wins)
 - [ ] T007 Wire birthdate loader into application: when config has birthdate paths set, create one loader instance, call Load(birthdatePath, mappingPath), and make the loader available to the PhotoPrism provider (e.g. provider holds a reference or receives it from wherever the provider is constructed) in internal/photoprism/provider.go and/or the place that constructs the provider
 
