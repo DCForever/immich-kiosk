@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Birthdate file",
+  "description": "JSON file mapping birthdate-file keys to dates of birth (YYYY-MM-DD). Keys are referenced by the birthdate mapping file.",
+  "type": "object",
+  "additionalProperties": {
+    "type": "string",
+    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+    "description": "Date of birth in YYYY-MM-DD format"
+  },
+  "examples": [
+    {
+      "alice": "1990-05-15",
+      "bob": "1985-11-22",
+      "charlie": "2020-03-01"
+    }
+  ]
+}

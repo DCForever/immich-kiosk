@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Birthdate mapping file",
+  "description": "JSON file mapping Photoprism person identifier (SubjUID or display name) to the key used in the birthdate file. Enables the kiosk to look up DOB for each person on a photo.",
+  "type": "object",
+  "additionalProperties": {
+    "type": "string",
+    "minLength": 1,
+    "description": "Key that exists in the birthdate file"
+  },
+  "examples": [
+    {
+      "pr-subj-abc123": "alice",
+      "Alice Smith": "alice",
+      "pr-subj-def456": "bob",
+      "Bob Jones": "bob"
+    }
+  ]
+}

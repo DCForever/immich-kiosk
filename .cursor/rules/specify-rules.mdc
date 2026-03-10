@@ -1,0 +1,35 @@
+---
+description: Project Development Guidelines
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# immich-kiosk Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2026-03-09
+
+## Active Technologies
+
+- Go 1.26 + Echo v5, Templ, Viper, existing internal packages (config, source, photoprism, templates) (005-show-person-age)
+
+## Project Structure
+
+```text
+src/
+tests/
+```
+
+## Commands
+
+# Add commands for Go 1.26
+
+## Code Style
+
+Go 1.26: Follow standard conventions
+
+## Recent Changes
+
+- 005-show-person-age: Added Go 1.26 + Echo v5, Templ, Viper, existing internal packages (config, source, photoprism, templates)
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->
