@@ -76,8 +76,8 @@
 
 **Independent Test**: Set birthdate_file_path and birthdate_mapping_path, add one person to the files, reload kiosk/config; confirm that person’s photos show age; edit the birthdate file and reload; confirm ages update.
 
-- [ ] T013 [US3] Document birthdate_file_path and birthdate_mapping_path in config.example.yaml (comments) and ensure specs/005-show-person-age/quickstart.md references both config keys
-- [ ] T014 [US3] Wire birthdate loader reload when config is reloaded (e.g. in config watcher or wherever config reload runs) so updated birthdate/mapping files are picked up without full restart
+- [x] T013 [US3] Document birthdate_file_path and birthdate_mapping_path in config.example.yaml (comments) and ensure specs/005-show-person-age/quickstart.md references both config keys
+- [x] T014 [US3] Wire birthdate loader reload when config is reloaded (e.g. in config watcher or wherever config reload runs) so updated birthdate/mapping files are picked up without full restart
 
 **Checkpoint**: User Story 3 verified — config and file changes take effect after reload.
 

@@ -108,8 +108,9 @@ show_album_name: false
 show_person_name: false
 show_person_age: false
 # Paths to external birthdate data (PhotoPrism only). Leave empty to disable.
-# birthdate_file_path: ""       # JSON: { "key": "YYYY-MM-DD", ... }
-# birthdate_mapping_path: ""    # JSON: { "person-id-or-name": "key", ... }
+# birthdate_file_path: ""       # JSON: { "key": "YYYY-MM-DD", ... } (env: KIOSK_BIRTHDATE_FILE_PATH)
+# birthdate_mapping_path: ""    # JSON: { "person-id-or-name": "key", ... } (env: KIOSK_BIRTHDATE_MAPPING_PATH)
+# See specs/005-show-person-age/quickstart.md for setup.
 show_image_time: false
 image_time_format: 24 # 12 or 24
 show_image_date: false

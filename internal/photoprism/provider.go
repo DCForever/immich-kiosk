@@ -64,6 +64,9 @@ var _ source.ProviderOps = (*Provider)(nil)
 func (*Provider) Provider() {}
 
 // NewProvider returns a PhotoPrism-backed source.ProviderOps.
+// When birthdate paths are set in config, a loader is created and Load() is called;
+// config reload replaces the in-memory config, so the next request gets a new provider
+// and thus a fresh loader that reads the current birthdate/mapping files.
 func NewProvider(ctx context.Context, cfg config.Config) source.ProviderOps {
 	var birthdateLoader *birthdate.Loader
 	if cfg.BirthdateFilePath != "" && cfg.BirthdateMappingPath != "" {
