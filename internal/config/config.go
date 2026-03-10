@@ -419,6 +419,10 @@ type Config struct {
 	ShowPersonName bool `json:"showPersonName" yaml:"show_person_name" mapstructure:"show_person_name" query:"show_person_name" form:"show_person_name" default:"false"`
 	// ShowPersonAge whether to display the person age
 	ShowPersonAge bool `json:"showPersonAge" yaml:"show_person_age" mapstructure:"show_person_age" query:"show_person_age" form:"show_person_age" default:"false"`
+	// BirthdateFilePath path to JSON file mapping birthdate-file keys to YYYY-MM-DD (env: KIOSK_BIRTHDATE_FILE_PATH)
+	BirthdateFilePath string `json:"birthdateFilePath" yaml:"birthdate_file_path" mapstructure:"birthdate_file_path" default:""`
+	// BirthdateMappingPath path to JSON file mapping person ID/name to birthdate-file key (env: KIOSK_BIRTHDATE_MAPPING_PATH)
+	BirthdateMappingPath string `json:"birthdateMappingPath" yaml:"birthdate_mapping_path" mapstructure:"birthdate_mapping_path" default:""`
 	// ShowAgeYearUnit whether to show year unit
 	ShowAgeYearUnit bool `json:"showAgeYearUnit" yaml:"show_age_year_unit" mapstructure:"show_age_year_unit" query:"show_age_year_unit" form:"show_age_year_unit" default:"false"`
 	// AgeSwitchToYearsAfter when to switch from months to years
@@ -538,6 +542,8 @@ func bindEnvironmentVariables(v *viper.Viper) error {
 		{"source", "KIOSK_SOURCE"},
 		{"photoprism_url", "KIOSK_PHOTOPRISM_URL"},
 		{"photoprism_token", "KIOSK_PHOTOPRISM_TOKEN"},
+		{"birthdate_file_path", "KIOSK_BIRTHDATE_FILE_PATH"},
+		{"birthdate_mapping_path", "KIOSK_BIRTHDATE_MAPPING_PATH"},
 		{"offline_mode.enabled", "KIOSK_OFFLINE_MODE_ENABLED"},
 		{"offline_mode.number_of_assets", "KIOSK_OFFLINE_MODE_NUMBER_OF_ASSETS"},
 		{"offline_mode.max_size", "KIOSK_OFFLINE_MODE_MAX_SIZE"},

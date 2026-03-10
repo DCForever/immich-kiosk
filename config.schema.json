@@ -296,6 +296,14 @@
     "show_person_age": {
       "type": "boolean"
     },
+    "birthdate_file_path": {
+      "type": "string",
+      "description": "Path to JSON file mapping birthdate keys to YYYY-MM-DD (env: KIOSK_BIRTHDATE_FILE_PATH). PhotoPrism only."
+    },
+    "birthdate_mapping_path": {
+      "type": "string",
+      "description": "Path to JSON file mapping person ID/name to birthdate key (env: KIOSK_BIRTHDATE_MAPPING_PATH). PhotoPrism only."
+    },
     "age_switch_to_years_after": {
       "type": "integer"
     },

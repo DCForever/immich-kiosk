@@ -107,6 +107,9 @@ show_owner: false # show the owner of the image
 show_album_name: false
 show_person_name: false
 show_person_age: false
+# Paths to external birthdate data (PhotoPrism only). Leave empty to disable.
+# birthdate_file_path: ""       # JSON: { "key": "YYYY-MM-DD", ... }
+# birthdate_mapping_path: ""    # JSON: { "person-id-or-name": "key", ... }
 show_image_time: false
 image_time_format: 24 # 12 or 24
 show_image_date: false
