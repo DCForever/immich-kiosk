@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/damongolding/immich-kiosk/internal/birthdate"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
@@ -45,15 +46,16 @@ type cachedPhotoBatch struct {
 
 // Provider implements source.ProviderOps for PhotoPrism.
 type Provider struct {
-	client         *Client
-	cfg            config.Config
-	ctx            context.Context
-	current        []Photo
-	previewToken   string
-	downloadToken  string
-	ratioWanted    string
-	currentBucket  kiosk.Source
+	client          *Client
+	cfg             config.Config
+	ctx             context.Context
+	current         []Photo
+	previewToken    string
+	downloadToken   string
+	ratioWanted     string
+	currentBucket   kiosk.Source
 	currentBucketID string
+	birthdateLoader *birthdate.Loader
 }
 
 // Ensure Provider implements source.ProviderOps.
@@ -63,10 +65,20 @@ func (*Provider) Provider() {}
 
 // NewProvider returns a PhotoPrism-backed source.ProviderOps.
 func NewProvider(ctx context.Context, cfg config.Config) source.ProviderOps {
+	var birthdateLoader *birthdate.Loader
+	if cfg.BirthdateFilePath != "" && cfg.BirthdateMappingPath != "" {
+		loader, err := birthdate.Load(cfg.BirthdateFilePath, cfg.BirthdateMappingPath)
+		if err != nil {
+			log.Warn("photoprism: birthdate loader failed", "err", err)
+		} else if loader != nil {
+			birthdateLoader = loader
+		}
+	}
 	return &Provider{
-		client: NewClient(cfg.PhotoprismURL, cfg.PhotoprismToken),
-		cfg:    cfg,
-		ctx:    ctx,
+		client:          NewClient(cfg.PhotoprismURL, cfg.PhotoprismToken),
+		cfg:             cfg,
+		ctx:             ctx,
+		birthdateLoader: birthdateLoader,
 	}
 }
 
