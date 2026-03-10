@@ -60,6 +60,22 @@ func TestLoad_missingFile(t *testing.T) {
 	}
 }
 
+func TestLoad_unreadableFile(t *testing.T) {
+	dir := t.TempDir()
+	birthPath := filepath.Join(dir, "birthdates.json")
+	mapPath := filepath.Join(dir, "mapping.json")
+	_ = os.WriteFile(birthPath, []byte(`{"alice":"1990-05-15"}`), 0644)
+	_ = os.WriteFile(mapPath, []byte(`not json`), 0644)
+
+	loader, err := Load(birthPath, mapPath)
+	if err == nil {
+		t.Fatal("Load(unreadable/invalid mapping file) expected error")
+	}
+	if loader != nil {
+		t.Fatal("Load(unreadable file) expected nil loader")
+	}
+}
+
 func TestLoad_validFiles(t *testing.T) {
 	dir := t.TempDir()
 	birthPath := filepath.Join(dir, "birthdates.json")

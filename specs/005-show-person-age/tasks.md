@@ -63,8 +63,8 @@
 
 **Independent Test**: Show photos for people without birthdate in the external source; confirm no age is displayed and no placeholder or error; other people on the same photo with valid birthdates still show ages.
 
-- [ ] T011 [US2] Add loader test cases for missing and unreadable birthdate/mapping files in internal/birthdate/loader_test.go (expect empty lookup and logged warning)
-- [ ] T012 [US2] Ensure in internal/photoprism/provider.go that when loader is nil or Lookup returns empty, Person.BirthDate is left unchanged and no error is returned to the viewer
+- [x] T011 [US2] Add loader test cases for missing and unreadable birthdate/mapping files in internal/birthdate/loader_test.go (expect empty lookup and logged warning)
+- [x] T012 [US2] Ensure in internal/photoprism/provider.go that when loader is nil or Lookup returns empty, Person.BirthDate is left unchanged and no error is returned to the viewer
 
 **Checkpoint**: User Story 2 verified — missing/invalid birthdates never show an age or break the UI.
 
