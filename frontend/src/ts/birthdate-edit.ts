@@ -89,7 +89,7 @@ export function initBirthdateEdit(): void {
                 setBirthdate(id, newDate.trim())
                     .then(() => {
                         window.alert("Birthdate updated. The page will refresh.");
-                        htmx.ajax("GET", window.location.pathname + window.location.search, {
+                        htmx.ajax("get", window.location.pathname + window.location.search, {
                             target: "body",
                             swap: "innerHTML",
                         });
@@ -100,7 +100,7 @@ export function initBirthdateEdit(): void {
                 deleteBirthdate(id)
                     .then(() => {
                         window.alert("Birthdate removed. The page will refresh.");
-                        htmx.ajax("GET", window.location.pathname + window.location.search, {
+                        htmx.ajax("get", window.location.pathname + window.location.search, {
                             target: "body",
                             swap: "innerHTML",
                         });
@@ -113,7 +113,7 @@ export function initBirthdateEdit(): void {
             setBirthdate(id, dob.trim())
                 .then(() => {
                     window.alert("Birthdate saved. The page will refresh.");
-                    htmx.ajax("GET", window.location.pathname + window.location.search, {
+                    htmx.ajax("get", window.location.pathname + window.location.search, {
                         target: "body",
                         swap: "innerHTML",
                     });
