@@ -31,6 +31,7 @@ import {
 import { sleepMode } from "./sleep";
 import { preventSleep } from "./wakelock";
 import { weatherRotationPosition } from "./weather";
+import { initBirthdateEdit } from "./birthdate-edit";
 
 ("use strict");
 
@@ -211,6 +212,8 @@ async function init(): Promise<void> {
     );
 
     addEventListeners();
+
+    initBirthdateEdit();
 
     if (kioskData.livePhotos) livePhoto(kioskData.livePhotoLoopDelay);
 

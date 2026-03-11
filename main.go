@@ -196,6 +196,9 @@ func main() {
 	e.POST("/asset/hide", routes.HideAsset(baseConfig, c, true))
 	e.POST("/asset/unhide", routes.HideAsset(baseConfig, c, false))
 
+	e.POST("/api/person-birthdate", routes.SetBirthdate(baseConfig))
+	e.DELETE("/api/person-birthdate", routes.DeleteBirthdate(baseConfig))
+
 	e.POST("/clock", routes.Clock(baseConfig))
 
 	e.POST("/weather", routes.Weather(baseConfig))

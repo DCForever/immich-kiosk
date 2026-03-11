@@ -46,6 +46,7 @@ templ AssetMetadata(viewData common.ViewData, assetIndex int) {
 	{{ showDescription := viewData.ShowImageDescription && viewData.Assets[assetIndex].Asset.ExifInfo.Description != "" }}
 	{{ rightAlignIcons := len(viewData.Assets) > 1 && assetIndex == 1 }}
 	{{ names := peopleNames(viewData.Assets[assetIndex].Asset.People, viewData.ShowPersonName, viewData.ShowPersonAge, viewData.ShowAgeYearUnit, viewData.AgeSwitchToYearsAfter, viewData.Assets[assetIndex].Asset.LocalDateTime) }}
+	{{ canEditBirthdate := viewData.Source == config.SourcePhotoPrism && viewData.BirthdateFilePath != "" && viewData.BirthdateMappingPath != "" }}
 	{{ showUser := viewData.ShowUser }}
 	{{ className := "frame-" + utils.GenerateUUID() }}
 	if viewData.Theme == "bubble" {
@@ -65,7 +66,11 @@ templ AssetMetadata(viewData common.ViewData, assetIndex int) {
 			@memoryIcon(viewData.Assets[assetIndex].Asset.MemoryTitle)
 		}
 		if (viewData.ShowPersonName || viewData.ShowPersonAge) && names != "" {
-			@templ.Raw(AssetPeople(names))
+			if canEditBirthdate {
+				@templ.Raw(AssetPeopleClickableHTML(viewData.Assets[assetIndex].Asset.People, viewData.ShowPersonName, viewData.ShowPersonAge, viewData.ShowAgeYearUnit, viewData.AgeSwitchToYearsAfter, viewData.Assets[assetIndex].Asset.LocalDateTime))
+			} else {
+				@templ.Raw(AssetPeople(names))
+			}
 		}
 		if viewData.ShowAlbumName && len(viewData.Assets[assetIndex].Asset.AppearsIn) != 0 {
 			@albumIcon(joinAlbumNames(viewData.Assets[assetIndex].Asset.AppearsIn))
@@ -425,4 +430,39 @@ func AssetPeople(peopleNames string) string {
 				%s
 			</div>
 		</div>`, peopleNames)
+}
+
+// AssetPeopleClickable renders people with an icon; each person name is a clickable span for birthdate edit.
+// It returns the same structure as AssetPeople but with each name as a span with data-person-id, data-person-name, data-birthdate.
+func AssetPeopleClickableHTML(people []source.Person, showName, showAge, addYearUnit bool, switchToYears int, assetDate time.Time) string {
+	var parts []string
+	for _, p := range people {
+		if p.Name == "" {
+			continue
+		}
+		disp := formatPersonName(p, showName, showAge, addYearUnit, switchToYears, assetDate)
+		if disp == "" {
+			continue
+		}
+		// Escape attributes for HTML
+		id := strings.ReplaceAll(p.ID, `"`, `\"`)
+		name := strings.ReplaceAll(p.Name, `"`, `\"`)
+		dob := strings.ReplaceAll(string(p.BirthDate), `"`, `\"`)
+		parts = append(parts, fmt.Sprintf(`<span class="person-name-clickable" data-person-id="%s" data-person-name="%s" data-birthdate="%s" role="button" tabindex="0">%s</span>`, id, name, dob, disp))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	inner := strings.Join(parts, ", ")
+	return fmt.Sprintf(`
+		<div class="asset--metadata--has-icon">
+			<div class="asset--metadata--icon">
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+					<path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z"></path>
+				</svg>
+			</div>
+			<div class="asset--metadata--people-list">
+				%s
+			</div>
+		</div>`, inner)
 }

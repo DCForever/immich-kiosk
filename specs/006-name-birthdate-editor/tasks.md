@@ -19,9 +19,9 @@
 
 **Purpose**: Ensure config and birthdate files are ready for interactive editing.
 
-- [ ] T001 Verify `birthdate_file_path` and `birthdate_mapping_path` defaults in `config.yaml` align with JSON contracts (`birthdates.json`, `birthdate-mapping.json`).
-- [ ] T002 [P] Add or update sample `birthdates.json` and `birthdate-mapping.json` in the repo root to match the existing contracts (for local dev and manual testing).
-- [ ] T003 [P] Confirm existing age-display feature (005) correctly loads and uses the configured birthdate files by running the kiosk and checking ages render as expected.
+- [x] T001 Verify `birthdate_file_path` and `birthdate_mapping_path` defaults in `config.yaml` align with JSON contracts (`birthdates.json`, `birthdate-mapping.json`).
+- [x] T002 [P] Add or update sample `birthdates.json` and `birthdate-mapping.json` in the repo root to match the existing contracts (for local dev and manual testing).
+- [x] T003 [P] Confirm existing age-display feature (005) correctly loads and uses the configured birthdate files by running the kiosk and checking ages render as expected.
 
 ---
 
@@ -31,11 +31,11 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 Introduce helper functions in `internal/birthdate` to write updated birthdate and mapping maps back to JSON files atomically (temp file + rename).
-- [ ] T005 [P] Add functions in `internal/birthdate` to set or update a birthdate for a person identifier (ID or name) and update both in-memory maps and JSON files.
-- [ ] T006 [P] Add functions in `internal/birthdate` to remove a birthdate for a person identifier and keep maps and JSON files consistent.
-- [ ] T007 Add unit tests in `internal/birthdate` (e.g., `internal/birthdate/birthdate_edit_test.go`) for add/update/remove behavior, including invalid dates and edge cases (future dates, >120 years).
-- [ ] T008 Wire new `internal/birthdate` edit helpers into the existing loader lifecycle so that in-memory maps reflect changes immediately after a successful write.
+- [x] T004 Introduce helper functions in `internal/birthdate` to write updated birthdate and mapping maps back to JSON files atomically (temp file + rename).
+- [x] T005 [P] Add functions in `internal/birthdate` to set or update a birthdate for a person identifier (ID or name) and update both in-memory maps and JSON files.
+- [x] T006 [P] Add functions in `internal/birthdate` to remove a birthdate for a person identifier and keep maps and JSON files consistent.
+- [x] T007 Add unit tests in `internal/birthdate` (e.g., `internal/birthdate/birthdate_edit_test.go`) for add/update/remove behavior, including invalid dates and edge cases (future dates, >120 years).
+- [x] T008 Wire new `internal/birthdate` edit helpers into the existing loader lifecycle so that in-memory maps reflect changes immediately after a successful write.
 
 **Checkpoint**: Birthdate JSON and mapping can be safely edited via Go helpers with tests in place.
 
@@ -49,14 +49,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] Add a JSON POST endpoint in `internal/server` (e.g., `internal/server/handlers_birthdate.go`) to handle “set birthdate” requests using the `setBirthdateRequest` and `setBirthdateResponse` contracts.
-- [ ] T010 [P] [US1] Implement request validation for the POST endpoint (parse `birthDate`, enforce format, reject future dates and implied ages >120 years) in `internal/server/handlers_birthdate.go`.
-- [ ] T011 [US1] Call the new `internal/birthdate` set/update helper from the POST handler and return localized success/error messages according to the contracts.
-- [ ] T012 [US1] Expose a route for the POST endpoint in the Echo router setup (e.g., `internal/server/router.go`) under an `/api/person-birthdate` path.
-- [ ] T013 [P] [US1] Update the relevant Templ component that renders person names (e.g., `web/templates/components/person_label.templ`) to render names as clickable elements with attributes needed to identify the person.
-- [ ] T014 [P] [US1] Add minimal client-side behavior (htmx or small JS) in `web/templates` / `web/assets` to POST to the new endpoint when a name is clicked and the user confirms adding a birthdate.
-- [ ] T015 [US1] Ensure i18n is used for any new labels, prompts, and error messages related to adding a birthdate.
-- [ ] T016 [US1] Add integration tests or a focused handler test in `internal/server` (e.g., `internal/server/handlers_birthdate_test.go`) that verifies a successful add flow updates the JSON files and returns the expected response.
+- [x] T009 [P] [US1] Add a JSON POST endpoint in `internal/server` (e.g., `internal/server/handlers_birthdate.go`) to handle “set birthdate” requests using the `setBirthdateRequest` and `setBirthdateResponse` contracts.
+- [x] T010 [P] [US1] Implement request validation for the POST endpoint (parse `birthDate`, enforce format, reject future dates and implied ages >120 years) in `internal/server/handlers_birthdate.go`.
+- [x] T011 [US1] Call the new `internal/birthdate` set/update helper from the POST handler and return localized success/error messages according to the contracts.
+- [x] T012 [US1] Expose a route for the POST endpoint in the Echo router setup (e.g., `internal/server/router.go`) under an `/api/person-birthdate` path.
+- [x] T013 [P] [US1] Update the relevant Templ component that renders person names (e.g., `web/templates/components/person_label.templ`) to render names as clickable elements with attributes needed to identify the person.
+- [x] T014 [P] [US1] Add minimal client-side behavior (htmx or small JS) in `web/templates` / `web/assets` to POST to the new endpoint when a name is clicked and the user confirms adding a birthdate.
+- [x] T015 [US1] Ensure i18n is used for any new labels, prompts, and error messages related to adding a birthdate.
+- [x] T016 [US1] Add integration tests or a focused handler test in `internal/server` (e.g., `internal/server/handlers_birthdate_test.go`) that verifies a successful add flow updates the JSON files and returns the expected response.
 
 **Checkpoint**: Users can add a birthdate by clicking a name; ages appear after the next refresh using the existing age-display feature.
 
@@ -70,10 +70,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Extend the POST “set birthdate” handler in `internal/server/handlers_birthdate.go` to handle updates when a birthdate already exists (including overwriting JSON and mapping safely).
-- [ ] T018 [P] [US2] Update the UI flow in the Templ component (e.g., `web/templates/components/person_label.templ`) so that clicking a name with an existing birthdate opens an edit form pre-populated with the current date.
-- [ ] T019 [US2] Ensure the edit flow reuses the same validation rules and error handling as the add flow, with user-friendly messages when validation fails.
-- [ ] T020 [US2] Add tests in `internal/server/handlers_birthdate_test.go` that cover a successful update, including JSON and in-memory map changes, and error cases (invalid new date).
+- [x] T017 [P] [US2] Extend the POST “set birthdate” handler in `internal/server/handlers_birthdate.go` to handle updates when a birthdate already exists (including overwriting JSON and mapping safely).
+- [x] T018 [P] [US2] Update the UI flow in the Templ component (e.g., `web/templates/components/person_label.templ`) so that clicking a name with an existing birthdate opens an edit form pre-populated with the current date.
+- [x] T019 [US2] Ensure the edit flow reuses the same validation rules and error handling as the add flow, with user-friendly messages when validation fails.
+- [x] T020 [US2] Add tests in `internal/server/handlers_birthdate_test.go` that cover a successful update, including JSON and in-memory map changes, and error cases (invalid new date).
 
 **Checkpoint**: Users can correct or update existing birthdates via the same click-to-edit interaction, and ages reflect the updated date.
 
@@ -87,11 +87,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T021 [P] [US3] Add a JSON DELETE endpoint in `internal/server/handlers_birthdate.go` to handle `deleteBirthdateRequest`/`deleteBirthdateResponse` based on the contracts.
-- [ ] T022 [P] [US3] Implement the DELETE handler to call the `internal/birthdate` remove helper and treat missing entries as successful no-ops.
-- [ ] T023 [US3] Update the Templ UI (e.g., `web/templates/components/person_label.templ`) to provide a remove option in the click-to-edit flow, with a clear confirmation step.
-- [ ] T024 [US3] Ensure that after removal, any cached or in-memory state is updated so that ages stop displaying without requiring a full process restart.
-- [ ] T025 [US3] Add tests in `internal/server/handlers_birthdate_test.go` for the remove flow, including the no-op case and error handling.
+- [x] T021 [P] [US3] Add a JSON DELETE endpoint in `internal/server/handlers_birthdate.go` to handle `deleteBirthdateRequest`/`deleteBirthdateResponse` based on the contracts.
+- [x] T022 [P] [US3] Implement the DELETE handler to call the `internal/birthdate` remove helper and treat missing entries as successful no-ops.
+- [x] T023 [US3] Update the Templ UI (e.g., `web/templates/components/person_label.templ`) to provide a remove option in the click-to-edit flow, with a clear confirmation step.
+- [x] T024 [US3] Ensure that after removal, any cached or in-memory state is updated so that ages stop displaying without requiring a full process restart.
+- [x] T025 [US3] Add tests in `internal/server/handlers_birthdate_test.go` for the remove flow, including the no-op case and error handling.
 
 **Checkpoint**: Users can remove birthdates via the UI, and ages stop displaying reliably after removal.
 
@@ -101,10 +101,10 @@
 
 **Purpose**: Cross-story improvements and final validation.
 
-- [ ] T026 [P] Review all new user-facing strings (add/change/remove flows) for i18n coverage and consistency.
-- [ ] T027 Run `go test ./...` and address any regressions introduced by birthdate editing changes.
+- [x] T026 [P] Review all new user-facing strings (add/change/remove flows) for i18n coverage and consistency.
+- [x] T027 Run `go test ./...` and address any regressions introduced by birthdate editing changes.
 - [ ] T028 [P] Validate `quickstart.md` by walking through configuration and click-to-edit flows end-to-end.
-- [ ] T029 Perform a light code cleanup pass in `internal/birthdate`, `internal/server/handlers_birthdate.go`, and related Templ files to ensure naming and structure follow project conventions.
+- [x] T029 Perform a light code cleanup pass in `internal/birthdate`, `internal/server/handlers_birthdate.go`, and related Templ files to ensure naming and structure follow project conventions.
 
 ---
 

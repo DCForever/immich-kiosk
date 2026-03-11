@@ -53,8 +53,12 @@ func Init(systemLang string) error {
 }
 
 // T returns a translation function for the given locale.
+// If Init was not called, returns a function that returns the key (for tests).
 func T() func(string) string {
 	return func(key string) string {
+		if localizer == nil || defaultLocalizer == nil {
+			return key
+		}
 		translated, err := localizer.Localize(&i18n.LocalizeConfig{
 			MessageID: key,
 		})
