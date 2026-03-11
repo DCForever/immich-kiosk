@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Birthdate Edit API",
+  "description": "Contracts for HTTP endpoints to add, change, or remove a person's birthdate by clicking their name in the kiosk UI.",
+  "type": "object",
+  "properties": {
+    "setBirthdateRequest": {
+      "type": "object",
+      "properties": {
+        "personId": {
+          "type": "string",
+          "description": "Stable identifier for the person whose name was clicked."
+        },
+        "birthDate": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "description": "Date of birth in YYYY-MM-DD format."
+        }
+      },
+      "required": ["personId", "birthDate"],
+      "additionalProperties": false
+    },
+    "setBirthdateResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["ok", "error"]
+        },
+        "message": {
+          "type": "string",
+          "description": "Localized human-readable message (e.g. validation error)."
+        }
+      },
+      "required": ["status"],
+      "additionalProperties": false
+    },
+    "deleteBirthdateRequest": {
+      "type": "object",
+      "properties": {
+        "personId": {
+          "type": "string",
+          "description": "Stable identifier for the person whose birthdate should be removed."
+        }
+      },
+      "required": ["personId"],
+      "additionalProperties": false
+    },
+    "deleteBirthdateResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["ok", "error"]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": ["status"],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+
