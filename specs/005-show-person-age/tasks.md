@@ -87,10 +87,10 @@
 
 **Purpose**: Schema, tests, and quickstart validation.
 
-- [ ] T015 [P] Add description fields for birthdate_file_path and birthdate_mapping_path in config.schema.json
-- [ ] T016 Run go test ./internal/birthdate/... ./internal/photoprism/... and fix any failures
+- [x] T015 [P] Add description fields for birthdate_file_path and birthdate_mapping_path in config.schema.json
+- [x] T016 Run go test ./internal/birthdate/... ./internal/photoprism/... and fix any failures
 - [ ] T017 Validate quickstart steps from specs/005-show-person-age/quickstart.md (manual or document result)
-- [ ] T018 [P] Add table-driven tests for age calculation (120-year cap, under-1 months) in internal/templates/partials or a testable helper used by metadata.templ so calculateAge behavior is covered
+- [x] T018 [P] Add table-driven tests for age calculation (120-year cap, under-1 months) in internal/templates/partials or a testable helper used by metadata.templ so calculateAge behavior is covered
 
 ---
 

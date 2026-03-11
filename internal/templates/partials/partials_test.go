@@ -2,6 +2,7 @@ package partials
 
 import (
 	"testing"
+	"time"
 
 	"github.com/damongolding/immich-kiosk/internal/source"
 )
@@ -91,6 +92,37 @@ func TestAssetCameraData(t *testing.T) {
 			got := AssetCameraData(tt.exif)
 			if got != tt.want {
 				t.Errorf("AssetCameraData() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCalculateAge(t *testing.T) {
+	birth1990 := time.Date(1990, 5, 15, 0, 0, 0, 0, time.UTC)
+	birth2024 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	photo2000 := time.Date(2000, 6, 20, 0, 0, 0, 0, time.UTC)
+	photo2024 := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	photo2115 := time.Date(2115, 5, 15, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name          string
+		assetDate     time.Time
+		birthDate     time.Time
+		addYearUnit   bool
+		switchToYears int
+		want          string
+	}{
+		{"asset before birth", birth1990, photo2000, false, 1, ""},
+		{"10 years old", photo2000, birth1990, false, 1, "10"},
+		{"over 120 years returns empty", photo2115, birth1990, false, 1, ""},
+		{"under 1 year in months", photo2024, birth2024, false, 1, "5m"},
+		{"exactly 1 year", time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), birth2024, false, 1, "1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := calculateAge(tt.assetDate, tt.birthDate, tt.addYearUnit, tt.switchToYears)
+			if got != tt.want {
+				t.Errorf("calculateAge() = %q, want %q", got, tt.want)
 			}
 		})
 	}
