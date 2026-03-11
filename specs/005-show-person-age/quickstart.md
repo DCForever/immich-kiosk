@@ -9,7 +9,7 @@
 
 ## 1. Create the birthdate file
 
-Create a JSON file that maps **logical keys** to dates of birth (YYYY-MM-DD). Example:
+Create a JSON file that maps **logical keys** to dates of birth (YYYY-MM-DD). You can copy `birthdates.example.json` from the repo and edit it. Example:
 
 **birthdates.json**:
 
@@ -25,7 +25,7 @@ Keys (`alice`, `bob`, `charlie`) are internal identifiers you will reference fro
 
 ## 2. Create the mapping file
 
-Create a JSON file that maps **Photoprism person ID or display name** to the key used in the birthdate file. Get person IDs from PhotoPrism (e.g. subject UID) or use the exact display name.
+Create a JSON file that maps **Photoprism person ID or display name** to the key used in the birthdate file. You can copy `birthdate-mapping.example.json` from the repo and edit it. Get person IDs from PhotoPrism (e.g. subject UID) or use the exact display name.
 
 **birthdate-mapping.json**:
 

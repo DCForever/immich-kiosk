@@ -33,6 +33,10 @@ _config.yaml
 !demo.config.yaml
 !demo.photoprism.config.yaml
 
+# Local birthdate data (use birthdates.example.json / birthdate-mapping.example.json as templates)
+birthdates.json
+birthdate-mapping.json
+
 *.pprof
 
 dist/
