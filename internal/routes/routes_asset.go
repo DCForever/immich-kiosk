@@ -42,13 +42,22 @@ func NewAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 		requestID := requestData.RequestID
 		deviceID := requestData.DeviceID
 
-		log.Debug(
-			requestID,
-			"method", c.Request().Method,
-			"deviceID", deviceID,
-			"path", c.Request().URL.String(),
-			"requestConfig", requestConfig.String(),
-		)
+		if requestConfig.Kiosk.DebugVerbose {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"deviceID", deviceID,
+				"path", c.Request().URL.String(),
+				"requestConfig", requestConfig.String(),
+			)
+		} else {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"deviceID", deviceID,
+				"path", c.Request().URL.String(),
+			)
+		}
 
 		if !requestConfig.DisableSleep && isSleepMode(requestConfig) {
 			return c.NoContent(http.StatusNoContent)
@@ -116,12 +125,20 @@ func Image(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 
 		layout := strings.ToLower(strings.TrimSpace(c.QueryParam("layout")))
 
-		log.Debug(
-			requestID,
-			"method", c.Request().Method,
-			"path", c.Request().URL.String(),
-			"requestConfig", requestConfig.String(),
-		)
+		if requestConfig.Kiosk.DebugVerbose {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+				"requestConfig", requestConfig.String(),
+			)
+		} else {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+			)
+		}
 
 		provider := getProvider(com.Context(), requestConfig)
 		switch layout {
@@ -172,12 +189,20 @@ func ImageWithReload(baseConfig *config.Config) echo.HandlerFunc {
 		requestConfig := requestData.RequestConfig
 		requestID := requestData.RequestID
 
-		log.Debug(
-			requestID,
-			"method", c.Request().Method,
-			"path", c.Request().URL.String(),
-			"requestConfig", requestConfig.String(),
-		)
+		if requestConfig.Kiosk.DebugVerbose {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+				"requestConfig", requestConfig.String(),
+			)
+		} else {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+			)
+		}
 
 		queries := c.Request().URL.Query().Encode()
 
@@ -198,12 +223,20 @@ func ImageWithID(baseConfig *config.Config, com *common.Common) echo.HandlerFunc
 		requestConfig := requestData.RequestConfig
 		requestID := requestData.RequestID
 
-		log.Debug(
-			requestID,
-			"method", c.Request().Method,
-			"path", c.Request().URL.String(),
-			"requestConfig", requestConfig.String(),
-		)
+		if requestConfig.Kiosk.DebugVerbose {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+				"requestConfig", requestConfig.String(),
+			)
+		} else {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+			)
+		}
 
 		imageID := c.Param("imageID")
 		if imageID == "" {
@@ -241,12 +274,20 @@ func TagAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 		requestConfig := requestData.RequestConfig
 		requestID := requestData.RequestID
 
-		log.Debug(
-			requestID,
-			"method", c.Request().Method,
-			"path", c.Request().URL.String(),
-			"requestConfig", requestConfig.String(),
-		)
+		if requestConfig.Kiosk.DebugVerbose {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+				"requestConfig", requestConfig.String(),
+			)
+		} else {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+			)
+		}
 
 		assetID := c.FormValue("assetID")
 		tagName := c.FormValue("tagName")
@@ -308,12 +349,20 @@ func LikeAsset(baseConfig *config.Config, com *common.Common, setAssetAsLiked bo
 		requestConfig := requestData.RequestConfig
 		requestID := requestData.RequestID
 
-		log.Debug(
-			requestID,
-			"method", c.Request().Method,
-			"path", c.Request().URL.String(),
-			"requestConfig", requestConfig.String(),
-		)
+		if requestConfig.Kiosk.DebugVerbose {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+				"requestConfig", requestConfig.String(),
+			)
+		} else {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+			)
+		}
 
 		assetID := c.FormValue("assetID")
 		user := strings.TrimSpace(c.FormValue("user"))
@@ -398,12 +447,20 @@ func HideAsset(baseConfig *config.Config, com *common.Common, hideAsset bool) ec
 		requestConfig := requestData.RequestConfig
 		requestID := requestData.RequestID
 
-		log.Debug(
-			requestID,
-			"method", c.Request().Method,
-			"path", c.Request().URL.String(),
-			"requestConfig", requestConfig.String(),
-		)
+		if requestConfig.Kiosk.DebugVerbose {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+				"requestConfig", requestConfig.String(),
+			)
+		} else {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+			)
+		}
 
 		assetID := c.FormValue("assetID")
 		tagName := c.FormValue("tagName")

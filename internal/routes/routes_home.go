@@ -40,12 +40,20 @@ func Home(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 		requestConfig := requestData.RequestConfig
 		requestID := requestData.RequestID
 
-		log.Debug(
-			requestID,
-			"method", c.Request().Method,
-			"path", c.Request().URL.String(),
-			"requestConfig", requestConfig.String(),
-		)
+		if requestConfig.Kiosk.DebugVerbose {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+				"requestConfig", requestConfig.String(),
+			)
+		} else {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+			)
+		}
 
 		var customCSS []byte
 

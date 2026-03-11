@@ -28,12 +28,20 @@ func About(baseConfig *config.Config) echo.HandlerFunc {
 		requestID := requestData.RequestID
 		deviceID := requestData.DeviceID
 
-		log.Debug(
-			requestID,
-			"method", c.Request().Method,
-			"path", c.Request().URL.String(),
-			"requestConfig", requestConfig.String(),
-		)
+		if requestConfig.Kiosk.DebugVerbose {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+				"requestConfig", requestConfig.String(),
+			)
+		} else {
+			log.Debug(
+				requestID,
+				"method", c.Request().Method,
+				"path", c.Request().URL.String(),
+			)
+		}
 
 		viewData := common.ViewData{
 			KioskVersion: KioskVersion,
