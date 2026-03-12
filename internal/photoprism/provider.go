@@ -435,6 +435,7 @@ func (p *Provider) AssetInfo(assetID, requestID, deviceID string) error {
 	p.downloadToken = headers["x-download-token"]
 	p.currentBucket = kiosk.SourceAlbum
 	p.currentBucketID = ""
+	p.enrichCurrentPhotoWithMarkers()
 	return nil
 }
 
