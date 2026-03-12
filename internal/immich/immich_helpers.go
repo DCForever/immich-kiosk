@@ -356,7 +356,6 @@ func (a *Asset) AssetInfo(requestID, deviceID string) error {
 		_, _, err = immichAPIFail(immichAsset, err, body, apiURL.String())
 		return fmt.Errorf("unmarshal asset info, err=%w", err)
 	}
-
 	return a.mergeAssetInfo(immichAsset)
 }
 

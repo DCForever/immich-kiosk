@@ -62,7 +62,31 @@ async function deleteBirthdate(personId: string): Promise<{ status: string; mess
 
 export function initBirthdateEdit(): void {
     document.body.addEventListener("click", (e: MouseEvent) => {
-        const target = (e.target as HTMLElement).closest(".person-name-clickable");
+        const startEl =
+            (e.target as Node).nodeType === Node.ELEMENT_NODE
+                ? (e.target as HTMLElement)
+                : (e.target as Node).parentElement;
+        let target = startEl?.closest?.(".person-name-clickable") ?? null;
+        if (!target && startEl) {
+            const peopleList =
+                startEl.closest(".asset--metadata--people-list") ??
+                startEl.closest(".asset--metadata--has-icon")?.querySelector(".asset--metadata--people-list");
+            if (peopleList) {
+                const spans = peopleList.querySelectorAll<HTMLElement>(".person-name-clickable");
+                for (const span of spans) {
+                    const r = span.getBoundingClientRect();
+                    if (
+                        e.clientX >= r.left &&
+                        e.clientX <= r.right &&
+                        e.clientY >= r.top &&
+                        e.clientY <= r.bottom
+                    ) {
+                        target = span;
+                        break;
+                    }
+                }
+            }
+        }
         if (!target || !(target instanceof HTMLElement)) return;
 
         e.preventDefault();
