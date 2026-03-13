@@ -47,12 +47,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Add `ProcessMemoriesCollage` in `internal/routes/routes_asset_helpers.go`: call provider.MemoriesCollage, build ViewData with layout="collage", Duration=45, Assets (1–8), MemoryCaption; handle empty → return error so caller skips
-- [ ] T010 [US1] In `retrieveImage` in `internal/routes/routes_asset_helpers.go`, when bucket is `SourceMemories`, call `ProcessMemoriesCollage` instead of `RandomMemoryAsset`; on empty/error, retry with different bucket or skip
-- [ ] T011 [US1] Add `case "collage"` in `generateViewData` in `internal/routes/routes_asset_helpers.go`: call ProcessMemoriesCollage, set viewData with collage layout and 45s duration
-- [ ] T012 [US1] Create `internal/templates/components/memories/collage.templ`: grid with `collage-{n}` class, caption, `data-asset-id` on cells, `data-memories="true"` on container
-- [ ] T013 [US1] Add collage branch in `internal/templates/components/image/layout.templ`: when layout is collage, render collage component instead of single/splitview
-- [ ] T014 [US1] In `internal/routes/routes_asset.go` (NewAsset handler), when viewData has layout collage, render collage component via `imageComponent.Image` or new `memoriesComponent.Collage`; ensure kiosk-data includes `duration: 45`
+- [x] T009 [US1] Add `ProcessMemoriesCollage` in `internal/routes/routes_asset_helpers.go`: call provider.MemoriesCollage, build ViewData with layout="collage", Duration=45, Assets (1–8), MemoryCaption; handle empty → return error so caller skips
+- [x] T010 [US1] In `retrieveImage` in `internal/routes/routes_asset_helpers.go`, when bucket is `SourceMemories`, call `ProcessMemoriesCollage` instead of `RandomMemoryAsset`; on empty/error, retry with different bucket or skip
+- [x] T011 [US1] Add `case "collage"` in `generateViewData` in `internal/routes/routes_asset_helpers.go`: call ProcessMemoriesCollage, set viewData with collage layout and 45s duration
+- [x] T012 [US1] Create `internal/templates/components/memories/collage.templ`: grid with `collage-{n}` class, caption, `data-asset-id` on cells, `data-memories="true"` on container
+- [x] T013 [US1] Add collage branch in `internal/templates/components/image/layout.templ`: when layout is collage, render collage component instead of single/splitview
+- [x] T014 [US1] In `internal/routes/routes_asset.go` (NewAsset handler), when viewData has layout collage, render collage component via `imageComponent.Image` or new `memoriesComponent.Collage`; ensure kiosk-data includes `duration: 45`
 
 **Checkpoint**: Memories collage appears in slideshow; 45s timer; caption displays
 

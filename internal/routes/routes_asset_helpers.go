@@ -15,6 +15,7 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
+	"github.com/damongolding/immich-kiosk/internal/i18n"
 	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/photoprism"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
@@ -758,6 +759,36 @@ func determineLayoutMode(layout string, clientHeight, clientWidth int) string {
 	return layout
 }
 
+const memoriesDurationSeconds = 45
+
+// ProcessMemoriesCollage calls provider.MemoriesCollage, builds ViewData with layout=collage, Duration=45,
+// Assets (1–8), and MemoryCaption. Returns error on empty so caller can skip or retry with a different bucket.
+func ProcessMemoriesCollage(provider source.ProviderOps, requestConfig config.Config, requestID, deviceID string, queries map[string][]string) (common.ViewData, error) {
+	collage, err := provider.MemoriesCollage(requestID, deviceID)
+	if err != nil {
+		return common.ViewData{}, err
+	}
+	caption := i18n.TWithData("memories_caption", map[string]interface{}{"YearsAgo": collage.YearsAgo})
+	assets := make([]common.ViewImageData, 0, len(collage.Assets))
+	for _, a := range collage.Assets {
+		assets = append(assets, common.ViewImageData{
+			Asset: a,
+			User:  requestConfig.SelectedUser,
+		})
+	}
+	requestConfig.Layout = kiosk.LayoutCollage
+	requestConfig.Duration = memoriesDurationSeconds
+	viewData := common.ViewData{
+		RequestID:     requestID,
+		DeviceID:      deviceID,
+		Config:        requestConfig,
+		Assets:        assets,
+		MemoryCaption: caption,
+		Queries:       queries,
+	}
+	return viewData, nil
+}
+
 // generateViewData prepares view data for a kiosk page request based on the specified layout and client display dimensions.
 // It selects and processes one or two assets as needed for the layout, handling orientation and split view logic, and returns the resulting ViewData or an error.
 func generateViewData(requestConfig config.Config, c common.ContextCopy, requestID, deviceID string, isPrefetch bool) (common.ViewData, error) {
@@ -766,6 +797,26 @@ func generateViewData(requestConfig config.Config, c common.ContextCopy, request
 		RequestID: requestID,
 		DeviceID:  deviceID,
 		Config:    requestConfig,
+	}
+
+	// When memories is enabled, randomly try memories collage first (weighted by bucket counts).
+	// On success return collage; on empty/error skip memories and fall through to normal flow.
+	if requestConfig.Memories && requestConfig.Kiosk.AssetWeighting {
+		provider := getProvider(context.Background(), requestConfig)
+		assets, assetsErr := gatherAssetBuckets(provider, requestConfig, requestID, deviceID)
+		if assetsErr == nil && len(assets) > 0 {
+			picked := utils.PickRandomImageType(requestConfig.Kiosk.AssetWeighting, assets)
+			picked.ID, _ = provider.ApplyUserFromAssetID(picked.ID)
+			if picked.Type == kiosk.SourceMemories {
+				queries := c.URL.Query()
+				collageData, err := ProcessMemoriesCollage(provider, requestConfig, requestID, deviceID, queries)
+				if err == nil {
+					return collageData, nil
+				}
+				// Skip memories for this request; fall through with memories disabled
+				requestConfig.Memories = false
+			}
+		}
 	}
 
 	requestConfig.Layout = determineLayoutMode(requestConfig.Layout, requestConfig.ClientData.Height, requestConfig.ClientData.Width)

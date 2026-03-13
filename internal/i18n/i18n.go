@@ -76,3 +76,27 @@ func T() func(string) string {
 		return defaultTranslated
 	}
 }
+
+// TWithData returns a localized string with template data interpolation.
+// Use for messages with placeholders like "Memories from {{.YearsAgo}} years ago".
+func TWithData(key string, data map[string]interface{}) string {
+	if localizer == nil || defaultLocalizer == nil {
+		return key
+	}
+	translated, err := localizer.Localize(&i18n.LocalizeConfig{
+		MessageID:    key,
+		TemplateData: data,
+	})
+	if err == nil {
+		return translated
+	}
+	defaultTranslated, err := defaultLocalizer.Localize(&i18n.LocalizeConfig{
+		MessageID:    key,
+		TemplateData: data,
+	})
+	if err != nil {
+		log.Error("failed to translate", "key", key, "error", err)
+		return key
+	}
+	return defaultTranslated
+}

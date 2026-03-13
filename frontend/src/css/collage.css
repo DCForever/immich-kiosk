@@ -25,6 +25,19 @@
     display: block;
 }
 
+.collage-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    color: #fff;
+    font-size: 1.1rem;
+    text-align: center;
+    text-shadow: 0 0 1.25rem rgba(0, 0, 0, 0.6);
+    z-index: 1;
+}
+
 /* 1 photo: full area */
 .collage-1 {
     grid-template-columns: 1fr;

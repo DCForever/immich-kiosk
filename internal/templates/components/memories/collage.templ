@@ -1,0 +1,37 @@
+package memories
+
+import (
+	"fmt"
+
+	"github.com/damongolding/immich-kiosk/internal/common"
+)
+
+// Collage renders a memories collage grid with 1–8 photos, caption, and data attributes for lightbox.
+// Uses collage-{n} CSS class where n = len(assets). Cells use /image/:id for lazy loading.
+templ Collage(viewData common.ViewData, secret string) {
+	{{ n := len(viewData.Assets) }}
+	{{ if n < 1 { n = 1 } }}
+	<div
+		class={ "collage-grid", fmt.Sprintf("collage-%d", n) }
+		data-memories="true"
+		data-layout="collage"
+	>
+		for _, asset := range viewData.Assets {
+			{{ imgURL := "/image/" + asset.Asset.ID }}
+			{{ if viewData.Queries != nil && len(viewData.Queries) > 0 { imgURL = imgURL + "?" + viewData.Queries.Encode() } }}
+			<div
+				class="collage-cell"
+				role="button"
+				tabindex="0"
+				data-asset-id={ asset.Asset.ID }
+			>
+				<img src={ imgURL } alt="Memory" loading="lazy"/>
+			</div>
+		}
+	</div>
+	if len(viewData.MemoryCaption) > 0 {
+		<div class="collage-caption">
+			{ viewData.MemoryCaption }
+		</div>
+	}
+}

@@ -2,7 +2,10 @@ package components
 
 import (
 	"fmt"
+
 	"github.com/damongolding/immich-kiosk/internal/common"
+	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/templates/components/memories"
 	"github.com/damongolding/immich-kiosk/internal/templates/partials"
 )
 
@@ -15,7 +18,7 @@ func modifyGIFAssets(viewData *common.ViewData) {
 }
 
 // Image is the main entry point for rendering images.
-// It determines whether to use a single or split view layout based on the number of images,
+// It determines whether to use a single, split, or collage layout based on viewData,
 // and renders the history form.
 //
 // Parameters:
@@ -23,7 +26,11 @@ func modifyGIFAssets(viewData *common.ViewData) {
 //   - secret: The secret key used for generating the signature.
 templ Image(viewData common.ViewData, secret string) {
 	{{ modifyGIFAssets(&viewData) }}
-	if len(viewData.Assets) < 2 {
+	if viewData.Layout == kiosk.LayoutCollage {
+		<div class="frame frame--image" data-duration={ fmt.Sprintf("%d", viewData.Duration) }>
+			@memories.Collage(viewData, secret)
+		</div>
+	} else if len(viewData.Assets) < 2 {
 		@layoutSingleView(viewData)
 	} else {
 		@layoutSplitView(viewData)

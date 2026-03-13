@@ -22,6 +22,7 @@ class PollingController {
     private pausedTime: number | null = null;
     private isPaused: boolean = false;
     private pollInterval: number = 0;
+    private defaultPollInterval: number = 0;
     private kioskElement: HTMLElement | null = null;
     private menuElement: HTMLElement | null = null;
     private currentProgressSource: ProgressSource | null = null;
@@ -123,9 +124,24 @@ class PollingController {
     };
 
     /**
-     * Starts the polling process
+     * Starts the polling process.
+     * If the kiosk content has data-duration (e.g. memories collage), uses that for this cycle.
      */
     startPolling = () => {
+        const durationEl = this.kioskElement?.querySelector("[data-duration]");
+        if (durationEl) {
+            const durationSeconds = parseInt(
+                durationEl.getAttribute("data-duration") || "0",
+                10,
+            );
+            this.pollInterval =
+                durationSeconds > 0
+                    ? durationSeconds * 1000
+                    : this.defaultPollInterval;
+        } else {
+            this.pollInterval = this.defaultPollInterval;
+        }
+
         this.progressBarElement?.classList.remove("progress--bar-paused");
         this.menuElement?.classList.add("navigation-hidden");
         this.lastPollTime = performance.now();

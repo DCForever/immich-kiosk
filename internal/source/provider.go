@@ -23,6 +23,7 @@ type ProviderOps interface {
 	RandomAssetInDateRange(dateRange, requestID, deviceID string, isPrefetch bool) error
 	RandomAssetOfPerson(personID, requestID, deviceID string, isPrefetch bool) error
 	RandomMemoryAsset(requestID, deviceID string) error
+	MemoriesCollage(requestID, deviceID string) (MemoriesCollage, error)
 	RandomAssetWithTag(tagID, requestID, deviceID string, isPrefetch bool) error
 	RandomAssetWithRating(ratingID, requestID, deviceID string, isPrefetch bool) error
 	AssetInfo(assetID, requestID, deviceID string) error
