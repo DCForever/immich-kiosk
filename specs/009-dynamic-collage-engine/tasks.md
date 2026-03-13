@@ -23,7 +23,7 @@
 
 **Purpose**: Create the collage package structure
 
-- [ ] T001 Create `internal/collage/` package directory per plan.md structure
+- [x] T001 Create `internal/collage/` package directory per plan.md structure
 
 ---
 
@@ -33,10 +33,10 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 [P] Define `LayoutResult` and `LayoutCell` types in `internal/collage/layout.go` per data-model.md
-- [ ] T003 Implement `ComputeLayout(assets, width, height) (LayoutResult, error)` entry point in `internal/collage/layout.go` with algorithm selection stub
-- [ ] T004 Implement justified-rows algorithm in `internal/collage/justified.go` (rows of similar height, aspect-ratio preservation)
-- [ ] T005 Add unit tests for layout types and justified algorithm in `internal/collage/layout_test.go`
+- [x] T002 [P] Define `LayoutResult` and `LayoutCell` types in `internal/collage/layout.go` per data-model.md
+- [x] T003 Implement `ComputeLayout(assets, width, height) (LayoutResult, error)` entry point in `internal/collage/layout.go` with algorithm selection stub
+- [x] T004 Implement justified-rows algorithm in `internal/collage/justified.go` (rows of similar height, aspect-ratio preservation)
+- [x] T005 Add unit tests for layout types and justified algorithm in `internal/collage/layout_test.go`
 
 **Checkpoint**: Layout engine with one algorithm ready; ProcessMemoriesCollage can call ComputeLayout
 
