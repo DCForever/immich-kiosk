@@ -32,6 +32,10 @@ import { sleepMode } from "./sleep";
 import { preventSleep } from "./wakelock";
 import { weatherRotationPosition } from "./weather";
 import { initBirthdateEdit } from "./birthdate-edit";
+import {
+    cleanupMemoriesLightbox,
+    initMemoriesLightbox,
+} from "./memories-lightbox";
 
 ("use strict");
 
@@ -212,6 +216,7 @@ async function init(): Promise<void> {
     );
 
     addEventListeners();
+    addMemoriesLightboxListener();
 
     initBirthdateEdit();
 
@@ -468,6 +473,21 @@ function addEventListeners(): void {
 
     // Links overlay
     linksButton?.addEventListener("click", () => toggleRedirectsOverlay());
+}
+
+/**
+ * Listens for HTMX swaps and inits/cleans up memories lightbox when collage is shown/hidden.
+ */
+function addMemoriesLightboxListener(): void {
+    htmx.on("htmx:afterSwap", () => {
+        if (!kiosk) return;
+        const memoriesEl = kiosk.querySelector("[data-memories='true']");
+        if (memoriesEl) {
+            initMemoriesLightbox(kiosk);
+        } else {
+            cleanupMemoriesLightbox(kiosk);
+        }
+    });
 }
 
 /**

@@ -84,11 +84,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T020 [US3] Create `frontend/src/ts/memories-lightbox.ts`: openLightbox(assetId), closeLightbox(), call pausePolling/resumePolling from `polling.ts`; render overlay with `<img src="/image/{id}">` and close control
-- [ ] T021 [US3] Add click handler on `.collage-cell` in collage template or via `memories-lightbox.ts` init: on tap, open lightbox with `data-asset-id`
-- [ ] T022 [US3] Add lightbox overlay HTML/CSS: full-screen overlay, close button, tap-outside-to-close; include in `frontend/src/css/collage.css` or new `memories-lightbox.css`
-- [ ] T023 [US3] Integrate `memories-lightbox.ts` in `frontend/src/ts/kiosk.ts` or main entry: init when `data-memories="true"` present; ensure polling pauses on open, resumes on close with remaining time
-- [ ] T024 [US3] Add `data-memories` and `memories: true` to kiosk-data JSON when rendering collage so frontend enables lightbox behavior
+- [x] T020 [US3] Create `frontend/src/ts/memories-lightbox.ts`: openLightbox(assetId), closeLightbox(), call pausePolling/resumePolling from `polling.ts`; render overlay with `<img src="/image/{id}">` and close control
+- [x] T021 [US3] Add click handler on `.collage-cell` via `memories-lightbox.ts` init: on tap, open lightbox with `data-asset-id`
+- [x] T022 [US3] Add lightbox overlay HTML/CSS in `frontend/src/css/collage.css`: full-screen overlay, close button, tap-outside-to-close
+- [x] T023 [US3] Integrate `memories-lightbox.ts` in `frontend/src/ts/kiosk.ts`: init on htmx:afterSwap when `data-memories="true"` present; polling pauses on open, resumes on close with remaining time
+- [x] T024 [US3] Lightbox enabled via DOM `data-memories="true"` on collage (kiosk-data not updated per HTMX swap)
 
 **Checkpoint**: Lightbox works; timer pauses; close returns to collage
 

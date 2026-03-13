@@ -20,6 +20,7 @@ class PollingController {
     private progressBarElement: HTMLElement | null = null;
     private lastPollTime: number | null = null;
     private pausedTime: number | null = null;
+    private pausedElapsedMs: number | null = null;
     private isPaused: boolean = false;
     private pollInterval: number = 0;
     private defaultPollInterval: number = 0;
@@ -172,6 +173,12 @@ class PollingController {
         }
 
         this.pausedTime = performance.now();
+        if (
+            this.currentProgressSource?.type === "image" &&
+            this.lastPollTime !== null
+        ) {
+            this.pausedElapsedMs = performance.now() - this.lastPollTime;
+        }
 
         if (this.currentProgressSource?.type === "video" && this.video) {
             this.video.pause();
@@ -190,13 +197,19 @@ class PollingController {
     /**
      * Resumes the polling process
      * @param hideOverlay - Whether to hide the overlay when resuming
+     * @param resumeFromElapsedMs - Optional elapsed ms to resume from (for lightbox close); uses pausedElapsedMs if not provided
      */
-    resumePolling = (hideOverlay: boolean = false) => {
+    resumePolling = (hideOverlay: boolean = false, resumeFromElapsedMs?: number) => {
         if (!this.isPaused || this.animationFrameId !== null) return;
 
         if (this.currentProgressSource?.type === "video" && this.video) {
             this.video.play();
         } else {
+            const elapsed =
+                resumeFromElapsedMs ?? this.pausedElapsedMs ?? 0;
+            if (elapsed > 0 && this.lastPollTime !== null) {
+                this.lastPollTime = performance.now() - elapsed;
+            }
             this.currentProgressSource = {
                 type: "image",
                 startTime: performance.now(),
@@ -204,6 +217,8 @@ class PollingController {
             };
         }
 
+        this.pausedElapsedMs = null;
+        this.pausedTime = null;
         this.animationFrameId = requestAnimationFrame(this.updateProgress);
         this.progressBarElement?.classList.remove("progress--bar-paused");
         this.menuElement?.classList.add("navigation-hidden");
@@ -377,6 +392,13 @@ class PollingController {
     nextAsset = () => {
         this.triggerNewAsset();
     };
+
+    /**
+     * Returns elapsed ms when paused (for lightbox resume with remaining time).
+     */
+    getPausedElapsedMs = (): number => {
+        return this.pausedElapsedMs ?? 0;
+    };
 }
 
 const pollingController = PollingController.getInstance();
@@ -392,8 +414,10 @@ export const pausePolling = (showMenu?: boolean) =>
     pollingController.pausePolling(showMenu);
 export const stopPolling = () => pollingController.stopPolling();
 export const nextAsset = () => pollingController.nextAsset();
-export const resumePolling = (hideOverlay?: boolean) =>
-    pollingController.resumePolling(hideOverlay);
+export const resumePolling = (hideOverlay?: boolean, resumeFromElapsedMs?: number) =>
+    pollingController.resumePolling(hideOverlay, resumeFromElapsedMs);
+export const getPausedElapsedMs = (): number =>
+    pollingController.getPausedElapsedMs();
 export const togglePolling = (hideOverlay?: boolean) =>
     pollingController.togglePolling(hideOverlay);
 export const videoHandler = (id: string) => pollingController.videoHandler(id);

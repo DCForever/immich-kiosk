@@ -16,6 +16,7 @@
     overflow: hidden;
     position: relative;
     background: #111;
+    cursor: pointer;
 }
 
 .collage-cell img {
@@ -196,3 +197,40 @@
 .collage-8 .collage-cell:nth-child(6) { grid-area: f; }
 .collage-8 .collage-cell:nth-child(7) { grid-area: g; }
 .collage-8 .collage-cell:nth-child(8) { grid-area: h; }
+
+/* Memories lightbox overlay */
+.memories-lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.memories-lightbox-overlay .memories-lightbox-image {
+    max-width: 95vw;
+    max-height: 95vh;
+    object-fit: contain;
+    cursor: default;
+    pointer-events: none;
+}
+
+.memories-lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.memories-lightbox-close:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
