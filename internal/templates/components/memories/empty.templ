@@ -1,0 +1,38 @@
+package memories
+
+import (
+	"fmt"
+
+	"github.com/damongolding/immich-kiosk/internal/common"
+	"github.com/damongolding/immich-kiosk/internal/i18n"
+	"github.com/damongolding/immich-kiosk/internal/templates/partials"
+)
+
+// MemoriesEmpty renders "No memories for this day" with back button.
+// Shown when on-demand memories has no photos for this day. 45s duration.
+templ MemoriesEmpty(viewData common.ViewData, secret string) {
+	{{ t := i18n.T() }}
+	<div class="frame frame--image memories-empty" data-duration={ fmt.Sprintf("%d", viewData.Duration) }>
+		<button
+			class="memories-back-button"
+			title={ t("memories_back") }
+			hx-post="/asset/new"
+			hx-target="#kiosk"
+			hx-swap="innerHTML"
+			hx-include=".kiosk-history--entry, .kiosk-param"
+			hx-vals="js:{...kiosk.clientData()}"
+			hx-trigger="click throttle:0.5s"
+			hx-on::after-request="kiosk.startPolling()"
+			hx-on::after-swap="kiosk.cleanupFrames(), kiosk.releaseRequestLock()"
+		>
+			<svg role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="24" height="24">
+				<path d="M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.2 288 416 288c17.7 0 32-14.3 32-32s-14.3-32-32-32l-306.7 0L214.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"></path>
+			</svg>
+			{ t("memories_back") }
+		</button>
+		<div class="memories-empty-content">
+			<p class="memories-empty-message">{ viewData.MemoryCaption }</p>
+		</div>
+	</div>
+	@partials.RenderHistory(viewData)
+}

@@ -112,6 +112,33 @@ func Delete(key string) {
 	kioskCache.Delete(key)
 }
 
+const memoriesFirstTenKeyPrefix = "memories-first-ten:"
+
+// GetAssetCountForMemoriesFirstTen returns the number of assets served to this device (for debug show_memories_in_first_ten).
+func GetAssetCountForMemoriesFirstTen(deviceID string) int {
+	if deviceID == "" {
+		return 0
+	}
+	key := memoriesFirstTenKeyPrefix + deviceID
+	if v, ok := Get(key); ok {
+		if n, ok := v.(int); ok {
+			return n
+		}
+	}
+	return 0
+}
+
+// IncrementAssetCountForMemoriesFirstTen increments and returns the new count. Uses 1h expiration.
+func IncrementAssetCountForMemoriesFirstTen(deviceID string) int {
+	if deviceID == "" {
+		return 0
+	}
+	key := memoriesFirstTenKeyPrefix + deviceID
+	count := GetAssetCountForMemoriesFirstTen(deviceID) + 1
+	SetWithExpiration(key, count, time.Hour)
+	return count
+}
+
 // Replace updates an existing item in the cache with a new value.
 // Returns an error if the key does not exist.
 func Replace(key string, x any) error {

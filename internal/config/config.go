@@ -147,6 +147,9 @@ type KioskSettings struct {
 	Debug        bool `json:"debug" yaml:"debug" mapstructure:"debug" default:"false"`
 	DebugVerbose bool `json:"debugVerbose" yaml:"debug_verbose" mapstructure:"debug_verbose" default:"false"`
 
+	// ShowMemoriesInFirstTen when true (debug), forces memories collage to appear in the first 10 photos per device.
+	ShowMemoriesInFirstTen bool `json:"showMemoriesInFirstTen" yaml:"show_memories_in_first_ten" mapstructure:"show_memories_in_first_ten" default:"false"`
+
 	DemoMode bool `json:"-" yaml:"-" mapstructure:"demo_mode" default:"false"`
 }
 
@@ -537,6 +540,7 @@ func bindEnvironmentVariables(v *viper.Viper) error {
 		{"kiosk.asset_weighting", "KIOSK_ASSET_WEIGHTING"},
 		{"kiosk.debug", "KIOSK_DEBUG"},
 		{"kiosk.debug_verbose", "KIOSK_DEBUG_VERBOSE"},
+		{"kiosk.show_memories_in_first_ten", "KIOSK_SHOW_MEMORIES_IN_FIRST_TEN"},
 		{"kiosk.demo_mode", "KIOSK_DEMO_MODE"},
 		{"kiosk.config_validation_level", "KIOSK_CONFIG_VALIDATION_LEVEL"},
 		{"source", "KIOSK_SOURCE"},

@@ -115,6 +115,24 @@ templ Menu(viewData common.ViewData, queries url.Values, secret string) {
 				</svg>
 			</div>
 		}
+		if viewData.Memories {
+			<div
+				class="navigation--item navigation--memories rounded"
+				title={ t("memories_button") }
+				hx-post="/memories"
+				hx-target="#kiosk"
+				hx-swap="innerHTML"
+				hx-include=".kiosk-history--entry, .kiosk-param"
+				hx-vals="js:{...kiosk.clientData()}"
+				hx-trigger="click throttle:0.5s"
+				hx-on::after-request="kiosk.startPolling()"
+				hx-on::after-swap="kiosk.cleanupFrames(), kiosk.releaseRequestLock()"
+			>
+				<svg role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="24" height="24">
+					<path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24s24-10.7 24-24V88.1L88.1 120c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9zM0 344V454.1c0 21.4 25.9 32.1 41 17l34-34c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0L88.1 423.9 57.9 454.1c-15.1 15.1-4.4 41 17 41H168c13.3 0 24-10.7 24-24s-10.7-24-24-24H88.1l120-120c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0L0 344zM344 0H454.1c21.4 0 32.1 25.9 17 41l-34 34c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l30.1-30.1 34 34c15.1 15.1 41 4.4 41-17V168c0-13.3-10.7-24-24-24s-24 10.7-24 24V423.9l-120-120c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9l120 120H168c-13.3 0-24 10.7-24 24s10.7 24 24 24H344c13.3 0 24-10.7 24-24V24c0-13.3-10.7-24-24-24zM423.9 88.1L393.9 118 344 68.1l30.1-30.1c15.1-15.1 4.4-41-17-41H344c-13.3 0-24 10.7-24 24s10.7 24 24 24h79.9l-120 120c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l120-120V168c0 13.3 10.7 24 24 24s24-10.7 24-24V57.9c0-21.4-25.9-32.1-41-17z"></path>
+				</svg>
+			</div>
+		}
 		if viewData.ShowMoreInfo {
 			<div class="navigation--item navigation--more-info rounded" title={ t("more_info") }>
 				<svg role="img" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 512">

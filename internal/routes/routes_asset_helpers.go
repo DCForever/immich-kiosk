@@ -799,22 +799,35 @@ func generateViewData(requestConfig config.Config, c common.ContextCopy, request
 		Config:    requestConfig,
 	}
 
-	// When memories is enabled, randomly try memories collage first (weighted by bucket counts).
+	// When memories is enabled, try memories collage: either forced (debug) or weighted random.
+	// Debug show_memories_in_first_ten: force memories for the first 10 photos per device.
 	// On success return collage; on empty/error skip memories and fall through to normal flow.
-	if requestConfig.Memories && requestConfig.Kiosk.AssetWeighting {
+	if requestConfig.Memories && !isPrefetch {
 		provider := getProvider(context.Background(), requestConfig)
-		assets, assetsErr := gatherAssetBuckets(provider, requestConfig, requestID, deviceID)
-		if assetsErr == nil && len(assets) > 0 {
-			picked := utils.PickRandomImageType(requestConfig.Kiosk.AssetWeighting, assets)
-			picked.ID, _ = provider.ApplyUserFromAssetID(picked.ID)
-			if picked.Type == kiosk.SourceMemories {
-				queries := c.URL.Query()
-				collageData, err := ProcessMemoriesCollage(provider, requestConfig, requestID, deviceID, queries)
-				if err == nil {
-					return collageData, nil
+		forceMemories := requestConfig.Kiosk.ShowMemoriesInFirstTen &&
+			cache.GetAssetCountForMemoriesFirstTen(deviceID) < 10
+
+		if forceMemories {
+			queries := c.URL.Query()
+			collageData, err := ProcessMemoriesCollage(provider, requestConfig, requestID, deviceID, queries)
+			if err == nil {
+				return collageData, nil
+			}
+			// Memories failed (e.g. PhotoPrism); fall through with memories disabled
+			requestConfig.Memories = false
+		} else if requestConfig.Kiosk.AssetWeighting {
+			assets, assetsErr := gatherAssetBuckets(provider, requestConfig, requestID, deviceID)
+			if assetsErr == nil && len(assets) > 0 {
+				picked := utils.PickRandomImageType(requestConfig.Kiosk.AssetWeighting, assets)
+				picked.ID, _ = provider.ApplyUserFromAssetID(picked.ID)
+				if picked.Type == kiosk.SourceMemories {
+					queries := c.URL.Query()
+					collageData, err := ProcessMemoriesCollage(provider, requestConfig, requestID, deviceID, queries)
+					if err == nil {
+						return collageData, nil
+					}
+					requestConfig.Memories = false
 				}
-				// Skip memories for this request; fall through with memories disabled
-				requestConfig.Memories = false
 			}
 		}
 	}

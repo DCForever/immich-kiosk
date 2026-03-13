@@ -66,11 +66,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Create `internal/routes/routes_memories.go`: `GET/POST /memories` handler that calls ProcessMemoriesCollage (or equivalent), renders collage with back button; handle empty → show "No memories for this day" screen for 45s
-- [ ] T016 [US2] Register `/memories` route in `internal/routes/routes.go`
-- [ ] T017 [US2] Add Memories button to `internal/templates/partials/menu.templ` with HTMX trigger to load `/memories` (or POST with query params)
-- [ ] T018 [US2] Add back/close button to memories view in `internal/templates/components/memories/collage.templ` (or separate partial) that triggers `hx-post="/asset/new"` with current queries to return to slideshow
-- [ ] T019 [US2] Create "No memories for this day" template/state in collage or `internal/templates/components/memories/empty.templ` for on-demand when no photos exist
+- [x] T015 [US2] Create `internal/routes/routes_memories.go`: `GET/POST /memories` handler that calls ProcessMemoriesCollage (or equivalent), renders collage with back button; handle empty → show "No memories for this day" screen for 45s
+- [x] T016 [US2] Register `/memories` route in `main.go`
+- [x] T017 [US2] Add Memories button to `internal/templates/partials/menu.templ` with HTMX trigger to load `/memories` (or POST with query params)
+- [x] T018 [US2] Add back/close button to memories view in `internal/templates/components/memories/memories_view.templ` that triggers `hx-post="/asset/new"` with current queries to return to slideshow
+- [x] T019 [US2] Create "No memories for this day" template/state in `internal/templates/components/memories/empty.templ` for on-demand when no photos exist
 
 **Checkpoint**: On-demand button works; back/dismiss returns; empty state shows for on-demand
 

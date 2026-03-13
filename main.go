@@ -182,6 +182,8 @@ func main() {
 	e.GET("/image/:imageID", routes.ImageWithID(baseConfig, c), AssetCacheMiddlewareWithConfig(baseConfig))
 
 	e.POST("/asset/new", routes.NewAsset(baseConfig, c))
+	e.POST("/memories", routes.Memories(baseConfig, c))
+	e.GET("/memories", routes.Memories(baseConfig, c))
 
 	e.POST("/asset/offline", routes.OfflineMode(baseConfig, c))
 	e.POST("/asset/downloading", routes.IsDownloading)

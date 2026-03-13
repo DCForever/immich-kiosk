@@ -538,6 +538,11 @@
         "debug_verbose": {
           "type": "boolean"
         },
+        "show_memories_in_first_ten": {
+          "type": "boolean",
+          "default": false,
+          "description": "Debug: force memories collage to appear in the first 10 photos per device"
+        },
         "config_validation_level": {
           "type": "string",
           "enum": ["warning", "error", "off"],

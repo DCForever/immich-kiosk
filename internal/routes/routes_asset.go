@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/labstack/echo/v5"
 
+	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/i18n"
@@ -75,7 +76,9 @@ func NewAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 			if cachedViewData := fromCache(requestCtx.URL.String(), deviceID); cachedViewData != nil {
 				go assetPreFetch(com, requestData, requestCtx)
 				go webhooks.Trigger(com.Context(), requestData, KioskVersion, webhooks.NewAsset, cachedViewData[0])
-
+				if requestConfig.Kiosk.ShowMemoriesInFirstTen {
+					cache.IncrementAssetCountForMemoriesFirstTen(deviceID)
+				}
 				return renderCachedViewData(c, cachedViewData, &requestConfig, requestID, deviceID, com.Secret())
 			}
 			log.Debug(requestID, "deviceID", deviceID, "cache miss for new image")
@@ -87,6 +90,9 @@ func NewAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 			return RenderError(c, err, t("retrieving_asset"), requestConfig.Duration, requestConfig.Source)
 		}
 
+		if requestConfig.Kiosk.ShowMemoriesInFirstTen {
+			cache.IncrementAssetCountForMemoriesFirstTen(deviceID)
+		}
 		if requestConfig.Kiosk.PreFetch {
 			go assetPreFetch(com, requestData, requestCtx)
 		}
