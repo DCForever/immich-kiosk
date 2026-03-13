@@ -33,8 +33,10 @@ func computeTreemap(assets []source.DisplayAsset, width, height float64, algo st
 	const gapFrac = 0.008
 	availW := width * (1 - gapFrac*2)
 	availH := height * (1 - gapFrac*2)
+	offsetX := gapFrac * width
+	offsetY := gapFrac * height
 
-	cells := subdivideTreemap(ratios, minRatios, maxRatios, areas, totalArea, 0, 0, availW, availH, width, height, 0)
+	cells := subdivideTreemap(ratios, minRatios, maxRatios, areas, totalArea, offsetX, offsetY, availW, availH, width, height, 0)
 	return &LayoutResult{
 		Cells:          cells,
 		Algorithm:      algo,

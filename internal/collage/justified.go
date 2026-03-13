@@ -53,7 +53,7 @@ func packJustifiedRows(ratios, minRatios, maxRatios []float64, availW, availH, w
 
 	cells := make([]LayoutCell, 0, n)
 	photosPerRow := (n + numRows - 1) / numRows
-	y := gapFrac
+	y := gapFrac * height
 
 	for row := 0; row < numRows; row++ {
 		start := row * photosPerRow
@@ -65,8 +65,14 @@ func packJustifiedRows(ratios, minRatios, maxRatios []float64, availW, availH, w
 			break
 		}
 
-		// Choose ratios within [min,max] to fill row width
-		chosen := chooseRatiosForRow(ratios[start:end], minRatios[start:end], maxRatios[start:end], availW, availH/float64(numRows))
+		numInRow := end - start
+		rowGaps := float64(numInRow-1) * gapFrac * width
+		rowAvailW := availW - rowGaps
+		rowGapTotal := float64(numRows-1) * gapFrac * height
+		rowHeight := (availH - rowGapTotal) / float64(numRows)
+
+		// Choose ratios within [min,max] to fill row width (after reserving gaps)
+		chosen := chooseRatiosForRow(ratios[start:end], minRatios[start:end], maxRatios[start:end], rowAvailW, rowHeight)
 
 		sumChosen := 0.0
 		for _, r := range chosen {
@@ -76,15 +82,14 @@ func packJustifiedRows(ratios, minRatios, maxRatios []float64, availW, availH, w
 			sumChosen = 1
 		}
 
-		rowHeight := availH / float64(numRows)
-		scaleToWidth := availW / sumChosen
+		scaleToWidth := rowAvailW / sumChosen
 		if scaleToWidth < rowHeight {
 			rowHeight = scaleToWidth
 		}
 
-		x := gapFrac
+		x := gapFrac * width
 		for i := start; i < end; i++ {
-			cellW := (chosen[i-start] / sumChosen) * availW
+			cellW := (chosen[i-start] / sumChosen) * rowAvailW
 			cellH := rowHeight
 
 			cells = append(cells, LayoutCell{
@@ -94,10 +99,10 @@ func packJustifiedRows(ratios, minRatios, maxRatios []float64, availW, availH, w
 				Height:     cellH / height,
 				AssetIndex: i,
 			})
-			x += cellW/width + gapFrac
+			x += cellW + gapFrac*width
 		}
 
-		y += rowHeight/height + gapFrac
+		y += rowHeight + gapFrac*height
 	}
 
 	return cells
