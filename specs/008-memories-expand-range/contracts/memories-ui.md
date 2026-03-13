@@ -14,6 +14,7 @@ This document defines the contract changes for the memories feature when progres
 
 - **Asset count**: 3–16 photos (was 1–8). When fewer than 3 exist in any range, show empty state.
 - **Layout class**: `collage-{n}-{variant}` where n = 3..16 and variant = a, b, c, ... (≥3 variants per n).
+- **Layout constraints**: Collage layouts MUST have at least 2 columns and 2 rows (no 1×N vertical stack or N×1 horizontal strip). Layouts MUST have varied proportions: either varied column widths, varied row heights, or spanning cells creating visual hierarchy (no uniform grids where every cell is equal).
 
 ```html
 <div class="collage-grid collage-{n}-{variant}">

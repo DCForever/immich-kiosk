@@ -93,11 +93,13 @@
 
 .collage-1 .collage-cell:nth-child(1) { grid-area: a; }
 
-/* 2 photos: side by side */
+/* 2 photos: 2x1 with varied row (avoids single-row) */
 .collage-2 {
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr;
-    grid-template-areas: "a b";
+    grid-template-rows: 1.2fr 1fr;
+    grid-template-areas:
+        "a b"
+        "a b";
 }
 
 .collage-2 .collage-cell:nth-child(1) { grid-area: a; }
@@ -119,9 +121,11 @@
         "c b";
 }
 .collage-3-c {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1.2fr 1fr 1fr;
-    grid-template-areas: "a" "b" "c";
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "a c"
+        "b c";
 }
 .collage-3 .collage-cell:nth-child(1), .collage-3-a .collage-cell:nth-child(1), .collage-3-b .collage-cell:nth-child(1), .collage-3-c .collage-cell:nth-child(1) { grid-area: a; }
 .collage-3 .collage-cell:nth-child(2), .collage-3-a .collage-cell:nth-child(2), .collage-3-b .collage-cell:nth-child(2), .collage-3-c .collage-cell:nth-child(2) { grid-area: b; }
@@ -193,8 +197,8 @@
         "e f";
 }
 .collage-6-b {
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1.2fr;
     grid-template-areas:
         "a b c"
         "d e f";
@@ -258,8 +262,8 @@
         "f g h";
 }
 .collage-8-b {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1.2fr;
     grid-template-areas:
         "a b c d"
         "e f g h";
@@ -284,8 +288,8 @@
 
 /* 9 photos */
 .collage-9, .collage-9-a {
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1.2fr 1fr;
     grid-template-areas:
         "a b c"
         "d e f"
@@ -301,8 +305,8 @@
         "i i i";
 }
 .collage-9-c {
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1.2fr 1fr;
+    grid-template-rows: 1fr 1fr 1.2fr;
     grid-template-areas:
         "a b c"
         "d e f"
@@ -320,16 +324,16 @@
 
 /* 10 photos */
 .collage-10, .collage-10-a {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1.2fr 1fr;
     grid-template-areas:
         "a b c d"
         "e f g h"
         "i j";
 }
 .collage-10-b {
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1.2fr 1fr;
     grid-template-areas:
         "a b c"
         "d e f"
@@ -358,8 +362,8 @@
 
 /* 11–16 photos: use 3x4, 4x3, 4x4 etc with variants */
 .collage-11, .collage-11-a {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1.2fr 1fr;
     grid-template-areas:
         "a b c d"
         "e f g h"
@@ -404,8 +408,8 @@
         "i j k l";
 }
 .collage-12-b {
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1.2fr 1fr;
     grid-template-areas:
         "a b c"
         "d e f"
@@ -413,8 +417,8 @@
         "j k l";
 }
 .collage-12-c {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: 1fr 1.2fr 1fr 1fr 1fr 1fr;
     grid-template-areas:
         "a b" "c d" "e f" "g h" "i j" "k l";
 }
@@ -431,7 +435,7 @@
 .collage-12 .collage-cell:nth-child(11), .collage-12-a .collage-cell:nth-child(11), .collage-12-b .collage-cell:nth-child(11), .collage-12-c .collage-cell:nth-child(11) { grid-area: k; }
 .collage-12 .collage-cell:nth-child(12), .collage-12-a .collage-cell:nth-child(12), .collage-12-b .collage-cell:nth-child(12), .collage-12-c .collage-cell:nth-child(12) { grid-area: l; }
 
-.collage-13, .collage-13-a { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m . . ."; }
+.collage-13, .collage-13-a { grid-template-columns: 1.2fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1.2fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m . . ."; }
 .collage-13-b { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b c" "d e f" "g h i" "j k l" "m m m"; }
 .collage-13-c { grid-template-columns: 1.2fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b c" "a d e" "f g h" "i j k" "l m m"; }
 .collage-13 .collage-cell:nth-child(1), .collage-13-a .collage-cell:nth-child(1), .collage-13-b .collage-cell:nth-child(1), .collage-13-c .collage-cell:nth-child(1) { grid-area: a; }
@@ -448,9 +452,9 @@
 .collage-13 .collage-cell:nth-child(12), .collage-13-a .collage-cell:nth-child(12), .collage-13-b .collage-cell:nth-child(12), .collage-13-c .collage-cell:nth-child(12) { grid-area: l; }
 .collage-13 .collage-cell:nth-child(13), .collage-13-a .collage-cell:nth-child(13), .collage-13-b .collage-cell:nth-child(13), .collage-13-c .collage-cell:nth-child(13) { grid-area: m; }
 
-.collage-14, .collage-14-a { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m n . ."; }
+.collage-14, .collage-14-a { grid-template-columns: 1.2fr 1fr 1fr 1fr; grid-template-rows: 1fr 1.2fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m n . ."; }
 .collage-14-b { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b c" "d e f" "g h i" "j k l" "m n n"; }
-.collage-14-c { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b" "c d" "e f" "g h" "i j" "k l" "m n"; }
+.collage-14-c { grid-template-columns: 1.2fr 1fr; grid-template-rows: 1fr 1.2fr 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b" "c d" "e f" "g h" "i j" "k l" "m n"; }
 .collage-14 .collage-cell:nth-child(1), .collage-14-a .collage-cell:nth-child(1), .collage-14-b .collage-cell:nth-child(1), .collage-14-c .collage-cell:nth-child(1) { grid-area: a; }
 .collage-14 .collage-cell:nth-child(2), .collage-14-a .collage-cell:nth-child(2), .collage-14-b .collage-cell:nth-child(2), .collage-14-c .collage-cell:nth-child(2) { grid-area: b; }
 .collage-14 .collage-cell:nth-child(3), .collage-14-a .collage-cell:nth-child(3), .collage-14-b .collage-cell:nth-child(3), .collage-14-c .collage-cell:nth-child(3) { grid-area: c; }
@@ -466,8 +470,8 @@
 .collage-14 .collage-cell:nth-child(13), .collage-14-a .collage-cell:nth-child(13), .collage-14-b .collage-cell:nth-child(13), .collage-14-c .collage-cell:nth-child(13) { grid-area: m; }
 .collage-14 .collage-cell:nth-child(14), .collage-14-a .collage-cell:nth-child(14), .collage-14-b .collage-cell:nth-child(14), .collage-14-c .collage-cell:nth-child(14) { grid-area: n; }
 
-.collage-15, .collage-15-a { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m n o ."; }
-.collage-15-b { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b c" "d e f" "g h i" "j k l" "m n o"; }
+.collage-15, .collage-15-a { grid-template-columns: 1.2fr 1fr 1fr 1fr; grid-template-rows: 1fr 1.2fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m n o ."; }
+.collage-15-b { grid-template-columns: 1.2fr 1fr 1fr; grid-template-rows: 1fr 1fr 1.2fr 1fr 1fr; grid-template-areas: "a b c" "d e f" "g h i" "j k l" "m n o"; }
 .collage-15-c { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m n o o"; }
 .collage-15 .collage-cell:nth-child(1), .collage-15-a .collage-cell:nth-child(1), .collage-15-b .collage-cell:nth-child(1), .collage-15-c .collage-cell:nth-child(1) { grid-area: a; }
 .collage-15 .collage-cell:nth-child(2), .collage-15-a .collage-cell:nth-child(2), .collage-15-b .collage-cell:nth-child(2), .collage-15-c .collage-cell:nth-child(2) { grid-area: b; }
@@ -486,8 +490,8 @@
 .collage-15 .collage-cell:nth-child(15), .collage-15-a .collage-cell:nth-child(15), .collage-15-b .collage-cell:nth-child(15), .collage-15-c .collage-cell:nth-child(15) { grid-area: o; }
 
 .collage-16, .collage-16-a {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1.2fr 1fr 1fr;
     grid-template-areas:
         "a b c d"
         "e f g h"
@@ -495,8 +499,8 @@
         "m n o p";
 }
 .collage-16-b {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: 1fr 1.2fr 1fr 1fr 1fr 1fr 1fr 1fr;
     grid-template-areas:
         "a b" "c d" "e f" "g h" "i j" "k l" "m n" "o p";
 }
