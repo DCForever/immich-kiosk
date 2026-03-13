@@ -234,3 +234,32 @@
 .memories-lightbox-close:hover {
     background: rgba(0, 0, 0, 0.8);
 }
+
+/* Memories loading indicator (shown during /memories fetch) */
+.memories-load-indicator {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+
+.memories-load-indicator.htmx-request {
+    display: flex;
+}
+
+.memories-load-indicator::after {
+    content: "";
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: memories-spinner 0.8s linear infinite;
+}
+
+@keyframes memories-spinner {
+    to { transform: rotate(360deg); }
+}

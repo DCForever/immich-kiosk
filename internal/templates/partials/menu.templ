@@ -122,9 +122,11 @@ templ Menu(viewData common.ViewData, queries url.Values, secret string) {
 				hx-post="/memories"
 				hx-target="#kiosk"
 				hx-swap="innerHTML"
+				hx-indicator="#memories-load-indicator"
 				hx-include=".kiosk-history--entry, .kiosk-param"
 				hx-vals="js:{...kiosk.clientData()}"
 				hx-trigger="click throttle:0.5s"
+				hx-on::before-send="kiosk.setRequestLock(event)"
 				hx-on::after-request="kiosk.startPolling()"
 				hx-on::after-swap="kiosk.cleanupFrames(), kiosk.releaseRequestLock()"
 			>

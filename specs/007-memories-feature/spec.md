@@ -128,6 +128,10 @@ Implementation defines concrete layouts for each count (1–8) following these c
 - **SC-004**: Users can tap any photo in the collage to view it in a lightbox and return without error.
 - **SC-005**: Collage layout adapts clearly and readably to 1–8 photos (no broken or overlapping layout).
 
+## PhotoPrism Support
+
+- **Memories are not supported** when using PhotoPrism as the photo source. The provider returns `ErrMemoriesNotSupported`; the UI shows "Couldn't load memories" and returns after 5 seconds. Graceful degradation per research.md: API date filter for "on this day" was not confirmed; fallback to "not supported" until API is verified.
+
 ## Assumptions
 
 - "Same month and day" is based on the photo’s capture date (or the date used by the existing photo source for "on this day" logic).

@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/charmbracelet/log"
@@ -11,6 +12,7 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/i18n"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	memoriesComponent "github.com/damongolding/immich-kiosk/internal/templates/components/memories"
 )
 
@@ -43,7 +45,10 @@ func Memories(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 		viewData, err := ProcessMemoriesCollage(provider, requestConfig, requestID, deviceID, queries)
 		if err != nil {
 			log.Debug(requestID, "Memories on-demand failed", "error", err)
-			return RenderMemoriesEmpty(c, requestConfig, queries, com.Secret())
+			if errors.Is(err, source.ErrMemoriesEmpty) {
+				return RenderMemoriesEmpty(c, requestConfig, queries, com.Secret())
+			}
+			return RenderMemoriesError(c, requestConfig, queries, com.Secret())
 		}
 
 		viewData.ShowMemoriesBackButton = true
@@ -55,6 +60,8 @@ func Memories(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 func RenderMemoriesView(c *echo.Context, viewData common.ViewData, secret string) error {
 	return Render(c, http.StatusOK, memoriesComponent.MemoriesView(viewData, secret))
 }
+
+const memoriesErrorDurationSeconds = 5
 
 // RenderMemoriesEmpty renders "No memories for this day" with back button for 45s.
 func RenderMemoriesEmpty(c *echo.Context, requestConfig config.Config, queries map[string][]string, secret string) error {
@@ -70,4 +77,21 @@ func RenderMemoriesEmpty(c *echo.Context, requestConfig config.Config, queries m
 		ShowMemoriesBackButton: true,
 	}
 	return Render(c, http.StatusOK, memoriesComponent.MemoriesEmpty(viewData, secret))
+}
+
+// RenderMemoriesError renders "Couldn't load memories" with back button for 5s.
+// Shown when fetch fails (e.g. PhotoPrism, network error). Returns after few seconds.
+func RenderMemoriesError(c *echo.Context, requestConfig config.Config, queries map[string][]string, secret string) error {
+	t := i18n.T()
+	requestConfig.Layout = kiosk.LayoutCollage
+	requestConfig.Duration = memoriesErrorDurationSeconds
+	viewData := common.ViewData{
+		RequestID:              c.Response().Header().Get(echo.HeaderXRequestID),
+		DeviceID:               c.Request().Header.Get("kiosk-device-id"),
+		Config:                 requestConfig,
+		MemoryCaption:          t("memories_error_load"),
+		Queries:                queries,
+		ShowMemoriesBackButton: true,
+	}
+	return Render(c, http.StatusOK, memoriesComponent.MemoriesError(viewData, secret))
 }

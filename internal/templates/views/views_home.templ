@@ -42,6 +42,7 @@ templ Home(viewData common.ViewData, secret string) {
 				>
 					@partials.Spinner()
 				</main>
+				<div id="memories-load-indicator" class="memories-load-indicator" aria-hidden="true"></div>
 				for _, iframe := range viewData.Iframe {
 					{{ isUrl, html := isIframeUrl(iframe) }}
 					<iframe

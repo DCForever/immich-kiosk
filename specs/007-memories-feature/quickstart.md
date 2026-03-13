@@ -52,8 +52,8 @@
 - [ ] "Memories from X years ago" caption.
 - [ ] On-demand button opens memories view.
 - [ ] Back/dismiss returns to slideshow.
-- [ ] No photos: slideshow skips; on-demand shows message.
+- [ ] No photos: slideshow skips; on-demand shows "No memories for this day" (45s).
 - [ ] Lightbox: tap photo → full view; close → back to collage; timer paused.
-- [ ] Load error: loading state; error message; skip/return.
-- [ ] i18n for all new strings.
-- [ ] PhotoPrism: works or shows "not supported" gracefully.
+- [ ] Load error: loading spinner during fetch; "Couldn't load memories" (5s) on failure.
+- [ ] i18n for all new strings (memories_caption, memories_no_photos, memories_error_load, memories_back, memories_button).
+- [ ] PhotoPrism: shows "Couldn't load memories" gracefully (memories not supported).

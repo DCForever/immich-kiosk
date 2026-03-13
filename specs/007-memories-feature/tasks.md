@@ -98,9 +98,9 @@
 
 **Purpose**: Error handling, loading states, PhotoPrism support, validation
 
-- [ ] T025 [P] Add loading state for memories fetch: show spinner in `internal/templates/partials/spinner.templ` or collage placeholder while ProcessMemoriesCollage runs
-- [ ] T026 Add error handling per FR-010: when ProcessMemoriesCollage fails, show "Couldn't load memories" message; slideshow skips; on-demand returns after few seconds
-- [ ] T027 [P] Add PhotoPrism `PhotosOnThisDay` in `internal/photoprism/client.go` if API supports date filter; implement MemoriesCollage in provider; or document "not supported" and ensure graceful degradation
+- [x] T025 [P] Add loading state for memories fetch: hx-indicator on memories button, memories-load-indicator overlay with spinner
+- [x] T026 Add error handling per FR-010: ErrMemoriesEmpty vs ErrMemoriesNotSupported; empty → "No memories" 45s; error → "Couldn't load memories" 5s
+- [x] T027 [P] PhotoPrism returns ErrMemoriesNotSupported; documented in spec.md; graceful degradation
 - [ ] T028 Run quickstart.md verification checklist: collage in slideshow, 45s, caption, on-demand, back, no-photos, lightbox, error, i18n
 
 ---

@@ -400,8 +400,9 @@ func (p *Provider) RandomMemoryAsset(requestID, deviceID string) error {
 }
 
 // MemoriesCollage is not supported by PhotoPrism.
+// PhotoPrism does not expose an "on this day" / date-filtered API for memories.
 func (p *Provider) MemoriesCollage(requestID, deviceID string) (source.MemoriesCollage, error) {
-	return source.MemoriesCollage{}, fmt.Errorf("photoprism: memories not supported")
+	return source.MemoriesCollage{}, source.ErrMemoriesNotSupported
 }
 
 func (p *Provider) RandomAssetWithTag(tagID, requestID, deviceID string, isPrefetch bool) error {

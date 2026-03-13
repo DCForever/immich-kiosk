@@ -404,7 +404,7 @@ func (a *Asset) MemoriesCollage(requestID, deviceID string) (source.MemoriesColl
 		}
 	}
 	if len(withAssets) == 0 {
-		return source.MemoriesCollage{}, fmt.Errorf("no memories with assets for this day")
+		return source.MemoriesCollage{}, source.ErrMemoriesEmpty
 	}
 
 	picked := withAssets[rand.IntN(len(withAssets))]
@@ -441,7 +441,7 @@ func (a *Asset) MemoriesCollage(requestID, deviceID string) (source.MemoriesColl
 	}
 
 	if len(displayAssets) == 0 {
-		return source.MemoriesCollage{}, fmt.Errorf("no valid assets in memories collage")
+		return source.MemoriesCollage{}, source.ErrMemoriesEmpty
 	}
 
 	return source.MemoriesCollage{
