@@ -18,7 +18,7 @@
 
 ### User Story 1 - View varied, aspect-ratio-preserving collages in memories (Priority: P1)
 
-As a viewer, I see memories collages that adapt to the number of photos (3–16) and to the actual aspect ratios of the images. Photos are never cropped or distorted; layouts feel organic and varied rather than uniform grids.
+As a viewer, I see memories collages that adapt to the number of photos (3–16) and to the actual aspect ratios of the images. Photos may be cropped up to 10% from each end of the longer dimension to improve fit; no distortion is permitted. Layouts feel organic and varied rather than uniform grids.
 
 **Why this priority**: Core value is replacing rigid grid layouts with visually pleasing, adaptive arrangements that respect each photo's proportions.
 
@@ -26,7 +26,7 @@ As a viewer, I see memories collages that adapt to the number of photos (3–16)
 
 **Acceptance Scenarios**:
 
-1. **Given** 3–16 photos are selected for a memories collage, **When** the collage is displayed, **Then** each photo maintains its original aspect ratio (no cropping or stretching).
+1. **Given** 3–16 photos are selected for a memories collage, **When** the collage is displayed, **Then** each photo maintains its aspect ratio within the allowed 10% crop range (no stretching; up to 10% cropping from each end of the longer dimension is permitted).
 2. **Given** photos with mixed aspect ratios (portrait, landscape, square), **When** the collage is rendered, **Then** the layout accommodates them with appropriate sizing; gaps or spacing between images are acceptable.
 3. **Given** the same number of photos on different occasions, **When** collages are rendered, **Then** layouts can vary (not always identical for the same count).
 
@@ -95,7 +95,7 @@ As a product owner, I want the project to evaluate different approaches for achi
 
 - **FR-001**: System MUST replace the current fixed CSS grid collage implementation with a dynamic collage engine that generates arrangements algorithmically.
 - **FR-002**: System MUST adapt collage layouts to the number of photos (3–16 per spec 008) and to the actual aspect ratios of the images.
-- **FR-003**: System MUST preserve aspect ratios for all photos; no cropping or distortion is permitted. Images MUST be scaled to fit while maintaining original proportions; gaps or spacing between images are acceptable.
+- **FR-003**: System MUST preserve aspect ratios for all photos within an allowed range; up to 10% cropping from each end of the longer dimension is permitted; no distortion is permitted. Images MUST be scaled to fit while maintaining proportions within this range; gaps or spacing between images are acceptable.
 - **FR-004**: System MUST produce varied layouts per collage render; the dynamic, algorithmic nature of the engine MUST yield different arrangements over time (no fixed per-count variant requirement).
 - **FR-005**: System MUST support multiple layout styles (e.g., justified rows, treemap-style packing, hero-plus-cluster, randomized organic layouts) through its dynamic layout logic.
 - **FR-006**: System MUST integrate with the existing memories flow: collage in slideshow, on-demand button, 45-second timer, caption, and lightbox-on-tap. User-facing behavior MUST remain unchanged except for the visual arrangement.
@@ -114,7 +114,7 @@ As a product owner, I want the project to evaluate different approaches for achi
 
 ### Measurable Outcomes
 
-- **SC-001**: Collages preserve aspect ratios for all photos; no cropping or distortion is observable.
+- **SC-001**: Collages preserve aspect ratios for all photos within the allowed 10% crop range; no distortion is observable.
 - **SC-002**: Over multiple renders, different layouts appear; the dynamic engine produces varied arrangements.
 - **SC-003**: Integration with the memories flow is unchanged: slideshow, on-demand button, 45-second timer, caption, and lightbox-on-tap work as before.
 - **SC-004**: Layouts adapt to photo count and aspect ratios; collages feel organic and varied rather than uniform grids.

@@ -7,10 +7,12 @@ import (
 )
 
 // computeJustified arranges photos in justified rows (similar height per row).
-// Preserves aspect ratio; scales photos to fit row width.
+// Uses aspect ratio range (up to 10% crop) to improve packing.
 // Returns layout with normalized positions (0–1).
 func computeJustified(assets []source.DisplayAsset, width, height float64, algo string) (*LayoutResult, error) {
 	ratios := make([]float64, len(assets))
+	minRatios := make([]float64, len(assets))
+	maxRatios := make([]float64, len(assets))
 	for i := range assets {
 		w := float64(assets[i].ExifInfo.ExifImageWidth)
 		h := float64(assets[i].ExifInfo.ExifImageHeight)
@@ -18,12 +20,13 @@ func computeJustified(assets []source.DisplayAsset, width, height float64, algo 
 			w, h = 1, 1
 		}
 		ratios[i] = w / h
+		minRatios[i], maxRatios[i] = AspectRange(w, h)
 	}
 
 	const gapFrac = 0.008 // ~0.8% gap
 	availW := width * (1 - gapFrac*2)
 	availH := height * (1 - gapFrac*2)
-	cells := packJustifiedRows(ratios, availW, availH, width, height, gapFrac)
+	cells := packJustifiedRows(ratios, minRatios, maxRatios, availW, availH, width, height, gapFrac)
 
 	return &LayoutResult{
 		Cells:          cells,
@@ -33,8 +36,9 @@ func computeJustified(assets []source.DisplayAsset, width, height float64, algo 
 	}, nil
 }
 
-// packJustifiedRows packs photos into justified rows. Returns cells with normalized positions (0–1).
-func packJustifiedRows(ratios []float64, availW, availH, width, height, gapFrac float64) []LayoutCell {
+// packJustifiedRows packs photos into justified rows. Uses aspect ratio range to improve packing.
+// Returns cells with normalized positions (0–1).
+func packJustifiedRows(ratios, minRatios, maxRatios []float64, availW, availH, width, height, gapFrac float64) []LayoutCell {
 	n := len(ratios)
 	if n == 0 {
 		return nil
@@ -61,23 +65,26 @@ func packJustifiedRows(ratios []float64, availW, availH, width, height, gapFrac 
 			break
 		}
 
-		sumRatios := 0.0
-		for i := start; i < end; i++ {
-			sumRatios += ratios[i]
+		// Choose ratios within [min,max] to fill row width
+		chosen := chooseRatiosForRow(ratios[start:end], minRatios[start:end], maxRatios[start:end], availW, availH/float64(numRows))
+
+		sumChosen := 0.0
+		for _, r := range chosen {
+			sumChosen += r
 		}
-		if sumRatios <= 0 {
-			sumRatios = 1
+		if sumChosen <= 0 {
+			sumChosen = 1
 		}
 
 		rowHeight := availH / float64(numRows)
-		scaleToWidth := availW / sumRatios
+		scaleToWidth := availW / sumChosen
 		if scaleToWidth < rowHeight {
 			rowHeight = scaleToWidth
 		}
 
 		x := gapFrac
 		for i := start; i < end; i++ {
-			cellW := (ratios[i] / sumRatios) * availW
+			cellW := (chosen[i-start] / sumChosen) * availW
 			cellH := rowHeight
 
 			cells = append(cells, LayoutCell{
@@ -94,4 +101,43 @@ func packJustifiedRows(ratios []float64, availW, availH, width, height, gapFrac 
 	}
 
 	return cells
+}
+
+// chooseRatiosForRow picks ratios in [min,max] so sum(chosen) ≈ availW/rowHeight.
+// Uses linear interpolation when target is within [sum(min), sum(max)].
+func chooseRatiosForRow(ratios, minR, maxR []float64, availW, rowHeight float64) []float64 {
+	n := len(ratios)
+	if n == 0 {
+		return nil
+	}
+	targetSum := availW / rowHeight
+
+	sumMin := 0.0
+	sumMax := 0.0
+	for i := 0; i < n; i++ {
+		sumMin += minR[i]
+		sumMax += maxR[i]
+	}
+
+	chosen := make([]float64, n)
+	if targetSum <= sumMin {
+		copy(chosen, minR)
+		return chosen
+	}
+	if targetSum >= sumMax {
+		copy(chosen, maxR)
+		return chosen
+	}
+	// Interpolate: chosen[i] = minR[i] + (maxR[i]-minR[i])*t, sum(chosen)=targetSum
+	// sumMin + (sumMax-sumMin)*t = targetSum => t = (targetSum-sumMin)/(sumMax-sumMin)
+	span := sumMax - sumMin
+	if span <= 0 {
+		copy(chosen, ratios)
+		return chosen
+	}
+	t := (targetSum - sumMin) / span
+	for i := 0; i < n; i++ {
+		chosen[i] = minR[i] + (maxR[i]-minR[i])*t
+	}
+	return chosen
 }

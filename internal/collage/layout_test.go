@@ -52,11 +52,13 @@ func TestComputeLayout_justified(t *testing.T) {
 	result, err := ComputeLayout(ctx, assets, 1920, 1080)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Equal(t, "justified", result.Algorithm)
+	assert.Contains(t, []string{"justified", "treemap", "hero"}, result.Algorithm)
 	assert.Len(t, result.Cells, 3)
 
-	for i, c := range result.Cells {
-		assert.Equal(t, i, c.AssetIndex)
+	seen := make(map[int]bool)
+	for _, c := range result.Cells {
+		assert.False(t, seen[c.AssetIndex], "duplicate AssetIndex %d", c.AssetIndex)
+		seen[c.AssetIndex] = true
 		assert.Greater(t, c.Width, 0.0)
 		assert.Greater(t, c.Height, 0.0)
 		assert.GreaterOrEqual(t, c.X, 0.0)
@@ -99,6 +101,29 @@ func TestComputeLayout_allAlgorithms(t *testing.T) {
 		seen[result.Algorithm] = true
 	}
 	assert.True(t, len(seen) >= 2, "expected at least 2 different algorithms over 30 runs, got %v", seen)
+}
+
+func TestAspectRange(t *testing.T) {
+	tests := []struct {
+		name     string
+		w, h     float64
+		min, max float64
+	}{
+		{"landscape 2000x1500", 2000, 1500, 1600.0 / 1500, 2000.0 / 1500}, // r=1.333, min=1.067, max=1.333
+		{"portrait 1500x2000", 1500, 2000, 1500.0 / 2000, 1875.0 / 2000},   // r=0.75, min=0.75, max=0.9375
+		{"square 1000x1000", 1000, 1000, 0.8, 1.25},
+		{"wide panorama 4000x500", 4000, 500, 3200.0 / 500, 4000.0 / 500}, // r=8, min=6.4, max=8
+		{"tall 500x4000", 500, 4000, 500.0 / 4000, 625.0 / 4000},           // r=0.125, min=0.125, max=0.15625
+		{"zero w fallback", 0, 1000, 0.8, 1.25},
+		{"zero h fallback", 1000, 0, 0.8, 1.25},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			min, max := AspectRange(tt.w, tt.h)
+			assert.InDelta(t, tt.min, min, 0.001)
+			assert.InDelta(t, tt.max, max, 0.001)
+		})
+	}
 }
 
 func TestComputeLayout_edgeCases(t *testing.T) {

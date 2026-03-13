@@ -29,7 +29,7 @@ templ Collage(viewData common.ViewData, secret string) {
 					data-asset-id={ asset.Asset.ID }
 					style={ fmt.Sprintf("position:absolute;left:%.2f%%;top:%.2f%%;width:%.2f%%;height:%.2f%%;", cell.X*100, cell.Y*100, cell.Width*100, cell.Height*100) }
 				>
-					<img src={ imgURL } alt="Memory" loading="lazy" style="object-fit:contain;width:100%;height:100%;"/>
+					<img src={ imgURL } alt="Memory" loading="lazy" style="object-fit:cover;object-position:center;width:100%;height:100%;"/>
 				</div>
 			}
 		</div>

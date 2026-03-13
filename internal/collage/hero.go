@@ -22,6 +22,8 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 	}
 
 	ratios := make([]float64, n)
+	minRatios := make([]float64, n)
+	maxRatios := make([]float64, n)
 	for i := range assets {
 		w := float64(assets[i].ExifInfo.ExifImageWidth)
 		h := float64(assets[i].ExifInfo.ExifImageHeight)
@@ -29,6 +31,7 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 			w, h = 1, 1
 		}
 		ratios[i] = w / h
+		minRatios[i], maxRatios[i] = AspectRange(w, h)
 	}
 
 	const gapFrac = 0.008
@@ -43,7 +46,8 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 
 	var cells []LayoutCell
 
-	// Place hero
+	// Place hero: use ratio within [min,max] to fit available space
+	heroMin, heroMax := minRatios[heroIndex], maxRatios[heroIndex]
 	heroAr := ratios[heroIndex]
 	heroArea := availW * availH * heroFrac
 	heroW := math.Sqrt(heroArea * heroAr)
@@ -55,6 +59,33 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 	if heroW > availW {
 		heroW = availW
 		heroH = heroW / heroAr
+	}
+	// Clamp hero aspect to allowed range
+	heroCellRatio := heroW / heroH
+	if heroCellRatio < heroMin {
+		heroCellRatio = heroMin
+		heroW = math.Sqrt(heroArea * heroCellRatio)
+		heroH = heroW / heroCellRatio
+		if heroH > availH {
+			heroH = availH
+			heroW = heroH * heroCellRatio
+		}
+		if heroW > availW {
+			heroW = availW
+			heroH = heroW / heroCellRatio
+		}
+	} else if heroCellRatio > heroMax {
+		heroCellRatio = heroMax
+		heroW = math.Sqrt(heroArea * heroCellRatio)
+		heroH = heroW / heroCellRatio
+		if heroH > availH {
+			heroH = availH
+			heroW = heroH * heroCellRatio
+		}
+		if heroW > availW {
+			heroW = availW
+			heroH = heroW / heroCellRatio
+		}
 	}
 	cells = append(cells, LayoutCell{
 		X:          (gapFrac + (availW-heroW)/2) / width,
@@ -77,14 +108,18 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 		}
 
 		clusterRatios := make([]float64, 0, n-1)
+		clusterMinRatios := make([]float64, 0, n-1)
+		clusterMaxRatios := make([]float64, 0, n-1)
 		clusterIndices := make([]int, 0, n-1)
 		for i := 0; i < n; i++ {
 			if i != heroIndex {
 				clusterRatios = append(clusterRatios, ratios[i])
+				clusterMinRatios = append(clusterMinRatios, minRatios[i])
+				clusterMaxRatios = append(clusterMaxRatios, maxRatios[i])
 				clusterIndices = append(clusterIndices, i)
 			}
 		}
-		clusterCells := packJustifiedRowsForHero(clusterRatios, clusterIndices, clusterW, clusterH, width, height, gapFrac, clusterY/height)
+		clusterCells := packJustifiedRowsForHero(clusterRatios, clusterMinRatios, clusterMaxRatios, clusterIndices, clusterW, clusterH, width, height, gapFrac, clusterY/height)
 		cells = append(cells, clusterCells...)
 	}
 
@@ -96,13 +131,13 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 	}, nil
 }
 
-func packJustifiedRowsForHero(ratios []float64, indices []int, containerW, containerH, totalW, totalH, gapFrac, offsetY float64) []LayoutCell {
+func packJustifiedRowsForHero(ratios, minRatios, maxRatios []float64, indices []int, containerW, containerH, totalW, totalH, gapFrac, offsetY float64) []LayoutCell {
 	if len(ratios) == 0 {
 		return nil
 	}
 	availW := containerW * (1 - gapFrac*2)
 	availH := containerH * (1 - gapFrac*2)
-	cells := packJustifiedRows(ratios, availW, availH, containerW, containerH, gapFrac)
+	cells := packJustifiedRows(ratios, minRatios, maxRatios, availW, availH, containerW, containerH, gapFrac)
 	for i := range cells {
 		cells[i].AssetIndex = indices[cells[i].AssetIndex]
 		cells[i].X = cells[i].X * (containerW / totalW)

@@ -15,13 +15,13 @@ This document defines the contract changes when the dynamic collage engine is us
 When the layout engine succeeds:
 - **Layout class**: `collage-grid collage-dynamic` (or equivalent). No `collage-{n}-{variant}`.
 - **Cell positioning**: Each `.collage-cell` has inline styles or CSS variables from `LayoutResult` (position, width, height). Layout is computed server-side; template renders positioned elements.
-- **Aspect ratio**: Cells use `object-fit: contain` (or equivalent) so photos are not cropped. Gaps between cells are acceptable.
+- **Aspect ratio**: Dynamic layout allows up to 10% cropping from each end of the longer dimension to improve fit. Cells use `object-fit: cover` and `object-position: center` so photos fill cells; the layout engine constrains cell aspect ratios to the allowed range. Gaps between cells are acceptable.
 
 ```html
 <div class="collage-grid collage-dynamic" data-memories="true" data-layout="collage">
   <!-- Per-photo cells with computed positions -->
   <div class="collage-cell" data-asset-id="{id}" style="position:absolute;left:X%;top:Y%;width:W%;height:H%;" role="button" tabindex="0">
-    <img src="/image/{id}" alt="Memory" loading="lazy" style="object-fit:contain;" />
+    <img src="/image/{id}" alt="Memory" loading="lazy" style="object-fit:cover;object-position:center;" />
   </div>
   ...
 </div>

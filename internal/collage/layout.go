@@ -39,6 +39,28 @@ const DefaultContainerWidth = 1920
 // DefaultContainerHeight is the default height for layout computation (logical units).
 const DefaultContainerHeight = 1080
 
+// AllowedCropFrac is the max fraction to crop from each end of the longer dimension (10%).
+const AllowedCropFrac = 0.10
+
+// AspectRange returns [minRatio, maxRatio] for an image; cell aspect must stay in this range.
+// Allows up to 10% cropping from each end of the longer dimension.
+// - Landscape (r >= 1): min = 0.8*r, max = r (crop left/right)
+// - Portrait (r < 1): min = r, max = r/0.8 (crop top/bottom)
+// - Square (r = 1): min = 0.8, max = 1.25
+func AspectRange(w, h float64) (minRatio, maxRatio float64) {
+	if w <= 0 || h <= 0 {
+		return 1 - 2*AllowedCropFrac, 1 / (1 - 2*AllowedCropFrac)
+	}
+	r := w / h
+	if r > 1 {
+		return (1 - 2*AllowedCropFrac) * r, r
+	}
+	if r < 1 {
+		return r, r / (1 - 2*AllowedCropFrac)
+	}
+	return 1 - 2*AllowedCropFrac, 1 / (1 - 2*AllowedCropFrac)
+}
+
 // ComputeLayout computes a dynamic layout for the given assets.
 // Uses width and height for container dimensions; selects an algorithm at random.
 // Returns error if assets are invalid or layout cannot be computed.

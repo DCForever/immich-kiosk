@@ -121,9 +121,9 @@
 
 ## 6. Aspect Ratio Preservation in CSS
 
-**Decision**: Use `object-fit: contain` (or equivalent) for collage cells. Ensure container has explicit dimensions so `contain` scales correctly without cropping.
+**Decision**: Dynamic layout uses `object-fit: cover` and `object-position: center` for collage cells. The layout engine constrains cell aspect ratios to an allowed range (up to 10% cropping from each end of the longer dimension). Fallback grid uses `object-fit: contain`.
 
-**Rationale**: Current implementation uses `object-fit: cover` which crops. Spec forbids cropping. `contain` preserves aspect ratio; gaps are acceptable.
+**Rationale**: Allowing up to 10% crop improves packing and reduces gaps while keeping distortion minimal. The layout algorithms choose cell dimensions within the allowed aspect range; `cover` with centered crop displays the result. Fallback keeps `contain` since it uses fixed grid cells that may not match image ratios.
 
 ---
 
@@ -135,7 +135,7 @@
 | Output | HTML with positioned elements (via Templ) |
 | Layout algorithms | Justified rows, treemap packing, hero-plus-cluster |
 | Integration | Between ProcessMemoriesCollage and template |
-| Fallback | Existing collage-{n} grid with object-fit: contain |
+| Fallback | Existing collage-{n} grid with object-fit: contain (no crop) |
 | Performance | Layout computation in Go; target <2s (layout itself is ms) |
 
 ### Alternatives Evaluated (Including CollageCreator)
