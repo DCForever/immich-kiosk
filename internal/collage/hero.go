@@ -1,0 +1,114 @@
+package collage
+
+import (
+	"math"
+	"math/rand"
+
+	"github.com/damongolding/immich-kiosk/internal/source"
+)
+
+// computeHero arranges one large photo (hero) plus remaining photos in a cluster.
+// Hero is chosen at random; cluster uses justified rows.
+func computeHero(assets []source.DisplayAsset, width, height float64, algo string) (*LayoutResult, error) {
+	n := len(assets)
+	if n == 0 {
+		return nil, ErrInvalidAssetCount
+	}
+
+	// Pick hero index (0 for deterministic test; in production use rand)
+	heroIndex := 0
+	if n > 1 {
+		heroIndex = rand.Intn(n)
+	}
+
+	ratios := make([]float64, n)
+	for i := range assets {
+		w := float64(assets[i].ExifInfo.ExifImageWidth)
+		h := float64(assets[i].ExifInfo.ExifImageHeight)
+		if w <= 0 || h <= 0 {
+			w, h = 1, 1
+		}
+		ratios[i] = w / h
+	}
+
+	const gapFrac = 0.008
+	availW := width * (1 - gapFrac*2)
+	availH := height * (1 - gapFrac*2)
+
+	// Hero gets ~50% of area; cluster gets the rest
+	heroFrac := 0.5
+	if n == 1 {
+		heroFrac = 1.0
+	}
+
+	var cells []LayoutCell
+
+	// Place hero
+	heroAr := ratios[heroIndex]
+	heroArea := availW * availH * heroFrac
+	heroW := math.Sqrt(heroArea * heroAr)
+	heroH := heroW / heroAr
+	if heroH > availH {
+		heroH = availH
+		heroW = heroH * heroAr
+	}
+	if heroW > availW {
+		heroW = availW
+		heroH = heroW / heroAr
+	}
+	cells = append(cells, LayoutCell{
+		X:          (gapFrac + (availW-heroW)/2) / width,
+		Y:          gapFrac / height,
+		Width:      heroW / width,
+		Height:     heroH / height,
+		AssetIndex: heroIndex,
+	})
+
+	if n > 1 {
+		// Cluster: remaining photos in justified rows below or beside hero
+		clusterW := availW
+		clusterH := availH - heroH - gapFrac*height
+		clusterY := heroH + gapFrac*height
+		if clusterH < availH*0.2 {
+			// Hero took most of height; put cluster to the side
+			clusterW = availW - heroW - gapFrac*width
+			clusterH = availH
+			clusterY = 0
+		}
+
+		clusterRatios := make([]float64, 0, n-1)
+		clusterIndices := make([]int, 0, n-1)
+		for i := 0; i < n; i++ {
+			if i != heroIndex {
+				clusterRatios = append(clusterRatios, ratios[i])
+				clusterIndices = append(clusterIndices, i)
+			}
+		}
+		clusterCells := packJustifiedRowsForHero(clusterRatios, clusterIndices, clusterW, clusterH, width, height, gapFrac, clusterY/height)
+		cells = append(cells, clusterCells...)
+	}
+
+	return &LayoutResult{
+		Cells:          cells,
+		Algorithm:      algo,
+		ContainerWidth:  width,
+		ContainerHeight: height,
+	}, nil
+}
+
+func packJustifiedRowsForHero(ratios []float64, indices []int, containerW, containerH, totalW, totalH, gapFrac, offsetY float64) []LayoutCell {
+	if len(ratios) == 0 {
+		return nil
+	}
+	availW := containerW * (1 - gapFrac*2)
+	availH := containerH * (1 - gapFrac*2)
+	cells := packJustifiedRows(ratios, availW, availH, containerW, containerH, gapFrac)
+	for i := range cells {
+		cells[i].AssetIndex = indices[cells[i].AssetIndex]
+		cells[i].X = cells[i].X * (containerW / totalW)
+		cells[i].Y = offsetY + cells[i].Y*(containerH/totalH)
+		cells[i].Width *= containerW / totalW
+		cells[i].Height *= containerH / totalH
+	}
+	return cells
+}

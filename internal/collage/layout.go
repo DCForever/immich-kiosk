@@ -53,9 +53,15 @@ func ComputeLayout(ctx context.Context, assets []source.DisplayAsset, width, hei
 		return nil, ErrInvalidAssetCount
 	}
 
-	// For now, use justified only; treemap and hero will be added in US2
-	algo := "justified"
-	return computeJustified(assets, width, height, algo)
+	algo := pickAlgorithm()
+	switch algo {
+	case "treemap":
+		return computeTreemap(assets, width, height, algo)
+	case "hero":
+		return computeHero(assets, width, height, algo)
+	default:
+		return computeJustified(assets, width, height, algo)
+	}
 }
 
 // algorithmNames lists available algorithms for random selection (US2).

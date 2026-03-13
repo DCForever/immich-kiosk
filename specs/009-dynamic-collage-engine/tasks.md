@@ -68,9 +68,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T011 [P] [US2] Implement treemap-style packing algorithm in `internal/collage/treemap.go` (recursive subdivision, aspect-ratio-adjusted areas)
-- [ ] T012 [P] [US2] Implement hero-plus-cluster algorithm in `internal/collage/hero.go` (one large photo + cluster of rest)
-- [ ] T013 [US2] Update `ComputeLayout` in `internal/collage/layout.go`: randomly select from justified, treemap, hero; add tests for algorithm selection in `internal/collage/layout_test.go`
+- [x] T011 [P] [US2] Implement treemap-style packing algorithm in `internal/collage/treemap.go` (recursive subdivision, aspect-ratio-adjusted areas)
+- [x] T012 [P] [US2] Implement hero-plus-cluster algorithm in `internal/collage/hero.go` (one large photo + cluster of rest)
+- [x] T013 [US2] Update `ComputeLayout` in `internal/collage/layout.go`: randomly select from justified, treemap, hero; add tests for algorithm selection in `internal/collage/layout_test.go`
 
 **Checkpoint**: User Story 2 complete — layouts vary per render across three algorithms
 
@@ -84,8 +84,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T014 [US3] Verify fallback path in `ProcessMemoriesCollage`: when `ComputeLayout` returns error or times out, `CollageLayout` is nil; template renders `collage-{n}` with `object-fit: contain`
-- [ ] T015 [US3] Verify `collage.templ` preserves `data-asset-id`, `role="button"`, `tabindex="0"` on cells for lightbox compatibility per contracts/memories-ui.md
+- [x] T014 [US3] Verify fallback path in `ProcessMemoriesCollage`: when `ComputeLayout` returns error or times out, `CollageLayout` is nil; template renders `collage-{n}` with `object-fit: contain`
+- [x] T015 [US3] Verify `collage.templ` preserves `data-asset-id`, `role="button"`, `tabindex="0"` on cells for lightbox compatibility per contracts/memories-ui.md
 - [ ] T016 [US3] Run integration test: memories in slideshow, on-demand button, lightbox tap, timer pause — no regressions
 
 **Checkpoint**: User Story 3 complete — integration unchanged; lightbox, timer, caption work
@@ -96,8 +96,8 @@
 
 **Purpose**: Tests, edge cases, validation
 
-- [ ] T017 Add table-driven tests in `internal/collage/layout_test.go` for edge cases: 3 photos, 16 photos, extreme aspect ratios (panorama, portrait), zero dimensions fallback
-- [ ] T018 Ensure `internal/collage` passes `golangci-lint`; run `go test ./internal/collage/...`
+- [x] T017 Add table-driven tests in `internal/collage/layout_test.go` for edge cases: 3 photos, 16 photos, extreme aspect ratios (panorama, portrait), zero dimensions fallback
+- [x] T018 Ensure `internal/collage` passes `golangci-lint`; run `go test ./internal/collage/...`
 - [ ] T019 Run quickstart.md validation: manual test of dynamic layouts, fallback, aspect-ratio preservation
 
 ---

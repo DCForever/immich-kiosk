@@ -23,8 +23,22 @@ func computeJustified(assets []source.DisplayAsset, width, height float64, algo 
 	const gapFrac = 0.008 // ~0.8% gap
 	availW := width * (1 - gapFrac*2)
 	availH := height * (1 - gapFrac*2)
+	cells := packJustifiedRows(ratios, availW, availH, width, height, gapFrac)
 
+	return &LayoutResult{
+		Cells:          cells,
+		Algorithm:      algo,
+		ContainerWidth:  width,
+		ContainerHeight: height,
+	}, nil
+}
+
+// packJustifiedRows packs photos into justified rows. Returns cells with normalized positions (0–1).
+func packJustifiedRows(ratios []float64, availW, availH, width, height, gapFrac float64) []LayoutCell {
 	n := len(ratios)
+	if n == 0 {
+		return nil
+	}
 	numRows := int(math.Ceil(math.Sqrt(float64(n))))
 	if numRows < 1 {
 		numRows = 1
@@ -79,10 +93,5 @@ func computeJustified(assets []source.DisplayAsset, width, height float64, algo 
 		y += rowHeight/height + gapFrac
 	}
 
-	return &LayoutResult{
-		Cells:          cells,
-		Algorithm:      algo,
-		ContainerWidth:  width,
-		ContainerHeight: height,
-	}, nil
+	return cells
 }
