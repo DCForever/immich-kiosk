@@ -130,7 +130,7 @@ Implementation defines concrete layouts for each count (1–8) following these c
 
 ## PhotoPrism Support
 
-- **Memories are not supported** when using PhotoPrism as the photo source. The provider returns `ErrMemoriesNotSupported`; the UI shows "Couldn't load memories" and returns after 5 seconds. Graceful degradation per research.md: API date filter for "on this day" was not confirmed; fallback to "not supported" until API is verified.
+- **Memories are supported** when using PhotoPrism as the photo source. The provider uses the search API's date filters ([Filter Reference](https://docs.photoprism.app/user-guide/search/filters/#filter-reference)): `taken:"YYYY-MM-DD"` or `year`+`month`+`day` to fetch photos from a random past year (same month and day as today). Same behavior as Immich: up to 8 photos in collage, 45s duration, caption "Memories from X years ago".
 
 ## Assumptions
 

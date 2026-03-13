@@ -31,7 +31,7 @@
 - [x] T003 Add `MemoriesCollage(requestID, deviceID string) (MemoriesCollage, error)` to `ProviderOps` interface in `internal/source/provider.go`
 - [x] T004 Implement `MemoriesCollage` in `internal/immich/immich_memories.go`: filter memories by `Data.Year`, pick random year with assets, return up to 8 assets; handle empty case
 - [x] T005 Implement `MemoriesCollage` in `internal/immich/adapter.go` to delegate to asset.MemoriesCollage
-- [x] T006 Implement `MemoriesCollage` in `internal/photoprism/provider.go`: return error "memories not supported" (or add PhotosOnThisDay if API supports)
+- [x] T006 Implement `MemoriesCollage` in `internal/photoprism/provider.go`: filter-based (taken:YYYY-MM-DD), person/album support, up to 8 photos
 - [x] T007 [P] Create CSS grid layouts `collage-1` through `collage-8` in `frontend/src/css/collage.css` per spec Collage Layout (Grid Design)
 - [x] T008 Add `MemoryCaption` to `common.ViewData` (or pass via Config) and ensure `Layout` can be `"collage"` in `internal/common/common.go` and `internal/config/config.go` if needed
 
@@ -100,7 +100,7 @@
 
 - [x] T025 [P] Add loading state for memories fetch: hx-indicator on memories button, memories-load-indicator overlay with spinner
 - [x] T026 Add error handling per FR-010: ErrMemoriesEmpty vs ErrMemoriesNotSupported; empty → "No memories" 45s; error → "Couldn't load memories" 5s
-- [x] T027 [P] PhotoPrism returns ErrMemoriesNotSupported; documented in spec.md; graceful degradation
+- [x] T027 [P] PhotoPrism MemoriesCollage via search filters (`taken:YYYY-MM-DD`, `type:image`); person/album filters; ErrMemoriesEmpty when no photos
 - [ ] T028 Run quickstart.md verification checklist: collage in slideshow, 45s, caption, on-demand, back, no-photos, lightbox, error, i18n
 
 ---

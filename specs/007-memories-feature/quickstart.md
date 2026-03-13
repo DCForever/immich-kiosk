@@ -13,7 +13,7 @@
 
 1. **Provider layer: MemoriesCollage**
    - Immich: Extend `immich_memories.go` — add `MemoriesCollage` that filters by year, picks one, returns up to 8 assets.
-   - PhotoPrism: Add `PhotosOnThisDay` or equivalent in `client.go`; implement `MemoriesCollage` in provider (or return error if API unsupported).
+   - PhotoPrism: Implement `MemoriesCollage` using search filters `taken:"YYYY-MM-DD"` or `year`+`month`+`day` per [Filter Reference](https://docs.photoprism.app/user-guide/search/filters/#filter-reference).
 
 2. **Source interface**
    - Add `MemoriesCollage(requestID, deviceID) (MemoriesCollage, error)` to `ProviderOps` (or equivalent) if not using `RandomMemoryAsset` for collage.
@@ -56,4 +56,4 @@
 - [ ] Lightbox: tap photo → full view; close → back to collage; timer paused.
 - [ ] Load error: loading spinner during fetch; "Couldn't load memories" (5s) on failure.
 - [ ] i18n for all new strings (memories_caption, memories_no_photos, memories_error_load, memories_back, memories_button).
-- [ ] PhotoPrism: shows "Couldn't load memories" gracefully (memories not supported).
+- [ ] PhotoPrism: memories collage works using `taken` / `year`+`month`+`day` filters (or shows "Couldn't load memories" on failure).

@@ -17,15 +17,15 @@
 
 ## 2. PhotoPrism "On This Day" Support
 
-**Decision**: Add PhotoPrism support via `GET /api/v1/photos` with `taken_at` or `created_at` date filter (month and day). Query photos where `TakenAt` matches the chosen year's month-day; select up to 8 randomly.
+**Decision**: Implement memories via PhotoPrism search API using date filters. Per the [Filter Reference](https://docs.photoprism.app/user-guide/search/filters/#filter-reference), use `taken:"YYYY-MM-DD"` (or `year:Y month:M day:D`) to find photos on a specific date. Pick a random past year, query with that date, and return up to 8 photos.
 
-**Rationale**: PhotoPrism Swagger (docs.photoprism.dev) documents search parameters. The photos API supports date-based filters. We construct a date range for the chosen year (e.g. 2007-03-11 00:00 to 2007-03-11 23:59) and fetch photos. If the API does not support exact-day filter, use a small range or `q` parameter if available.
+**Rationale**: PhotoPrism's search API supports `year`, `month`, `day` (string filters) and `taken` (timestamp). The `taken:"2022-01-30"` filter finds content created on the specified date. We use `taken:"YEAR-MONTH-DAY"` for a random past year (e.g. `taken:"2007-03-11"`).
+
+**Implementation**: `MemoriesCollage` in `internal/photoprism/provider.go` picks a random year 1–50 years back, builds `taken:"YYYY-MM-DD"`, adds `type:image` and optional person/album filters, fetches via `fetchPhotos`, shuffles, takes up to 8, converts to `DisplayAsset` via `photoToDisplayAsset`.
 
 **Alternatives considered**:
-- Leave PhotoPrism without memories — spec implies multi-source support; Photoprism is a first-class source.
-- Custom PhotoPrism endpoint — not available; use standard search.
-
-**Implementation note**: Verify PhotoPrism `/api/v1/photos` or `/api/v1/search` parameters for date filtering before implementation. Fallback: return "memories not supported" for PhotoPrism until API is confirmed.
+- Leave PhotoPrism without memories — rejected; filter-based approach works.
+- Custom PhotoPrism endpoint — not available; standard search suffices.
 
 ---
 

@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/damongolding/immich-kiosk/internal/birthdate"
@@ -399,10 +400,96 @@ func (p *Provider) RandomMemoryAsset(requestID, deviceID string) error {
 	return fmt.Errorf("photoprism: memories not supported")
 }
 
-// MemoriesCollage is not supported by PhotoPrism.
-// PhotoPrism does not expose an "on this day" / date-filtered API for memories.
+const (
+	memoriesCollageMaxAssets = 8
+	memoriesCollageRetries   = 5
+	memoriesCollageMaxYears  = 50
+)
+
+// MemoriesCollage returns up to 8 photos from a randomly chosen past year (same month and day as today).
+// Uses PhotoPrism search filters: taken:"YYYY-MM-DD" or year+month+day (see docs.photoprism.app/user-guide/search/filters).
 func (p *Provider) MemoriesCollage(requestID, deviceID string) (source.MemoriesCollage, error) {
-	return source.MemoriesCollage{}, source.ErrMemoriesNotSupported
+	now := time.Now()
+	month, day := int(now.Month()), now.Day()
+	currentYear := now.Year()
+
+	maxYearsBack := memoriesCollageMaxYears
+	if p.cfg.PastMemoryDays > 0 {
+		fromDays := p.cfg.PastMemoryDays / 365
+		if fromDays < maxYearsBack && fromDays > 0 {
+			maxYearsBack = fromDays
+		}
+	}
+
+	albumUID := ""
+	if len(p.cfg.Albums) == 1 {
+		albumUID = p.cfg.Albums[0]
+	}
+
+	var personFilter string
+	if len(p.cfg.People) == 1 {
+		personFilter = buildPersonSearchQuery(p.cfg, p.cfg.People[0])
+	} else if len(p.cfg.People) > 1 {
+		personFilter = buildPersonSearchQuery(p.cfg, "")
+	}
+
+	for retry := 0; retry < memoriesCollageRetries; retry++ {
+		year := currentYear - 1 - rand.IntN(maxYearsBack)
+		if year < 1 {
+			year = 1
+		}
+
+		dateStr := fmt.Sprintf("%04d-%02d-%02d", year, month, day)
+		takenFilter := `taken:"` + dateStr + `"`
+		searchParts := []string{takenFilter, "type:image"}
+		if personFilter != "" {
+			searchParts = append(searchParts, personFilter)
+		}
+		searchQ := strings.Join(searchParts, " ")
+
+		list, _, _, err := p.fetchPhotos(albumUID, "random", 16, searchQ, "")
+		if err != nil {
+			log.Debug(requestID, "PhotoPrism MemoriesCollage fetch failed", "year", year, "error", err)
+			continue
+		}
+
+		var images []Photo
+		for i := range list {
+			if strings.EqualFold(list[i].Type, "image") {
+				images = append(images, list[i])
+			}
+		}
+
+		if len(images) == 0 {
+			log.Debug(requestID, "PhotoPrism MemoriesCollage no photos for date", "year", year, "month", month, "day", day)
+			continue
+		}
+
+		rand.Shuffle(len(images), func(i, j int) { images[i], images[j] = images[j], images[i] })
+		n := memoriesCollageMaxAssets
+		if len(images) < n {
+			n = len(images)
+		}
+		images = images[:n]
+
+		displayAssets := make([]source.DisplayAsset, 0, len(images))
+		for i := range images {
+			displayAssets = append(displayAssets, p.photoToDisplayAsset(&images[i], kiosk.SourceMemories, ""))
+		}
+
+		yearsAgo := currentYear - year
+		if yearsAgo < 1 {
+			yearsAgo = 1
+		}
+
+		return source.MemoriesCollage{
+			Year:     year,
+			Assets:   displayAssets,
+			YearsAgo: yearsAgo,
+		}, nil
+	}
+
+	return source.MemoriesCollage{}, source.ErrMemoriesEmpty
 }
 
 func (p *Provider) RandomAssetWithTag(tagID, requestID, deviceID string, isPrefetch bool) error {
@@ -445,8 +532,9 @@ func (p *Provider) AssetInfo(assetID, requestID, deviceID string) error {
 	return nil
 }
 
-func (p *Provider) DisplayAsset(requestID, deviceID string) source.DisplayAsset {
-	ph := p.currentPhoto()
+// photoToDisplayAsset converts a Photo to DisplayAsset. Used by DisplayAsset and MemoriesCollage.
+// bucket and bucketID override the default (e.g. kiosk.SourceMemories for collage).
+func (p *Provider) photoToDisplayAsset(ph *Photo, bucket kiosk.Source, bucketID string) source.DisplayAsset {
 	if ph == nil {
 		return source.DisplayAsset{}
 	}
@@ -517,11 +605,19 @@ func (p *Provider) DisplayAsset(requestID, deviceID string) source.DisplayAsset 
 		IsFavorite:       ph.Favorite,
 		IsPortrait:       ph.Portrait,
 		IsLandscape:      !ph.Portrait && ph.Width >= ph.Height,
-		Bucket:           p.bucketForDisplay(),
-		BucketID:         p.currentBucketID,
+		Bucket:           bucket,
+		BucketID:         bucketID,
 		SelectedUser:     p.cfg.SelectedUser,
 		UserOwnsAsset:    true,
 	}
+}
+
+func (p *Provider) DisplayAsset(requestID, deviceID string) source.DisplayAsset {
+	ph := p.currentPhoto()
+	if ph == nil {
+		return source.DisplayAsset{}
+	}
+	return p.photoToDisplayAsset(ph, p.bucketForDisplay(), p.currentBucketID)
 }
 
 func (p *Provider) ApplyUserFromAssetID(assetID string) (string, string) {
