@@ -100,13 +100,16 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 		clusterW := availW
 		clusterH := availH - heroH - gapFrac*height
 		clusterY := heroH + gapFrac*height
+		clusterToSide := false
 		if clusterH < availH*0.2 {
 			// Hero took most of height; put cluster to the side
 			clusterW = availW - heroW - gapFrac*width
 			clusterH = availH
 			clusterY = 0
+			clusterToSide = true
 		}
 
+		clusterOffsetX := (gapFrac*width + heroW) / width
 		clusterRatios := make([]float64, 0, n-1)
 		clusterMinRatios := make([]float64, 0, n-1)
 		clusterMaxRatios := make([]float64, 0, n-1)
@@ -119,7 +122,7 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 				clusterIndices = append(clusterIndices, i)
 			}
 		}
-		clusterCells := packJustifiedRowsForHero(clusterRatios, clusterMinRatios, clusterMaxRatios, clusterIndices, clusterW, clusterH, width, height, gapFrac, clusterY/height)
+		clusterCells := packJustifiedRowsForHero(clusterRatios, clusterMinRatios, clusterMaxRatios, clusterIndices, clusterW, clusterH, width, height, gapFrac, clusterY/height, clusterToSide, clusterOffsetX)
 		cells = append(cells, clusterCells...)
 	}
 
@@ -131,7 +134,7 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 	}, nil
 }
 
-func packJustifiedRowsForHero(ratios, minRatios, maxRatios []float64, indices []int, containerW, containerH, totalW, totalH, gapFrac, offsetY float64) []LayoutCell {
+func packJustifiedRowsForHero(ratios, minRatios, maxRatios []float64, indices []int, containerW, containerH, totalW, totalH, gapFrac, offsetY float64, clusterToSide bool, clusterOffsetX float64) []LayoutCell {
 	if len(ratios) == 0 {
 		return nil
 	}
@@ -141,6 +144,9 @@ func packJustifiedRowsForHero(ratios, minRatios, maxRatios []float64, indices []
 	for i := range cells {
 		cells[i].AssetIndex = indices[cells[i].AssetIndex]
 		cells[i].X = cells[i].X * (containerW / totalW)
+		if clusterToSide {
+			cells[i].X += clusterOffsetX
+		}
 		cells[i].Y = offsetY + cells[i].Y*(containerH/totalH)
 		cells[i].Width *= containerW / totalW
 		cells[i].Height *= containerH / totalH
