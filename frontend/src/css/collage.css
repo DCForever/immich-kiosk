@@ -14,6 +14,12 @@
     box-sizing: border-box;
 }
 
+/* Dynamic layout: container uses relative positioning for absolute children */
+.collage-grid.collage-dynamic {
+    display: block;
+    position: relative;
+}
+
 .collage-cell {
     overflow: hidden;
     position: relative;
@@ -24,7 +30,7 @@
 .collage-cell img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
 }
 

@@ -14,6 +14,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/damongolding/immich-kiosk/internal/cache"
+	"github.com/damongolding/immich-kiosk/internal/collage"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/i18n"
@@ -776,46 +777,58 @@ func PickLayoutVariant(n int) string {
 // ProcessMemoriesCollage calls provider.MemoriesCollage, builds ViewData with layout=collage, Duration=45,
 // Assets (3–16), MemoryCaption (based on TimeRange), and LayoutVariant. Returns error on empty so caller can skip or retry.
 func ProcessMemoriesCollage(provider source.ProviderOps, requestConfig config.Config, requestID, deviceID string, queries map[string][]string) (common.ViewData, error) {
-	collage, err := provider.MemoriesCollage(requestID, deviceID)
+	memCollage, err := provider.MemoriesCollage(requestID, deviceID)
 	if err != nil {
 		return common.ViewData{}, err
 	}
-	n := len(collage.Assets)
+	n := len(memCollage.Assets)
 	if n < source.MinCollageAssets || n > source.MaxCollageAssets {
 		return common.ViewData{}, source.ErrMemoriesEmpty
 	}
 
 	var caption string
-	switch collage.TimeRange {
+	switch memCollage.TimeRange {
 	case source.TimeRangeWeek:
-		caption = i18n.TWithData("memories_caption_week", map[string]interface{}{"YearsAgo": collage.YearsAgo})
+		caption = i18n.TWithData("memories_caption_week", map[string]interface{}{"YearsAgo": memCollage.YearsAgo})
 	case source.TimeRangeMonth:
 		monthName := i18n.T()("month_" + strconv.Itoa(int(time.Now().Month())))
-		caption = i18n.TWithData("memories_caption_month", map[string]interface{}{"YearsAgo": collage.YearsAgo, "MonthName": monthName})
+		caption = i18n.TWithData("memories_caption_month", map[string]interface{}{"YearsAgo": memCollage.YearsAgo, "MonthName": monthName})
 	default:
-		caption = i18n.TWithData("memories_caption", map[string]interface{}{"YearsAgo": collage.YearsAgo})
+		caption = i18n.TWithData("memories_caption", map[string]interface{}{"YearsAgo": memCollage.YearsAgo})
 	}
 
 	assets := make([]common.ViewImageData, 0, n)
-	for _, a := range collage.Assets {
+	displayAssets := make([]source.DisplayAsset, 0, n)
+	for _, a := range memCollage.Assets {
 		assets = append(assets, common.ViewImageData{
 			Asset: a,
 			User:  requestConfig.SelectedUser,
 		})
+		displayAssets = append(displayAssets, a)
 	}
 
 	layoutVariant := PickLayoutVariant(n)
 
+	// Try dynamic layout with 2s timeout; on failure leave CollageLayout nil for fallback
+	var layoutResult *collage.LayoutResult
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	layoutResult, layoutErr := collage.ComputeLayout(ctx, displayAssets, collage.DefaultContainerWidth, collage.DefaultContainerHeight)
+	cancel()
+	if layoutErr != nil {
+		layoutResult = nil
+	}
+
 	requestConfig.Layout = kiosk.LayoutCollage
 	requestConfig.Duration = memoriesDurationSeconds
 	viewData := common.ViewData{
-		RequestID:      requestID,
-		DeviceID:       deviceID,
-		Config:         requestConfig,
-		Assets:         assets,
-		MemoryCaption:  caption,
-		LayoutVariant:  layoutVariant,
-		Queries:        queries,
+		RequestID:     requestID,
+		DeviceID:      deviceID,
+		Config:        requestConfig,
+		Assets:        assets,
+		MemoryCaption: caption,
+		LayoutVariant: layoutVariant,
+		CollageLayout: layoutResult,
+		Queries:       queries,
 	}
 	return viewData, nil
 }

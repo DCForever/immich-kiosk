@@ -50,11 +50,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] Add `CollageLayout *collage.LayoutResult` field to `ViewData` in `internal/common/common.go`
-- [ ] T007 [US1] Update `ProcessMemoriesCollage` in `internal/routes/routes_asset_helpers.go`: call `collage.ComputeLayout` with 2-second timeout (context.WithTimeout); attach LayoutResult to ViewData on success; on failure/timeout leave nil for fallback
-- [ ] T008 [US1] Update `internal/templates/components/memories/collage.templ`: when `ViewData.CollageLayout != nil`, render cells with positions from layout (inline styles or CSS vars); when nil, use `collage-{n}` class (fallback)
-- [ ] T009 [US1] Update `frontend/src/css/collage.css`: change `.collage-cell img` from `object-fit: cover` to `object-fit: contain` for aspect-ratio preservation
-- [ ] T010 [US1] Update `internal/templates/components/memories/collage.templ`: ensure dynamic layout container uses `collage-grid collage-dynamic` and cells have `position: absolute` with computed left/top/width/height per contracts/memories-ui.md
+- [x] T006 [US1] Add `CollageLayout *collage.LayoutResult` field to `ViewData` in `internal/common/common.go`
+- [x] T007 [US1] Update `ProcessMemoriesCollage` in `internal/routes/routes_asset_helpers.go`: call `collage.ComputeLayout` with 2-second timeout (context.WithTimeout); attach LayoutResult to ViewData on success; on failure/timeout leave nil for fallback
+- [x] T008 [US1] Update `internal/templates/components/memories/collage.templ`: when `ViewData.CollageLayout != nil`, render cells with positions from layout (inline styles or CSS vars); when nil, use `collage-{n}` class (fallback)
+- [x] T009 [US1] Update `frontend/src/css/collage.css`: change `.collage-cell img` from `object-fit: cover` to `object-fit: contain` for aspect-ratio preservation
+- [x] T010 [US1] Update `internal/templates/components/memories/collage.templ`: ensure dynamic layout container uses `collage-grid collage-dynamic` and cells have `position: absolute` with computed left/top/width/height per contracts/memories-ui.md
 
 **Checkpoint**: User Story 1 complete — dynamic collages display with aspect-ratio preservation; fallback works when engine fails
 

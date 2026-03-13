@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/charmbracelet/log"
+	"github.com/damongolding/immich-kiosk/internal/collage"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/source"
@@ -100,9 +101,10 @@ type ViewData struct {
 	Assets        []ViewImageData // Assets contains the collection of assets to display in view
 	Queries       url.Values      // Queries contains the URL query parameters
 	CustomCSS     []byte          // CustomCSS contains custom CSS styling as bytes
-	MemoryCaption            string     // MemoryCaption is set for memories view (e.g. "Memories from X years ago")
-	LayoutVariant            string     // LayoutVariant is the collage layout variant (e.g. "a", "b", "c") for collage-{n}-{variant}
-	ShowMemoriesBackButton   bool       // ShowMemoriesBackButton when true shows back button (on-demand memories view)
+	MemoryCaption            string              // MemoryCaption is set for memories view (e.g. "Memories from X years ago")
+	LayoutVariant            string              // LayoutVariant is the collage layout variant (e.g. "a", "b", "c") for collage-{n}-{variant}
+	CollageLayout            *collage.LayoutResult // CollageLayout is the dynamic layout when non-nil; nil triggers fallback to collage-{n}
+	ShowMemoriesBackButton   bool                // ShowMemoriesBackButton when true shows back button (on-demand memories view)
 	config.Config                         // Config contains the instance configuration
 }
 
