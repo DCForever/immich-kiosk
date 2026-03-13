@@ -89,18 +89,18 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 	}
 	// When cluster will be to the side, left-align hero to make room; otherwise center hero
 	clusterToSide := false
-	heroX := (gapFrac + (availW-heroW)/2) / width
+	heroX := (gapFrac*width + (availW-heroW)/2) / width
 	if n > 1 {
 		clusterH := availH - heroH - gapFrac*height
 		if clusterH < availH*0.2 {
 			clusterToSide = true
-			heroX = gapFrac / width // Left-align hero to make room for cluster on the right
+			heroX = gapFrac // Left-align hero (normalized 0–1)
 		}
 	}
 
 	cells = append(cells, LayoutCell{
 		X:          heroX,
-		Y:          gapFrac / height,
+		Y:          gapFrac,
 		Width:      heroW / width,
 		Height:     heroH / height,
 		AssetIndex: heroIndex,
@@ -112,7 +112,7 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 		clusterH := availH - heroH - gapFrac*height
 		clusterY := heroH + gapFrac*height
 		if clusterToSide {
-			clusterW = availW - heroW - 2*gapFrac*width // Space to right of hero minus gaps
+			clusterW = availW - heroW - gapFrac*width // Space to right of hero minus one gap
 			clusterH = availH
 			clusterY = 0
 		}
