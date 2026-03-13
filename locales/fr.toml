@@ -54,6 +54,8 @@ view_configuration = "Voir la configuration"
 
 # Memories (on this day)
 memories_caption = ""
+memories_caption_week = ""
+memories_caption_month = ""
 memories_no_photos = ""
 memories_error_load = ""
 memories_back = ""

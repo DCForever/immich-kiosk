@@ -157,9 +157,9 @@ type MemoriesCollage struct {
 	TimeRange TimeRange      // Which range was used: ExactDate, Week, or Month
 }
 
-// isoWeekRange returns the Monday and Sunday of the ISO week (Mon–Sun) containing t.
+// IsoWeekRange returns the Monday and Sunday of the ISO week (Mon–Sun) containing t.
 // Per ISO 8601, the week starts on Monday.
-func isoWeekRange(t time.Time) (start, end time.Time) {
+func IsoWeekRange(t time.Time) (start, end time.Time) {
 	t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	// Go: Monday=1, Tuesday=2, ..., Sunday=7
 	daysFromMonday := int(t.Weekday()) - 1

@@ -761,6 +761,17 @@ func determineLayoutMode(layout string, clientHeight, clientWidth int) string {
 
 const memoriesDurationSeconds = 45
 
+// CollageLayoutVariants are the layout variant suffixes (e.g. collage-5-a, collage-5-b).
+var CollageLayoutVariants = []string{"a", "b", "c"}
+
+// PickLayoutVariant returns a random layout variant for the given asset count.
+func PickLayoutVariant(n int) string {
+	if len(CollageLayoutVariants) == 0 {
+		return ""
+	}
+	return CollageLayoutVariants[rand.IntN(len(CollageLayoutVariants))]
+}
+
 // ProcessMemoriesCollage calls provider.MemoriesCollage, builds ViewData with layout=collage, Duration=45,
 // Assets (1–8), and MemoryCaption. Returns error on empty so caller can skip or retry with a different bucket.
 func ProcessMemoriesCollage(provider source.ProviderOps, requestConfig config.Config, requestID, deviceID string, queries map[string][]string) (common.ViewData, error) {

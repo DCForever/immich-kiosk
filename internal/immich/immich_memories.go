@@ -379,14 +379,34 @@ func (a *Asset) IsMemory() (bool, Memory, int) {
 	return false, Memory{}, 0
 }
 
-const maxCollageAssets = 8
-
-// MemoriesCollage returns up to 8 photos from a randomly chosen past year (same month and day as today).
-// Filters memories by Data.Year, picks one year at random from those with assets, and returns up to 8 DisplayAssets.
+// MemoriesCollage returns 3–16 photos from a randomly chosen past year using progressive search:
+// (1) exact date, (2) ISO week, (3) same month. Requires ≥3 assets; returns ErrMemoriesEmpty when fewer.
 func (a *Asset) MemoriesCollage(requestID, deviceID string) (source.MemoriesCollage, error) {
+	now := time.Now()
+	month, day := int(now.Month()), now.Day()
+	currentYear := now.Year()
+
+	// 1. Try exact date
+	if collage, err := a.memoriesCollageExact(requestID, deviceID, month, day, currentYear); err == nil {
+		return collage, nil
+	}
+
+	// 2. Try week (MemoriesWithPastDays(7), filter to ISO week)
+	if collage, err := a.memoriesCollageWeek(requestID, deviceID, month, day, currentYear); err == nil {
+		return collage, nil
+	}
+
+	// 3. Try month (MemoriesWithPastDays(31), filter to same month)
+	if collage, err := a.memoriesCollageMonth(requestID, deviceID, month, day, currentYear); err == nil {
+		return collage, nil
+	}
+
+	return source.MemoriesCollage{}, source.ErrMemoriesEmpty
+}
+
+func (a *Asset) memoriesCollageExact(requestID, deviceID string, month, day, currentYear int) (source.MemoriesCollage, error) {
 	var memories []Memory
 	var err error
-
 	if a.requestConfig.PastMemoryDays > 0 {
 		memories, _, err = a.MemoriesWithPastDays(requestID, deviceID, a.requestConfig.PastMemoryDays)
 	} else {
@@ -396,10 +416,9 @@ func (a *Asset) MemoriesCollage(requestID, deviceID string) (source.MemoriesColl
 		return source.MemoriesCollage{}, err
 	}
 
-	// Filter to memories with at least one asset
 	var withAssets []Memory
 	for _, m := range memories {
-		if len(m.Assets) > 0 {
+		if len(m.Assets) >= source.MinCollageAssets {
 			withAssets = append(withAssets, m)
 		}
 	}
@@ -407,27 +426,105 @@ func (a *Asset) MemoriesCollage(requestID, deviceID string) (source.MemoriesColl
 		return source.MemoriesCollage{}, source.ErrMemoriesEmpty
 	}
 
-	picked := withAssets[rand.IntN(len(withAssets))]
-	year := picked.Data.Year
-	if year == 0 {
-		year = picked.MemoryAt.Year()
+	return a.buildCollageFromMemory(requestID, deviceID, withAssets[rand.IntN(len(withAssets))], source.TimeRangeExactDate)
+}
+
+func (a *Asset) memoriesCollageWeek(requestID, deviceID string, month, day, currentYear int) (source.MemoriesCollage, error) {
+	memories, _, err := a.MemoriesWithPastDays(requestID, deviceID, 7)
+	if err != nil {
+		return source.MemoriesCollage{}, err
 	}
+
+	// Group assets by year, filtering to memories in that year's ISO week containing (month, day)
+	yearAssets := make(map[int][]Asset)
+	for _, m := range memories {
+		year := m.Data.Year
+		if year == 0 {
+			year = m.MemoryAt.Year()
+		}
+		if year >= currentYear {
+			continue
+		}
+		targetInYear := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+		weekStart, weekEnd := source.IsoWeekRange(targetInYear)
+		mDate := time.Date(m.MemoryAt.Year(), m.MemoryAt.Month(), m.MemoryAt.Day(), 0, 0, 0, 0, time.UTC)
+		// Include only if this memory is from the same year and date falls in the ISO week
+		if m.MemoryAt.Year() == year && (mDate.Equal(weekStart) || mDate.After(weekStart)) && (mDate.Equal(weekEnd) || mDate.Before(weekEnd)) {
+			yearAssets[year] = append(yearAssets[year], m.Assets...)
+		}
+	}
+
+	var validYears []int
+	for y, assets := range yearAssets {
+		if len(assets) >= source.MinCollageAssets {
+			validYears = append(validYears, y)
+		}
+	}
+	if len(validYears) == 0 {
+		return source.MemoriesCollage{}, source.ErrMemoriesEmpty
+	}
+
+	year := validYears[rand.IntN(len(validYears))]
+	assets := yearAssets[year]
+	return a.buildCollageFromAssets(requestID, deviceID, assets, year, source.TimeRangeWeek)
+}
+
+func (a *Asset) memoriesCollageMonth(requestID, deviceID string, month, day, currentYear int) (source.MemoriesCollage, error) {
+	memories, _, err := a.MemoriesWithPastDays(requestID, deviceID, 31)
+	if err != nil {
+		return source.MemoriesCollage{}, err
+	}
+
+	yearAssets := make(map[int][]Asset)
+	for _, m := range memories {
+		year := m.Data.Year
+		if year == 0 {
+			year = m.MemoryAt.Year()
+		}
+		if year >= currentYear {
+			continue
+		}
+		if int(m.MemoryAt.Month()) == month {
+			yearAssets[year] = append(yearAssets[year], m.Assets...)
+		}
+	}
+
+	var validYears []int
+	for y, assets := range yearAssets {
+		if len(assets) >= source.MinCollageAssets {
+			validYears = append(validYears, y)
+		}
+	}
+	if len(validYears) == 0 {
+		return source.MemoriesCollage{}, source.ErrMemoriesEmpty
+	}
+
+	year := validYears[rand.IntN(len(validYears))]
+	assets := yearAssets[year]
+	return a.buildCollageFromAssets(requestID, deviceID, assets, year, source.TimeRangeMonth)
+}
+
+func (a *Asset) buildCollageFromMemory(requestID, deviceID string, m Memory, tr source.TimeRange) (source.MemoriesCollage, error) {
+	year := m.Data.Year
+	if year == 0 {
+		year = m.MemoryAt.Year()
+	}
+	return a.buildCollageFromAssets(requestID, deviceID, m.Assets, year, tr)
+}
+
+func (a *Asset) buildCollageFromAssets(requestID, deviceID string, assets []Asset, year int, tr source.TimeRange) (source.MemoriesCollage, error) {
 	yearsAgo := time.Now().Year() - year
 	if yearsAgo < 1 {
 		yearsAgo = 1
 	}
 
-	// Take up to 8 assets, shuffle for variety
-	assets := make([]Asset, len(picked.Assets))
-	copy(assets, picked.Assets)
 	rand.Shuffle(len(assets), func(i, j int) { assets[i], assets[j] = assets[j], assets[i] })
-	n := maxCollageAssets
+	n := source.MaxCollageAssets
 	if len(assets) < n {
 		n = len(assets)
 	}
 	assets = assets[:n]
 
-	// Convert to DisplayAsset; fetch AssetInfo for each (memories API may not include EXIF)
 	displayAssets := make([]source.DisplayAsset, 0, len(assets))
 	for i := range assets {
 		assets[i].Bucket = kiosk.SourceMemories
@@ -440,13 +537,14 @@ func (a *Asset) MemoriesCollage(requestID, deviceID string) (source.MemoriesColl
 		displayAssets = append(displayAssets, displayAssetFromImmich(&assets[i], requestID, deviceID))
 	}
 
-	if len(displayAssets) == 0 {
+	if len(displayAssets) < source.MinCollageAssets {
 		return source.MemoriesCollage{}, source.ErrMemoriesEmpty
 	}
 
 	return source.MemoriesCollage{
-		Year:     year,
-		Assets:   displayAssets,
-		YearsAgo: yearsAgo,
+		Year:      year,
+		Assets:    displayAssets,
+		YearsAgo:  yearsAgo,
+		TimeRange: tr,
 	}, nil
 }

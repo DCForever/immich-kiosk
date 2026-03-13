@@ -401,18 +401,29 @@ func (p *Provider) RandomMemoryAsset(requestID, deviceID string) error {
 }
 
 const (
-	memoriesCollageMaxAssets = 8
-	memoriesCollageRetries   = 5
-	memoriesCollageMaxYears  = 50
+	memoriesCollageRetries  = 5
+	memoriesCollageMaxYears = 50
 )
 
-// MemoriesCollage returns up to 8 photos from a randomly chosen past year (same month and day as today).
-// Uses PhotoPrism search filters: taken:"YYYY-MM-DD" or year+month+day (see docs.photoprism.app/user-guide/search/filters).
+// MemoriesCollage returns 3–16 photos using progressive search: (1) exact date, (2) ISO week, (3) same month.
+// Requires ≥3 photos; returns ErrMemoriesEmpty when fewer.
 func (p *Provider) MemoriesCollage(requestID, deviceID string) (source.MemoriesCollage, error) {
+	if c, err := p.memoriesCollageExact(requestID, deviceID); err == nil {
+		return c, nil
+	}
+	if c, err := p.memoriesCollageWeek(requestID, deviceID); err == nil {
+		return c, nil
+	}
+	if c, err := p.memoriesCollageMonth(requestID, deviceID); err == nil {
+		return c, nil
+	}
+	return source.MemoriesCollage{}, source.ErrMemoriesEmpty
+}
+
+func (p *Provider) memoriesCollageExact(requestID, deviceID string) (source.MemoriesCollage, error) {
 	now := time.Now()
 	month, day := int(now.Month()), now.Day()
 	currentYear := now.Year()
-
 	maxYearsBack := memoriesCollageMaxYears
 	if p.cfg.PastMemoryDays > 0 {
 		fromDays := p.cfg.PastMemoryDays / 365
@@ -425,7 +436,6 @@ func (p *Provider) MemoriesCollage(requestID, deviceID string) (source.MemoriesC
 	if len(p.cfg.Albums) == 1 {
 		albumUID = p.cfg.Albums[0]
 	}
-
 	var personFilter string
 	if len(p.cfg.People) == 1 {
 		personFilter = buildPersonSearchQuery(p.cfg, p.cfg.People[0])
@@ -438,10 +448,8 @@ func (p *Provider) MemoriesCollage(requestID, deviceID string) (source.MemoriesC
 		if year < 1 {
 			year = 1
 		}
-
 		dateStr := fmt.Sprintf("%04d-%02d-%02d", year, month, day)
-		takenFilter := `taken:"` + dateStr + `"`
-		searchParts := []string{takenFilter, "type:image"}
+		searchParts := []string{`taken:"` + dateStr + `"`, "type:image"}
 		if personFilter != "" {
 			searchParts = append(searchParts, personFilter)
 		}
@@ -460,13 +468,13 @@ func (p *Provider) MemoriesCollage(requestID, deviceID string) (source.MemoriesC
 			}
 		}
 
-		if len(images) == 0 {
+		if len(images) < source.MinCollageAssets {
 			log.Debug(requestID, "PhotoPrism MemoriesCollage no photos for date", "year", year, "month", month, "day", day)
 			continue
 		}
 
 		rand.Shuffle(len(images), func(i, j int) { images[i], images[j] = images[j], images[i] })
-		n := memoriesCollageMaxAssets
+		n := source.MaxCollageAssets
 		if len(images) < n {
 			n = len(images)
 		}
@@ -483,9 +491,176 @@ func (p *Provider) MemoriesCollage(requestID, deviceID string) (source.MemoriesC
 		}
 
 		return source.MemoriesCollage{
-			Year:     year,
+			Year:      year,
 			Assets:   displayAssets,
 			YearsAgo: yearsAgo,
+			TimeRange: source.TimeRangeExactDate,
+		}, nil
+	}
+
+	return source.MemoriesCollage{}, source.ErrMemoriesEmpty
+}
+
+func (p *Provider) memoriesCollageWeek(requestID, deviceID string) (source.MemoriesCollage, error) {
+	now := time.Now()
+	month, day := int(now.Month()), now.Day()
+	currentYear := now.Year()
+	maxYearsBack := memoriesCollageMaxYears
+	if p.cfg.PastMemoryDays > 0 {
+		fromDays := p.cfg.PastMemoryDays / 365
+		if fromDays < maxYearsBack && fromDays > 0 {
+			maxYearsBack = fromDays
+		}
+	}
+
+	albumUID := ""
+	if len(p.cfg.Albums) == 1 {
+		albumUID = p.cfg.Albums[0]
+	}
+	var personFilter string
+	if len(p.cfg.People) == 1 {
+		personFilter = buildPersonSearchQuery(p.cfg, p.cfg.People[0])
+	} else if len(p.cfg.People) > 1 {
+		personFilter = buildPersonSearchQuery(p.cfg, "")
+	}
+
+	for retry := 0; retry < memoriesCollageRetries; retry++ {
+		year := currentYear - 1 - rand.IntN(maxYearsBack)
+		if year < 1 {
+			year = 1
+		}
+		target := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+		weekStart, weekEnd := source.IsoWeekRange(target)
+		afterStr := weekStart.Format("2006-01-02")
+		beforeStr := weekEnd.AddDate(0, 0, 1).Format("2006-01-02") // end+1 for exclusive before
+		searchParts := []string{`after:"` + afterStr + `"`, `before:"` + beforeStr + `"`, "type:image"}
+		if personFilter != "" {
+			searchParts = append(searchParts, personFilter)
+		}
+		searchQ := strings.Join(searchParts, " ")
+
+		list, _, _, err := p.fetchPhotos(albumUID, "random", 30, searchQ, "")
+		if err != nil {
+			log.Debug(requestID, "PhotoPrism MemoriesCollage week fetch failed", "year", year, "error", err)
+			continue
+		}
+
+		var images []Photo
+		for i := range list {
+			if strings.EqualFold(list[i].Type, "image") {
+				images = append(images, list[i])
+			}
+		}
+
+		if len(images) < source.MinCollageAssets {
+			continue
+		}
+
+		rand.Shuffle(len(images), func(i, j int) { images[i], images[j] = images[j], images[i] })
+		n := source.MaxCollageAssets
+		if len(images) < n {
+			n = len(images)
+		}
+		images = images[:n]
+
+		displayAssets := make([]source.DisplayAsset, 0, len(images))
+		for i := range images {
+			displayAssets = append(displayAssets, p.photoToDisplayAsset(&images[i], kiosk.SourceMemories, ""))
+		}
+
+		yearsAgo := currentYear - year
+		if yearsAgo < 1 {
+			yearsAgo = 1
+		}
+
+		return source.MemoriesCollage{
+			Year:      year,
+			Assets:   displayAssets,
+			YearsAgo: yearsAgo,
+			TimeRange: source.TimeRangeWeek,
+		}, nil
+	}
+
+	return source.MemoriesCollage{}, source.ErrMemoriesEmpty
+}
+
+func (p *Provider) memoriesCollageMonth(requestID, deviceID string) (source.MemoriesCollage, error) {
+	now := time.Now()
+	month := int(now.Month())
+	currentYear := now.Year()
+	maxYearsBack := memoriesCollageMaxYears
+	if p.cfg.PastMemoryDays > 0 {
+		fromDays := p.cfg.PastMemoryDays / 365
+		if fromDays < maxYearsBack && fromDays > 0 {
+			maxYearsBack = fromDays
+		}
+	}
+
+	albumUID := ""
+	if len(p.cfg.Albums) == 1 {
+		albumUID = p.cfg.Albums[0]
+	}
+	var personFilter string
+	if len(p.cfg.People) == 1 {
+		personFilter = buildPersonSearchQuery(p.cfg, p.cfg.People[0])
+	} else if len(p.cfg.People) > 1 {
+		personFilter = buildPersonSearchQuery(p.cfg, "")
+	}
+
+	for retry := 0; retry < memoriesCollageRetries; retry++ {
+		year := currentYear - 1 - rand.IntN(maxYearsBack)
+		if year < 1 {
+			year = 1
+		}
+		monthStart := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+		monthEnd := monthStart.AddDate(0, 1, 0) // first day of next month
+		afterStr := monthStart.Format("2006-01-02")
+		beforeStr := monthEnd.Format("2006-01-02")
+		searchParts := []string{`after:"` + afterStr + `"`, `before:"` + beforeStr + `"`, "type:image"}
+		if personFilter != "" {
+			searchParts = append(searchParts, personFilter)
+		}
+		searchQ := strings.Join(searchParts, " ")
+
+		list, _, _, err := p.fetchPhotos(albumUID, "random", 30, searchQ, "")
+		if err != nil {
+			log.Debug(requestID, "PhotoPrism MemoriesCollage month fetch failed", "year", year, "error", err)
+			continue
+		}
+
+		var images []Photo
+		for i := range list {
+			if strings.EqualFold(list[i].Type, "image") {
+				images = append(images, list[i])
+			}
+		}
+
+		if len(images) < source.MinCollageAssets {
+			continue
+		}
+
+		rand.Shuffle(len(images), func(i, j int) { images[i], images[j] = images[j], images[i] })
+		n := source.MaxCollageAssets
+		if len(images) < n {
+			n = len(images)
+		}
+		images = images[:n]
+
+		displayAssets := make([]source.DisplayAsset, 0, len(images))
+		for i := range images {
+			displayAssets = append(displayAssets, p.photoToDisplayAsset(&images[i], kiosk.SourceMemories, ""))
+		}
+
+		yearsAgo := currentYear - year
+		if yearsAgo < 1 {
+			yearsAgo = 1
+		}
+
+		return source.MemoriesCollage{
+			Year:      year,
+			Assets:   displayAssets,
+			YearsAgo: yearsAgo,
+			TimeRange: source.TimeRangeMonth,
 		}, nil
 	}
 

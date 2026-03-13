@@ -30,10 +30,10 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Implement progressive search in `internal/immich/immich_memories.go`: (1) exact date; (2) week via MemoriesWithPastDays(7) + filter; (3) month via MemoriesWithPastDays(31) + filter; require ≥3 assets; set TimeRange; change maxCollageAssets to 16
-- [ ] T006 Implement progressive search in `internal/photoprism/provider.go`: (1) taken:"YYYY-MM-DD"; (2) after/before for ISO week; (3) after/before for month; require ≥3 photos; set TimeRange; change memoriesCollageMaxAssets to 16; fetch 30+ for week/month
-- [ ] T007 [P] Add `memories_caption_week` and `memories_caption_month` i18n keys to `locales/en.toml` and all locale files in `locales/`
-- [ ] T008 Add layout variant selection: define `CollageLayoutVariants = []string{"a","b","c"}` and `PickLayoutVariant(n int) string` (or inline in ProcessMemoriesCollage) in `internal/routes/routes_asset_helpers.go` or shared package
+- [x] T005 Implement progressive search in `internal/immich/immich_memories.go`: (1) exact date; (2) week via MemoriesWithPastDays(7) + filter; (3) month via MemoriesWithPastDays(31) + filter; require ≥3 assets; set TimeRange; change maxCollageAssets to 16
+- [x] T006 Implement progressive search in `internal/photoprism/provider.go`: (1) taken:"YYYY-MM-DD"; (2) after/before for ISO week; (3) after/before for month; require ≥3 photos; set TimeRange; change memoriesCollageMaxAssets to 16; fetch 30+ for week/month
+- [x] T007 [P] Add `memories_caption_week` and `memories_caption_month` i18n keys to `locales/en.toml` and all locale files in `locales/`
+- [x] T008 Add layout variant selection: define `CollageLayoutVariants = []string{"a","b","c"}` and `PickLayoutVariant(n int) string` (or inline in ProcessMemoriesCollage) in `internal/routes/routes_asset_helpers.go` or shared package
 
 **Checkpoint**: Providers return MemoriesCollage with TimeRange and 3–16 assets; i18n keys exist; layout variant logic ready
 
