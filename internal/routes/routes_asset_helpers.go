@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"math/rand/v2"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -789,7 +790,7 @@ func ProcessMemoriesCollage(provider source.ProviderOps, requestConfig config.Co
 	case source.TimeRangeWeek:
 		caption = i18n.TWithData("memories_caption_week", map[string]interface{}{"YearsAgo": collage.YearsAgo})
 	case source.TimeRangeMonth:
-		monthName := time.Now().Month().String()
+		monthName := i18n.T()("month_" + strconv.Itoa(int(time.Now().Month())))
 		caption = i18n.TWithData("memories_caption_month", map[string]interface{}{"YearsAgo": collage.YearsAgo, "MonthName": monthName})
 	default:
 		caption = i18n.TWithData("memories_caption", map[string]interface{}{"YearsAgo": collage.YearsAgo})

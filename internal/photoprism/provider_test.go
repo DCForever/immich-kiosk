@@ -3,6 +3,7 @@ package photoprism
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -304,6 +305,78 @@ func TestProvider_RandomPersonFromAllPeople_errorWhenNoList(t *testing.T) {
 	_, err := p.RandomPersonFromAllPeople("req", "dev", true)
 	if err == nil {
 		t.Fatal("expected error when no subject list")
+	}
+}
+
+func TestProvider_MemoriesCollage_returns3to16WithTimeRange(t *testing.T) {
+	takenAt := time.Date(2010, 3, 13, 12, 0, 0, 0, time.UTC)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/photos" {
+			t.Errorf("path = %s", r.URL.Path)
+			return
+		}
+		w.Header().Set("X-Preview-Token", "pt")
+		w.Header().Set("X-Download-Token", "dt")
+		w.Header().Set("Content-Type", "application/json")
+		photos := make([]Photo, 5)
+		for i := range photos {
+			photos[i] = Photo{
+				UID:          "photo-" + string(rune('1'+i)),
+				Type:         "image",
+				TakenAt:      takenAt,
+				TakenAtLocal: takenAt,
+				FileName:     "IMG.jpg",
+				Width:        800,
+				Height:       600,
+				Files:        []File{{Primary: true, Mime: "image/jpeg"}},
+			}
+		}
+		_ = json.NewEncoder(w).Encode(photos)
+	}))
+	defer server.Close()
+
+	cfg := config.Config{PhotoprismURL: server.URL, PhotoprismToken: "t", Kiosk: config.KioskSettings{Cache: false}}
+	client := NewClient(server.URL, "t")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: cfg, ctx: context.Background()}
+
+	collage, err := p.MemoriesCollage("req", "dev")
+	if err != nil {
+		t.Fatalf("MemoriesCollage: %v", err)
+	}
+	if len(collage.Assets) < source.MinCollageAssets || len(collage.Assets) > source.MaxCollageAssets {
+		t.Errorf("len(Assets) = %d, want 3–16", len(collage.Assets))
+	}
+	if collage.TimeRange != source.TimeRangeExactDate && collage.TimeRange != source.TimeRangeWeek && collage.TimeRange != source.TimeRangeMonth {
+		t.Errorf("TimeRange = %v, want ExactDate, Week, or Month", collage.TimeRange)
+	}
+	if collage.YearsAgo < 1 {
+		t.Errorf("YearsAgo = %d, want >= 1", collage.YearsAgo)
+	}
+}
+
+func TestProvider_MemoriesCollage_emptyWhenFewerThan3(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/photos" {
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		photos := []Photo{
+			{UID: "p1", Type: "image", Files: []File{{Primary: true, Mime: "image/jpeg"}}},
+			{UID: "p2", Type: "image", Files: []File{{Primary: true, Mime: "image/jpeg"}}},
+		}
+		_ = json.NewEncoder(w).Encode(photos)
+	}))
+	defer server.Close()
+
+	cfg := config.Config{PhotoprismURL: server.URL, PhotoprismToken: "t"}
+	client := NewClient(server.URL, "t")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: cfg, ctx: context.Background()}
+
+	_, err := p.MemoriesCollage("req", "dev")
+	if !errors.Is(err, source.ErrMemoriesEmpty) {
+		t.Errorf("MemoriesCollage err = %v, want ErrMemoriesEmpty", err)
 	}
 }
 

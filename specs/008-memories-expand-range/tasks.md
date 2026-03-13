@@ -63,7 +63,7 @@
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Verify `internal/routes/routes_memories.go` passes ViewData from ProcessMemoriesCollage (including LayoutVariant) to template; ensure empty/error states still show "No memories for this day" for 45s when <3 photos in all ranges
+- [x] T012 [US2] Verify `internal/routes/routes_memories.go` passes ViewData from ProcessMemoriesCollage (including LayoutVariant) to template; ensure empty/error states still show "No memories for this day" for 45s when <3 photos in all ranges
 
 **Checkpoint**: On-demand button uses same ProcessMemoriesCollage; progressive fallback and captions work; empty state correct
 
@@ -77,7 +77,7 @@
 
 ### Implementation for User Story 3
 
-- [ ] T013 [US3] Ensure month caption uses localized month name in `ProcessMemoriesCollage` in `internal/routes/routes_asset_helpers.go` (e.g. via i18n or time.Month.String); verify `memories_caption_month` interpolation in locales
+- [x] T013 [US3] Ensure month caption uses localized month name in `ProcessMemoriesCollage` in `internal/routes/routes_asset_helpers.go` (e.g. via i18n or time.Month.String); verify `memories_caption_month` interpolation in locales
 
 **Checkpoint**: All three caption variants display correctly; month name localized
 
@@ -87,9 +87,9 @@
 
 **Purpose**: Validation, tests, and final verification
 
-- [ ] T014 [P] Add unit tests for `isoWeekRange` in `internal/source/` (table-driven: various dates, verify Mon–Sun range)
-- [ ] T015 [P] Add unit tests for `MemoriesCollage` progressive search in `internal/immich/` and `internal/photoprism/` (mock API; verify TimeRange and 3–16 bounds)
-- [ ] T016 Run `go test ./...` and fix any regressions
+- [x] T014 [P] Add unit tests for `isoWeekRange` in `internal/source/` (table-driven: various dates, verify Mon–Sun range)
+- [x] T015 [P] Add unit tests for `MemoriesCollage` progressive search in `internal/immich/` and `internal/photoprism/` (mock API; verify TimeRange and 3–16 bounds)
+- [x] T016 Run `go test ./...` and fix any regressions
 - [ ] T017 Run quickstart.md verification checklist: progressive search, 3–16 photos, captions, layout variants, i18n, Immich/PhotoPrism support; verify lightbox, timer pause, dismiss, error handling unchanged (FR-006); verify memories fetch and collage render within 3 seconds
 
 ---
