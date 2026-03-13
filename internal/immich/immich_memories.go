@@ -16,6 +16,7 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/immich_open_api"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/source"
 	"github.com/dustin/go-humanize"
 )
 
@@ -376,4 +377,76 @@ func (a *Asset) IsMemory() (bool, Memory, int) {
 	}
 
 	return false, Memory{}, 0
+}
+
+const maxCollageAssets = 8
+
+// MemoriesCollage returns up to 8 photos from a randomly chosen past year (same month and day as today).
+// Filters memories by Data.Year, picks one year at random from those with assets, and returns up to 8 DisplayAssets.
+func (a *Asset) MemoriesCollage(requestID, deviceID string) (source.MemoriesCollage, error) {
+	var memories []Memory
+	var err error
+
+	if a.requestConfig.PastMemoryDays > 0 {
+		memories, _, err = a.MemoriesWithPastDays(requestID, deviceID, a.requestConfig.PastMemoryDays)
+	} else {
+		memories, _, err = a.Memories(requestID, deviceID)
+	}
+	if err != nil {
+		return source.MemoriesCollage{}, err
+	}
+
+	// Filter to memories with at least one asset
+	var withAssets []Memory
+	for _, m := range memories {
+		if len(m.Assets) > 0 {
+			withAssets = append(withAssets, m)
+		}
+	}
+	if len(withAssets) == 0 {
+		return source.MemoriesCollage{}, fmt.Errorf("no memories with assets for this day")
+	}
+
+	picked := withAssets[rand.IntN(len(withAssets))]
+	year := picked.Data.Year
+	if year == 0 {
+		year = picked.MemoryAt.Year()
+	}
+	yearsAgo := time.Now().Year() - year
+	if yearsAgo < 1 {
+		yearsAgo = 1
+	}
+
+	// Take up to 8 assets, shuffle for variety
+	assets := make([]Asset, len(picked.Assets))
+	copy(assets, picked.Assets)
+	rand.Shuffle(len(assets), func(i, j int) { assets[i], assets[j] = assets[j], assets[i] })
+	n := maxCollageAssets
+	if len(assets) < n {
+		n = len(assets)
+	}
+	assets = assets[:n]
+
+	// Convert to DisplayAsset; fetch AssetInfo for each (memories API may not include EXIF)
+	displayAssets := make([]source.DisplayAsset, 0, len(assets))
+	for i := range assets {
+		assets[i].Bucket = kiosk.SourceMemories
+		assets[i].requestConfig = a.requestConfig
+		assets[i].ctx = a.ctx
+		if infoErr := assets[i].AssetInfo(requestID, deviceID); infoErr != nil {
+			log.Debug(requestID, "MemoriesCollage: skip asset, AssetInfo failed", "id", assets[i].ID, "error", infoErr)
+			continue
+		}
+		displayAssets = append(displayAssets, displayAssetFromImmich(&assets[i], requestID, deviceID))
+	}
+
+	if len(displayAssets) == 0 {
+		return source.MemoriesCollage{}, fmt.Errorf("no valid assets in memories collage")
+	}
+
+	return source.MemoriesCollage{
+		Year:     year,
+		Assets:   displayAssets,
+		YearsAgo: yearsAgo,
+	}, nil
 }

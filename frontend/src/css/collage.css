@@ -1,0 +1,141 @@
+/* Memories collage grid layouts (1–8 photos).
+ * Varied cell sizes, asymmetrical composition per spec Collage Layout (Grid Design).
+ * Container uses .collage-{n} where n = number of assets.
+ */
+
+.collage-grid {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    box-sizing: border-box;
+}
+
+.collage-cell {
+    overflow: hidden;
+    position: relative;
+    background: #111;
+}
+
+.collage-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* 1 photo: full area */
+.collage-1 {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    grid-template-areas: "a";
+}
+
+.collage-1 .collage-cell:nth-child(1) { grid-area: a; }
+
+/* 2 photos: side by side */
+.collage-2 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    grid-template-areas: "a b";
+}
+
+.collage-2 .collage-cell:nth-child(1) { grid-area: a; }
+.collage-2 .collage-cell:nth-child(2) { grid-area: b; }
+
+/* 3 photos: 1 large left, 2 stacked right */
+.collage-3 {
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "a b"
+        "a c";
+}
+
+.collage-3 .collage-cell:nth-child(1) { grid-area: a; }
+.collage-3 .collage-cell:nth-child(2) { grid-area: b; }
+.collage-3 .collage-cell:nth-child(3) { grid-area: c; }
+
+/* 4 photos: 2x2 grid */
+.collage-4 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "a b"
+        "c d";
+}
+
+.collage-4 .collage-cell:nth-child(1) { grid-area: a; }
+.collage-4 .collage-cell:nth-child(2) { grid-area: b; }
+.collage-4 .collage-cell:nth-child(3) { grid-area: c; }
+.collage-4 .collage-cell:nth-child(4) { grid-area: d; }
+
+/* 5 photos: 1 large top-left, 2x2 bottom-right */
+.collage-5 {
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: 1.2fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "a d e";
+}
+
+.collage-5 .collage-cell:nth-child(1) { grid-area: a; }
+.collage-5 .collage-cell:nth-child(2) { grid-area: b; }
+.collage-5 .collage-cell:nth-child(3) { grid-area: c; }
+.collage-5 .collage-cell:nth-child(4) { grid-area: d; }
+.collage-5 .collage-cell:nth-child(5) { grid-area: e; }
+
+/* 6 photos: 2 cols x 3 rows, top row slightly larger */
+.collage-6 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1.2fr 1fr 1fr;
+    grid-template-areas:
+        "a b"
+        "c d"
+        "e f";
+}
+
+.collage-6 .collage-cell:nth-child(1) { grid-area: a; }
+.collage-6 .collage-cell:nth-child(2) { grid-area: b; }
+.collage-6 .collage-cell:nth-child(3) { grid-area: c; }
+.collage-6 .collage-cell:nth-child(4) { grid-area: d; }
+.collage-6 .collage-cell:nth-child(5) { grid-area: e; }
+.collage-6 .collage-cell:nth-child(6) { grid-area: f; }
+
+/* 7 photos: 1 large, 2 medium, 4 small sub-grid */
+.collage-7 {
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "a d e"
+        "a f g";
+}
+
+.collage-7 .collage-cell:nth-child(1) { grid-area: a; }
+.collage-7 .collage-cell:nth-child(2) { grid-area: b; }
+.collage-7 .collage-cell:nth-child(3) { grid-area: c; }
+.collage-7 .collage-cell:nth-child(4) { grid-area: d; }
+.collage-7 .collage-cell:nth-child(5) { grid-area: e; }
+.collage-7 .collage-cell:nth-child(6) { grid-area: f; }
+.collage-7 .collage-cell:nth-child(7) { grid-area: g; }
+
+/* 8 photos: varied layout - 1 hero, 2 medium, 5 in sub-grid */
+.collage-8 {
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "a d e"
+        "f g h";
+}
+
+.collage-8 .collage-cell:nth-child(1) { grid-area: a; }
+.collage-8 .collage-cell:nth-child(2) { grid-area: b; }
+.collage-8 .collage-cell:nth-child(3) { grid-area: c; }
+.collage-8 .collage-cell:nth-child(4) { grid-area: d; }
+.collage-8 .collage-cell:nth-child(5) { grid-area: e; }
+.collage-8 .collage-cell:nth-child(6) { grid-area: f; }
+.collage-8 .collage-cell:nth-child(7) { grid-area: g; }
+.collage-8 .collage-cell:nth-child(8) { grid-area: h; }

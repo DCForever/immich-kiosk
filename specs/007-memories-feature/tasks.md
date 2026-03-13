@@ -28,12 +28,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Add `MemoriesCollage(requestID, deviceID string) (MemoriesCollage, error)` to `ProviderOps` interface in `internal/source/provider.go`
-- [ ] T004 Implement `MemoriesCollage` in `internal/immich/immich_memories.go`: filter memories by `Data.Year`, pick random year with assets, return up to 8 assets; handle empty case
-- [ ] T005 Implement `MemoriesCollage` in `internal/immich/adapter.go` to delegate to asset.MemoriesCollage
-- [ ] T006 Implement `MemoriesCollage` in `internal/photoprism/provider.go`: return error "memories not supported" (or add PhotosOnThisDay if API supports)
-- [ ] T007 [P] Create CSS grid layouts `collage-1` through `collage-8` in `frontend/src/css/collage.css` per spec Collage Layout (Grid Design)
-- [ ] T008 Add `MemoryCaption` to `common.ViewData` (or pass via Config) and ensure `Layout` can be `"collage"` in `internal/common/common.go` and `internal/config/config.go` if needed
+- [x] T003 Add `MemoriesCollage(requestID, deviceID string) (MemoriesCollage, error)` to `ProviderOps` interface in `internal/source/provider.go`
+- [x] T004 Implement `MemoriesCollage` in `internal/immich/immich_memories.go`: filter memories by `Data.Year`, pick random year with assets, return up to 8 assets; handle empty case
+- [x] T005 Implement `MemoriesCollage` in `internal/immich/adapter.go` to delegate to asset.MemoriesCollage
+- [x] T006 Implement `MemoriesCollage` in `internal/photoprism/provider.go`: return error "memories not supported" (or add PhotosOnThisDay if API supports)
+- [x] T007 [P] Create CSS grid layouts `collage-1` through `collage-8` in `frontend/src/css/collage.css` per spec Collage Layout (Grid Design)
+- [x] T008 Add `MemoryCaption` to `common.ViewData` (or pass via Config) and ensure `Layout` can be `"collage"` in `internal/common/common.go` and `internal/config/config.go` if needed
 
 **Checkpoint**: Provider returns MemoriesCollage; CSS layouts exist; ViewData supports collage
 

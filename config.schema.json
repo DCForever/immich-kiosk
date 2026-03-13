@@ -217,7 +217,7 @@
     },
     "layout": {
       "type": "string",
-      "enum": ["single", "portrait", "landscape", "splitview", "splitview-landscape"],
+      "enum": ["single", "portrait", "landscape", "splitview", "splitview-landscape", "collage"],
       "default": "single",
       "description": "How images are arranged on the screen."
     },

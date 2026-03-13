@@ -399,6 +399,11 @@ func (p *Provider) RandomMemoryAsset(requestID, deviceID string) error {
 	return fmt.Errorf("photoprism: memories not supported")
 }
 
+// MemoriesCollage is not supported by PhotoPrism.
+func (p *Provider) MemoriesCollage(requestID, deviceID string) (source.MemoriesCollage, error) {
+	return source.MemoriesCollage{}, fmt.Errorf("photoprism: memories not supported")
+}
+
 func (p *Provider) RandomAssetWithTag(tagID, requestID, deviceID string, isPrefetch bool) error {
 	p.currentBucket = kiosk.SourceTag
 	p.currentBucketID = tagID

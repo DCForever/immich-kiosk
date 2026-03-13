@@ -32,6 +32,7 @@ const (
 	LayoutPortrait           string = "portrait"
 	LayoutSplitview          string = "splitview"
 	LayoutSplitviewLandscape string = "splitview-landscape"
+	LayoutCollage            string = "collage"
 
 	PortraitOrientation  string = LayoutPortrait
 	LandscapeOrientation string = LayoutLandscape

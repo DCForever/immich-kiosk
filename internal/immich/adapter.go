@@ -140,6 +140,10 @@ func (ad *Adapter) RandomMemoryAsset(requestID, deviceID string) error {
 	return ad.asset.RandomMemoryAsset(requestID, deviceID)
 }
 
+func (ad *Adapter) MemoriesCollage(requestID, deviceID string) (source.MemoriesCollage, error) {
+	return ad.asset.MemoriesCollage(requestID, deviceID)
+}
+
 func (ad *Adapter) RandomAssetWithTag(tagID, requestID, deviceID string, isPrefetch bool) error {
 	return ad.asset.RandomAssetWithTag(tagID, requestID, deviceID, isPrefetch)
 }
