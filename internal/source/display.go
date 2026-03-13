@@ -134,11 +134,41 @@ type DisplayAsset struct {
 	UserOwnsAsset bool
 }
 
-// MemoriesCollage represents a single memories moment: up to 8 photos from a chosen past year (same month and day as today).
+// TimeRange indicates which date range was used for a memories collage.
+type TimeRange int
+
+const (
+	TimeRangeExactDate TimeRange = iota
+	TimeRangeWeek
+	TimeRangeMonth
+)
+
+// MinCollageAssets is the minimum number of photos required to show a memories collage.
+const MinCollageAssets = 3
+
+// MaxCollageAssets is the maximum number of photos in a memories collage.
+const MaxCollageAssets = 16
+
+// MemoriesCollage represents a single memories moment: 3–16 photos from a chosen past year (exact date, week, or month).
 type MemoriesCollage struct {
-	Year     int            // The chosen past year (e.g. 2007)
-	Assets   []DisplayAsset // Up to 8 photos from that year's month-day
-	YearsAgo int            // Current year minus Year (for caption "X years ago")
+	Year      int            // The chosen past year (e.g. 2007)
+	Assets    []DisplayAsset // 3–16 photos from that year's date range
+	YearsAgo  int            // Current year minus Year (for caption "X years ago")
+	TimeRange TimeRange      // Which range was used: ExactDate, Week, or Month
+}
+
+// isoWeekRange returns the Monday and Sunday of the ISO week (Mon–Sun) containing t.
+// Per ISO 8601, the week starts on Monday.
+func isoWeekRange(t time.Time) (start, end time.Time) {
+	t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	// Go: Monday=1, Tuesday=2, ..., Sunday=7
+	daysFromMonday := int(t.Weekday()) - 1
+	if daysFromMonday < 0 {
+		daysFromMonday = 6 // Sunday
+	}
+	start = t.AddDate(0, 0, -daysFromMonday)
+	end = start.AddDate(0, 0, 6)
+	return start, end
 }
 
 // HasTag returns true if the asset has a tag with the given value (e.g. kiosk.TagSkip).

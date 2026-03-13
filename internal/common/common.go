@@ -101,6 +101,7 @@ type ViewData struct {
 	Queries       url.Values      // Queries contains the URL query parameters
 	CustomCSS     []byte          // CustomCSS contains custom CSS styling as bytes
 	MemoryCaption            string     // MemoryCaption is set for memories view (e.g. "Memories from X years ago")
+	LayoutVariant            string     // LayoutVariant is the collage layout variant (e.g. "a", "b", "c") for collage-{n}-{variant}
 	ShowMemoriesBackButton   bool       // ShowMemoriesBackButton when true shows back button (on-demand memories view)
 	config.Config                         // Config contains the instance configuration
 }

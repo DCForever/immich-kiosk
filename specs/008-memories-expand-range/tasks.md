@@ -17,10 +17,10 @@
 
 **Purpose**: Types, constants, and helpers needed across all stories
 
-- [ ] T001 [P] Add `TimeRange` type (ExactDate, Week, Month), `MinCollageAssets = 3`, `MaxCollageAssets = 16` to `internal/source/display.go`
-- [ ] T002 Add `TimeRange` field to `MemoriesCollage` struct in `internal/source/display.go`; update comment for 3–16 assets (depends on T001)
-- [ ] T003 [P] Add `LayoutVariant` field to `ViewData` in `internal/common/common.go` for collage layout variant (e.g. "a", "b", "c")
-- [ ] T004 Add `isoWeekRange(t time.Time) (start, end time.Time)` helper in `internal/source/display.go` per research.md (ISO week Mon–Sun; keeps date logic with source types)
+- [x] T001 [P] Add `TimeRange` type (ExactDate, Week, Month), `MinCollageAssets = 3`, `MaxCollageAssets = 16` to `internal/source/display.go`
+- [x] T002 Add `TimeRange` field to `MemoriesCollage` struct in `internal/source/display.go`; update comment for 3–16 assets (depends on T001)
+- [x] T003 [P] Add `LayoutVariant` field to `ViewData` in `internal/common/common.go` for collage layout variant (e.g. "a", "b", "c")
+- [x] T004 Add `isoWeekRange(t time.Time) (start, end time.Time)` helper in `internal/source/display.go` per research.md (ISO week Mon–Sun; keeps date logic with source types)
 
 ---
 
