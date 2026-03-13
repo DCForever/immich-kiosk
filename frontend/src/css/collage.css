@@ -2,6 +2,7 @@
  * Varied cell sizes, asymmetrical composition per spec Collage Layout (Grid Design).
  * Container uses .collage-{n} (fallback) or .collage-{n}-{variant} where variant = a, b, c.
  * 008: ≥3 layout variants per count 3–16.
+ * Diagrams: specs/008-memories-expand-range/collage-layouts.md
  */
 
 .collage-grid {
@@ -121,10 +122,10 @@
         "c b";
 }
 .collage-3-c {
-    grid-template-columns: 1.2fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1.2fr 1fr;
     grid-template-areas:
-        "a c"
+        "a a"
         "b c";
 }
 .collage-3 .collage-cell:nth-child(1), .collage-3-a .collage-cell:nth-child(1), .collage-3-b .collage-cell:nth-child(1), .collage-3-c .collage-cell:nth-child(1) { grid-area: a; }
@@ -147,11 +148,11 @@
         "b c";
 }
 .collage-4-c {
-    grid-template-columns: 1.2fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1.2fr 1fr;
     grid-template-areas:
-        "a c"
-        "b d";
+        "a b c"
+        "d d d";
 }
 .collage-4 .collage-cell:nth-child(1), .collage-4-a .collage-cell:nth-child(1), .collage-4-b .collage-cell:nth-child(1), .collage-4-c .collage-cell:nth-child(1) { grid-area: a; }
 .collage-4 .collage-cell:nth-child(2), .collage-4-a .collage-cell:nth-child(2), .collage-4-b .collage-cell:nth-child(2), .collage-4-c .collage-cell:nth-child(2) { grid-area: b; }
@@ -305,10 +306,11 @@
         "i i i";
 }
 .collage-9-c {
-    grid-template-columns: 1fr 1.2fr 1fr;
-    grid-template-rows: 1fr 1fr 1.2fr;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1.2fr 1fr 1fr 1fr;
     grid-template-areas:
-        "a b c"
+        "a a b"
+        "a a c"
         "d e f"
         "g h i";
 }
