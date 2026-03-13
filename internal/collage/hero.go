@@ -87,8 +87,19 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 			heroH = heroW / heroCellRatio
 		}
 	}
+	// When cluster will be to the side, left-align hero to make room; otherwise center hero
+	clusterToSide := false
+	heroX := (gapFrac + (availW-heroW)/2) / width
+	if n > 1 {
+		clusterH := availH - heroH - gapFrac*height
+		if clusterH < availH*0.2 {
+			clusterToSide = true
+			heroX = gapFrac / width // Left-align hero to make room for cluster on the right
+		}
+	}
+
 	cells = append(cells, LayoutCell{
-		X:          (gapFrac + (availW-heroW)/2) / width,
+		X:          heroX,
 		Y:          gapFrac / height,
 		Width:      heroW / width,
 		Height:     heroH / height,
@@ -100,16 +111,14 @@ func computeHero(assets []source.DisplayAsset, width, height float64, algo strin
 		clusterW := availW
 		clusterH := availH - heroH - gapFrac*height
 		clusterY := heroH + gapFrac*height
-		clusterToSide := false
-		if clusterH < availH*0.2 {
-			// Hero took most of height; put cluster to the side
-			clusterW = availW - heroW - gapFrac*width
+		if clusterToSide {
+			clusterW = availW - heroW - 2*gapFrac*width // Space to right of hero minus gaps
 			clusterH = availH
 			clusterY = 0
-			clusterToSide = true
 		}
 
-		clusterOffsetX := (gapFrac*width + heroW) / width
+		// Cluster starts at hero's right edge + gap
+		clusterOffsetX := (gapFrac*width + heroW + gapFrac*width) / width
 		clusterRatios := make([]float64, 0, n-1)
 		clusterMinRatios := make([]float64, 0, n-1)
 		clusterMaxRatios := make([]float64, 0, n-1)

@@ -75,7 +75,7 @@ func ComputeLayout(ctx context.Context, assets []source.DisplayAsset, width, hei
 		return nil, ErrInvalidAssetCount
 	}
 
-	algo := pickAlgorithm()
+	algo := pickAlgorithm(len(assets))
 	switch algo {
 	case "treemap":
 		return computeTreemap(assets, width, height, algo)
@@ -89,7 +89,12 @@ func ComputeLayout(ctx context.Context, assets []source.DisplayAsset, width, hei
 // algorithmNames lists available algorithms for random selection (US2).
 var algorithmNames = []string{"justified", "treemap", "hero"}
 
-// pickAlgorithm returns a random algorithm name.
-func pickAlgorithm() string {
-	return algorithmNames[rand.Intn(len(algorithmNames))]
+// pickAlgorithm returns a random algorithm name. For 8+ photos, excludes treemap
+// because it tends to produce narrow vertical strips in wide containers.
+func pickAlgorithm(n int) string {
+	candidates := algorithmNames
+	if n >= 8 {
+		candidates = []string{"justified", "hero"}
+	}
+	return candidates[rand.Intn(len(candidates))]
 }
