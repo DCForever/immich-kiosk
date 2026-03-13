@@ -1,6 +1,7 @@
-/* Memories collage grid layouts (1–8 photos).
+/* Memories collage grid layouts (1–16 photos).
  * Varied cell sizes, asymmetrical composition per spec Collage Layout (Grid Design).
- * Container uses .collage-{n} where n = number of assets.
+ * Container uses .collage-{n} (fallback) or .collage-{n}-{variant} where variant = a, b, c.
+ * 008: ≥3 layout variants per count 3–16.
  */
 
 .collage-grid {
@@ -103,49 +104,87 @@
 .collage-2 .collage-cell:nth-child(2) { grid-area: b; }
 
 /* 3 photos: 1 large left, 2 stacked right */
-.collage-3 {
+.collage-3, .collage-3-a {
     grid-template-columns: 1.2fr 1fr;
     grid-template-rows: 1fr 1fr;
     grid-template-areas:
         "a b"
         "a c";
 }
-
-.collage-3 .collage-cell:nth-child(1) { grid-area: a; }
-.collage-3 .collage-cell:nth-child(2) { grid-area: b; }
-.collage-3 .collage-cell:nth-child(3) { grid-area: c; }
+.collage-3-b {
+    grid-template-columns: 1fr 1.2fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "a b"
+        "c b";
+}
+.collage-3-c {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1.2fr 1fr 1fr;
+    grid-template-areas: "a" "b" "c";
+}
+.collage-3 .collage-cell:nth-child(1), .collage-3-a .collage-cell:nth-child(1), .collage-3-b .collage-cell:nth-child(1), .collage-3-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-3 .collage-cell:nth-child(2), .collage-3-a .collage-cell:nth-child(2), .collage-3-b .collage-cell:nth-child(2), .collage-3-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-3 .collage-cell:nth-child(3), .collage-3-a .collage-cell:nth-child(3), .collage-3-b .collage-cell:nth-child(3), .collage-3-c .collage-cell:nth-child(3) { grid-area: c; }
 
 /* 4 photos: 2x2 grid */
-.collage-4 {
+.collage-4, .collage-4-a {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
     grid-template-areas:
         "a b"
         "c d";
 }
-
-.collage-4 .collage-cell:nth-child(1) { grid-area: a; }
-.collage-4 .collage-cell:nth-child(2) { grid-area: b; }
-.collage-4 .collage-cell:nth-child(3) { grid-area: c; }
-.collage-4 .collage-cell:nth-child(4) { grid-area: d; }
+.collage-4-b {
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "a a"
+        "b c";
+}
+.collage-4-c {
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "a c"
+        "b d";
+}
+.collage-4 .collage-cell:nth-child(1), .collage-4-a .collage-cell:nth-child(1), .collage-4-b .collage-cell:nth-child(1), .collage-4-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-4 .collage-cell:nth-child(2), .collage-4-a .collage-cell:nth-child(2), .collage-4-b .collage-cell:nth-child(2), .collage-4-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-4 .collage-cell:nth-child(3), .collage-4-a .collage-cell:nth-child(3), .collage-4-b .collage-cell:nth-child(3), .collage-4-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-4 .collage-cell:nth-child(4), .collage-4-a .collage-cell:nth-child(4), .collage-4-b .collage-cell:nth-child(4), .collage-4-c .collage-cell:nth-child(4) { grid-area: d; }
 
 /* 5 photos: 1 large top-left, 2x2 bottom-right */
-.collage-5 {
+.collage-5, .collage-5-a {
     grid-template-columns: 1.2fr 1fr;
     grid-template-rows: 1.2fr 1fr;
     grid-template-areas:
         "a b c"
         "a d e";
 }
-
-.collage-5 .collage-cell:nth-child(1) { grid-area: a; }
-.collage-5 .collage-cell:nth-child(2) { grid-area: b; }
-.collage-5 .collage-cell:nth-child(3) { grid-area: c; }
-.collage-5 .collage-cell:nth-child(4) { grid-area: d; }
-.collage-5 .collage-cell:nth-child(5) { grid-area: e; }
+.collage-5-b {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1.2fr 1fr 1fr;
+    grid-template-areas:
+        "a b"
+        "c d"
+        "e e";
+}
+.collage-5-c {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "d e e";
+}
+.collage-5 .collage-cell:nth-child(1), .collage-5-a .collage-cell:nth-child(1), .collage-5-b .collage-cell:nth-child(1), .collage-5-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-5 .collage-cell:nth-child(2), .collage-5-a .collage-cell:nth-child(2), .collage-5-b .collage-cell:nth-child(2), .collage-5-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-5 .collage-cell:nth-child(3), .collage-5-a .collage-cell:nth-child(3), .collage-5-b .collage-cell:nth-child(3), .collage-5-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-5 .collage-cell:nth-child(4), .collage-5-a .collage-cell:nth-child(4), .collage-5-b .collage-cell:nth-child(4), .collage-5-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-5 .collage-cell:nth-child(5), .collage-5-a .collage-cell:nth-child(5), .collage-5-b .collage-cell:nth-child(5), .collage-5-c .collage-cell:nth-child(5) { grid-area: e; }
 
 /* 6 photos: 2 cols x 3 rows, top row slightly larger */
-.collage-6 {
+.collage-6, .collage-6-a {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1.2fr 1fr 1fr;
     grid-template-areas:
@@ -153,16 +192,30 @@
         "c d"
         "e f";
 }
-
-.collage-6 .collage-cell:nth-child(1) { grid-area: a; }
-.collage-6 .collage-cell:nth-child(2) { grid-area: b; }
-.collage-6 .collage-cell:nth-child(3) { grid-area: c; }
-.collage-6 .collage-cell:nth-child(4) { grid-area: d; }
-.collage-6 .collage-cell:nth-child(5) { grid-area: e; }
-.collage-6 .collage-cell:nth-child(6) { grid-area: f; }
+.collage-6-b {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "d e f";
+}
+.collage-6-c {
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b"
+        "a c"
+        "d e";
+}
+.collage-6 .collage-cell:nth-child(1), .collage-6-a .collage-cell:nth-child(1), .collage-6-b .collage-cell:nth-child(1), .collage-6-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-6 .collage-cell:nth-child(2), .collage-6-a .collage-cell:nth-child(2), .collage-6-b .collage-cell:nth-child(2), .collage-6-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-6 .collage-cell:nth-child(3), .collage-6-a .collage-cell:nth-child(3), .collage-6-b .collage-cell:nth-child(3), .collage-6-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-6 .collage-cell:nth-child(4), .collage-6-a .collage-cell:nth-child(4), .collage-6-b .collage-cell:nth-child(4), .collage-6-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-6 .collage-cell:nth-child(5), .collage-6-a .collage-cell:nth-child(5), .collage-6-b .collage-cell:nth-child(5), .collage-6-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-6 .collage-cell:nth-child(6), .collage-6-a .collage-cell:nth-child(6), .collage-6-b .collage-cell:nth-child(6), .collage-6-c .collage-cell:nth-child(6) { grid-area: f; }
 
 /* 7 photos: 1 large, 2 medium, 4 small sub-grid */
-.collage-7 {
+.collage-7, .collage-7-a {
     grid-template-columns: 1.2fr 1fr 1fr;
     grid-template-rows: 1fr 1fr 1fr;
     grid-template-areas:
@@ -170,17 +223,33 @@
         "a d e"
         "a f g";
 }
-
-.collage-7 .collage-cell:nth-child(1) { grid-area: a; }
-.collage-7 .collage-cell:nth-child(2) { grid-area: b; }
-.collage-7 .collage-cell:nth-child(3) { grid-area: c; }
-.collage-7 .collage-cell:nth-child(4) { grid-area: d; }
-.collage-7 .collage-cell:nth-child(5) { grid-area: e; }
-.collage-7 .collage-cell:nth-child(6) { grid-area: f; }
-.collage-7 .collage-cell:nth-child(7) { grid-area: g; }
+.collage-7-b {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-rows: 1.2fr 1fr 1fr;
+    grid-template-areas:
+        "a a b c"
+        "d e f g"
+        "d e f g";
+}
+.collage-7-c {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b"
+        "c d"
+        "e f"
+        "g g";
+}
+.collage-7 .collage-cell:nth-child(1), .collage-7-a .collage-cell:nth-child(1), .collage-7-b .collage-cell:nth-child(1), .collage-7-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-7 .collage-cell:nth-child(2), .collage-7-a .collage-cell:nth-child(2), .collage-7-b .collage-cell:nth-child(2), .collage-7-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-7 .collage-cell:nth-child(3), .collage-7-a .collage-cell:nth-child(3), .collage-7-b .collage-cell:nth-child(3), .collage-7-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-7 .collage-cell:nth-child(4), .collage-7-a .collage-cell:nth-child(4), .collage-7-b .collage-cell:nth-child(4), .collage-7-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-7 .collage-cell:nth-child(5), .collage-7-a .collage-cell:nth-child(5), .collage-7-b .collage-cell:nth-child(5), .collage-7-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-7 .collage-cell:nth-child(6), .collage-7-a .collage-cell:nth-child(6), .collage-7-b .collage-cell:nth-child(6), .collage-7-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-7 .collage-cell:nth-child(7), .collage-7-a .collage-cell:nth-child(7), .collage-7-b .collage-cell:nth-child(7), .collage-7-c .collage-cell:nth-child(7) { grid-area: g; }
 
 /* 8 photos: varied layout - 1 hero, 2 medium, 5 in sub-grid */
-.collage-8 {
+.collage-8, .collage-8-a {
     grid-template-columns: 1.2fr 1fr 1fr;
     grid-template-rows: 1fr 1fr 1fr;
     grid-template-areas:
@@ -188,15 +257,276 @@
         "a d e"
         "f g h";
 }
+.collage-8-b {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+        "a b c d"
+        "e f g h";
+}
+.collage-8-c {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1.2fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b"
+        "c d"
+        "e f"
+        "g h";
+}
+.collage-8 .collage-cell:nth-child(1), .collage-8-a .collage-cell:nth-child(1), .collage-8-b .collage-cell:nth-child(1), .collage-8-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-8 .collage-cell:nth-child(2), .collage-8-a .collage-cell:nth-child(2), .collage-8-b .collage-cell:nth-child(2), .collage-8-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-8 .collage-cell:nth-child(3), .collage-8-a .collage-cell:nth-child(3), .collage-8-b .collage-cell:nth-child(3), .collage-8-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-8 .collage-cell:nth-child(4), .collage-8-a .collage-cell:nth-child(4), .collage-8-b .collage-cell:nth-child(4), .collage-8-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-8 .collage-cell:nth-child(5), .collage-8-a .collage-cell:nth-child(5), .collage-8-b .collage-cell:nth-child(5), .collage-8-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-8 .collage-cell:nth-child(6), .collage-8-a .collage-cell:nth-child(6), .collage-8-b .collage-cell:nth-child(6), .collage-8-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-8 .collage-cell:nth-child(7), .collage-8-a .collage-cell:nth-child(7), .collage-8-b .collage-cell:nth-child(7), .collage-8-c .collage-cell:nth-child(7) { grid-area: g; }
+.collage-8 .collage-cell:nth-child(8), .collage-8-a .collage-cell:nth-child(8), .collage-8-b .collage-cell:nth-child(8), .collage-8-c .collage-cell:nth-child(8) { grid-area: h; }
 
-.collage-8 .collage-cell:nth-child(1) { grid-area: a; }
-.collage-8 .collage-cell:nth-child(2) { grid-area: b; }
-.collage-8 .collage-cell:nth-child(3) { grid-area: c; }
-.collage-8 .collage-cell:nth-child(4) { grid-area: d; }
-.collage-8 .collage-cell:nth-child(5) { grid-area: e; }
-.collage-8 .collage-cell:nth-child(6) { grid-area: f; }
-.collage-8 .collage-cell:nth-child(7) { grid-area: g; }
-.collage-8 .collage-cell:nth-child(8) { grid-area: h; }
+/* 9 photos */
+.collage-9, .collage-9-a {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "d e f"
+        "g h i";
+}
+.collage-9-b {
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "a d e"
+        "f g h"
+        "i i i";
+}
+.collage-9-c {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "d e f"
+        "g h i";
+}
+.collage-9 .collage-cell:nth-child(1), .collage-9-a .collage-cell:nth-child(1), .collage-9-b .collage-cell:nth-child(1), .collage-9-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-9 .collage-cell:nth-child(2), .collage-9-a .collage-cell:nth-child(2), .collage-9-b .collage-cell:nth-child(2), .collage-9-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-9 .collage-cell:nth-child(3), .collage-9-a .collage-cell:nth-child(3), .collage-9-b .collage-cell:nth-child(3), .collage-9-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-9 .collage-cell:nth-child(4), .collage-9-a .collage-cell:nth-child(4), .collage-9-b .collage-cell:nth-child(4), .collage-9-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-9 .collage-cell:nth-child(5), .collage-9-a .collage-cell:nth-child(5), .collage-9-b .collage-cell:nth-child(5), .collage-9-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-9 .collage-cell:nth-child(6), .collage-9-a .collage-cell:nth-child(6), .collage-9-b .collage-cell:nth-child(6), .collage-9-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-9 .collage-cell:nth-child(7), .collage-9-a .collage-cell:nth-child(7), .collage-9-b .collage-cell:nth-child(7), .collage-9-c .collage-cell:nth-child(7) { grid-area: g; }
+.collage-9 .collage-cell:nth-child(8), .collage-9-a .collage-cell:nth-child(8), .collage-9-b .collage-cell:nth-child(8), .collage-9-c .collage-cell:nth-child(8) { grid-area: h; }
+.collage-9 .collage-cell:nth-child(9), .collage-9-a .collage-cell:nth-child(9), .collage-9-b .collage-cell:nth-child(9), .collage-9-c .collage-cell:nth-child(9) { grid-area: i; }
+
+/* 10 photos */
+.collage-10, .collage-10-a {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c d"
+        "e f g h"
+        "i j";
+}
+.collage-10-b {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "d e f"
+        "g h i"
+        "j j j";
+}
+.collage-10-c {
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "a d e"
+        "f g h"
+        "i j j";
+}
+.collage-10 .collage-cell:nth-child(1), .collage-10-a .collage-cell:nth-child(1), .collage-10-b .collage-cell:nth-child(1), .collage-10-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-10 .collage-cell:nth-child(2), .collage-10-a .collage-cell:nth-child(2), .collage-10-b .collage-cell:nth-child(2), .collage-10-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-10 .collage-cell:nth-child(3), .collage-10-a .collage-cell:nth-child(3), .collage-10-b .collage-cell:nth-child(3), .collage-10-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-10 .collage-cell:nth-child(4), .collage-10-a .collage-cell:nth-child(4), .collage-10-b .collage-cell:nth-child(4), .collage-10-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-10 .collage-cell:nth-child(5), .collage-10-a .collage-cell:nth-child(5), .collage-10-b .collage-cell:nth-child(5), .collage-10-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-10 .collage-cell:nth-child(6), .collage-10-a .collage-cell:nth-child(6), .collage-10-b .collage-cell:nth-child(6), .collage-10-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-10 .collage-cell:nth-child(7), .collage-10-a .collage-cell:nth-child(7), .collage-10-b .collage-cell:nth-child(7), .collage-10-c .collage-cell:nth-child(7) { grid-area: g; }
+.collage-10 .collage-cell:nth-child(8), .collage-10-a .collage-cell:nth-child(8), .collage-10-b .collage-cell:nth-child(8), .collage-10-c .collage-cell:nth-child(8) { grid-area: h; }
+.collage-10 .collage-cell:nth-child(9), .collage-10-a .collage-cell:nth-child(9), .collage-10-b .collage-cell:nth-child(9), .collage-10-c .collage-cell:nth-child(9) { grid-area: i; }
+.collage-10 .collage-cell:nth-child(10), .collage-10-a .collage-cell:nth-child(10), .collage-10-b .collage-cell:nth-child(10), .collage-10-c .collage-cell:nth-child(10) { grid-area: j; }
+
+/* 11–16 photos: use 3x4, 4x3, 4x4 etc with variants */
+.collage-11, .collage-11-a {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c d"
+        "e f g h"
+        "i j k .";
+}
+.collage-11-b {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "d e f"
+        "g h i"
+        "j k k";
+}
+.collage-11-c {
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "a d e"
+        "f g h"
+        "i j k";
+}
+.collage-11 .collage-cell:nth-child(1), .collage-11-a .collage-cell:nth-child(1), .collage-11-b .collage-cell:nth-child(1), .collage-11-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-11 .collage-cell:nth-child(2), .collage-11-a .collage-cell:nth-child(2), .collage-11-b .collage-cell:nth-child(2), .collage-11-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-11 .collage-cell:nth-child(3), .collage-11-a .collage-cell:nth-child(3), .collage-11-b .collage-cell:nth-child(3), .collage-11-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-11 .collage-cell:nth-child(4), .collage-11-a .collage-cell:nth-child(4), .collage-11-b .collage-cell:nth-child(4), .collage-11-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-11 .collage-cell:nth-child(5), .collage-11-a .collage-cell:nth-child(5), .collage-11-b .collage-cell:nth-child(5), .collage-11-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-11 .collage-cell:nth-child(6), .collage-11-a .collage-cell:nth-child(6), .collage-11-b .collage-cell:nth-child(6), .collage-11-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-11 .collage-cell:nth-child(7), .collage-11-a .collage-cell:nth-child(7), .collage-11-b .collage-cell:nth-child(7), .collage-11-c .collage-cell:nth-child(7) { grid-area: g; }
+.collage-11 .collage-cell:nth-child(8), .collage-11-a .collage-cell:nth-child(8), .collage-11-b .collage-cell:nth-child(8), .collage-11-c .collage-cell:nth-child(8) { grid-area: h; }
+.collage-11 .collage-cell:nth-child(9), .collage-11-a .collage-cell:nth-child(9), .collage-11-b .collage-cell:nth-child(9), .collage-11-c .collage-cell:nth-child(9) { grid-area: i; }
+.collage-11 .collage-cell:nth-child(10), .collage-11-a .collage-cell:nth-child(10), .collage-11-b .collage-cell:nth-child(10), .collage-11-c .collage-cell:nth-child(10) { grid-area: j; }
+.collage-11 .collage-cell:nth-child(11), .collage-11-a .collage-cell:nth-child(11), .collage-11-b .collage-cell:nth-child(11), .collage-11-c .collage-cell:nth-child(11) { grid-area: k; }
+
+.collage-12, .collage-12-a {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c d"
+        "e f g h"
+        "i j k l";
+}
+.collage-12-b {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "d e f"
+        "g h i"
+        "j k l";
+}
+.collage-12-c {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b" "c d" "e f" "g h" "i j" "k l";
+}
+.collage-12 .collage-cell:nth-child(1), .collage-12-a .collage-cell:nth-child(1), .collage-12-b .collage-cell:nth-child(1), .collage-12-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-12 .collage-cell:nth-child(2), .collage-12-a .collage-cell:nth-child(2), .collage-12-b .collage-cell:nth-child(2), .collage-12-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-12 .collage-cell:nth-child(3), .collage-12-a .collage-cell:nth-child(3), .collage-12-b .collage-cell:nth-child(3), .collage-12-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-12 .collage-cell:nth-child(4), .collage-12-a .collage-cell:nth-child(4), .collage-12-b .collage-cell:nth-child(4), .collage-12-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-12 .collage-cell:nth-child(5), .collage-12-a .collage-cell:nth-child(5), .collage-12-b .collage-cell:nth-child(5), .collage-12-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-12 .collage-cell:nth-child(6), .collage-12-a .collage-cell:nth-child(6), .collage-12-b .collage-cell:nth-child(6), .collage-12-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-12 .collage-cell:nth-child(7), .collage-12-a .collage-cell:nth-child(7), .collage-12-b .collage-cell:nth-child(7), .collage-12-c .collage-cell:nth-child(7) { grid-area: g; }
+.collage-12 .collage-cell:nth-child(8), .collage-12-a .collage-cell:nth-child(8), .collage-12-b .collage-cell:nth-child(8), .collage-12-c .collage-cell:nth-child(8) { grid-area: h; }
+.collage-12 .collage-cell:nth-child(9), .collage-12-a .collage-cell:nth-child(9), .collage-12-b .collage-cell:nth-child(9), .collage-12-c .collage-cell:nth-child(9) { grid-area: i; }
+.collage-12 .collage-cell:nth-child(10), .collage-12-a .collage-cell:nth-child(10), .collage-12-b .collage-cell:nth-child(10), .collage-12-c .collage-cell:nth-child(10) { grid-area: j; }
+.collage-12 .collage-cell:nth-child(11), .collage-12-a .collage-cell:nth-child(11), .collage-12-b .collage-cell:nth-child(11), .collage-12-c .collage-cell:nth-child(11) { grid-area: k; }
+.collage-12 .collage-cell:nth-child(12), .collage-12-a .collage-cell:nth-child(12), .collage-12-b .collage-cell:nth-child(12), .collage-12-c .collage-cell:nth-child(12) { grid-area: l; }
+
+.collage-13, .collage-13-a { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m . . ."; }
+.collage-13-b { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b c" "d e f" "g h i" "j k l" "m m m"; }
+.collage-13-c { grid-template-columns: 1.2fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b c" "a d e" "f g h" "i j k" "l m m"; }
+.collage-13 .collage-cell:nth-child(1), .collage-13-a .collage-cell:nth-child(1), .collage-13-b .collage-cell:nth-child(1), .collage-13-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-13 .collage-cell:nth-child(2), .collage-13-a .collage-cell:nth-child(2), .collage-13-b .collage-cell:nth-child(2), .collage-13-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-13 .collage-cell:nth-child(3), .collage-13-a .collage-cell:nth-child(3), .collage-13-b .collage-cell:nth-child(3), .collage-13-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-13 .collage-cell:nth-child(4), .collage-13-a .collage-cell:nth-child(4), .collage-13-b .collage-cell:nth-child(4), .collage-13-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-13 .collage-cell:nth-child(5), .collage-13-a .collage-cell:nth-child(5), .collage-13-b .collage-cell:nth-child(5), .collage-13-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-13 .collage-cell:nth-child(6), .collage-13-a .collage-cell:nth-child(6), .collage-13-b .collage-cell:nth-child(6), .collage-13-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-13 .collage-cell:nth-child(7), .collage-13-a .collage-cell:nth-child(7), .collage-13-b .collage-cell:nth-child(7), .collage-13-c .collage-cell:nth-child(7) { grid-area: g; }
+.collage-13 .collage-cell:nth-child(8), .collage-13-a .collage-cell:nth-child(8), .collage-13-b .collage-cell:nth-child(8), .collage-13-c .collage-cell:nth-child(8) { grid-area: h; }
+.collage-13 .collage-cell:nth-child(9), .collage-13-a .collage-cell:nth-child(9), .collage-13-b .collage-cell:nth-child(9), .collage-13-c .collage-cell:nth-child(9) { grid-area: i; }
+.collage-13 .collage-cell:nth-child(10), .collage-13-a .collage-cell:nth-child(10), .collage-13-b .collage-cell:nth-child(10), .collage-13-c .collage-cell:nth-child(10) { grid-area: j; }
+.collage-13 .collage-cell:nth-child(11), .collage-13-a .collage-cell:nth-child(11), .collage-13-b .collage-cell:nth-child(11), .collage-13-c .collage-cell:nth-child(11) { grid-area: k; }
+.collage-13 .collage-cell:nth-child(12), .collage-13-a .collage-cell:nth-child(12), .collage-13-b .collage-cell:nth-child(12), .collage-13-c .collage-cell:nth-child(12) { grid-area: l; }
+.collage-13 .collage-cell:nth-child(13), .collage-13-a .collage-cell:nth-child(13), .collage-13-b .collage-cell:nth-child(13), .collage-13-c .collage-cell:nth-child(13) { grid-area: m; }
+
+.collage-14, .collage-14-a { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m n . ."; }
+.collage-14-b { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b c" "d e f" "g h i" "j k l" "m n n"; }
+.collage-14-c { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b" "c d" "e f" "g h" "i j" "k l" "m n"; }
+.collage-14 .collage-cell:nth-child(1), .collage-14-a .collage-cell:nth-child(1), .collage-14-b .collage-cell:nth-child(1), .collage-14-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-14 .collage-cell:nth-child(2), .collage-14-a .collage-cell:nth-child(2), .collage-14-b .collage-cell:nth-child(2), .collage-14-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-14 .collage-cell:nth-child(3), .collage-14-a .collage-cell:nth-child(3), .collage-14-b .collage-cell:nth-child(3), .collage-14-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-14 .collage-cell:nth-child(4), .collage-14-a .collage-cell:nth-child(4), .collage-14-b .collage-cell:nth-child(4), .collage-14-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-14 .collage-cell:nth-child(5), .collage-14-a .collage-cell:nth-child(5), .collage-14-b .collage-cell:nth-child(5), .collage-14-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-14 .collage-cell:nth-child(6), .collage-14-a .collage-cell:nth-child(6), .collage-14-b .collage-cell:nth-child(6), .collage-14-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-14 .collage-cell:nth-child(7), .collage-14-a .collage-cell:nth-child(7), .collage-14-b .collage-cell:nth-child(7), .collage-14-c .collage-cell:nth-child(7) { grid-area: g; }
+.collage-14 .collage-cell:nth-child(8), .collage-14-a .collage-cell:nth-child(8), .collage-14-b .collage-cell:nth-child(8), .collage-14-c .collage-cell:nth-child(8) { grid-area: h; }
+.collage-14 .collage-cell:nth-child(9), .collage-14-a .collage-cell:nth-child(9), .collage-14-b .collage-cell:nth-child(9), .collage-14-c .collage-cell:nth-child(9) { grid-area: i; }
+.collage-14 .collage-cell:nth-child(10), .collage-14-a .collage-cell:nth-child(10), .collage-14-b .collage-cell:nth-child(10), .collage-14-c .collage-cell:nth-child(10) { grid-area: j; }
+.collage-14 .collage-cell:nth-child(11), .collage-14-a .collage-cell:nth-child(11), .collage-14-b .collage-cell:nth-child(11), .collage-14-c .collage-cell:nth-child(11) { grid-area: k; }
+.collage-14 .collage-cell:nth-child(12), .collage-14-a .collage-cell:nth-child(12), .collage-14-b .collage-cell:nth-child(12), .collage-14-c .collage-cell:nth-child(12) { grid-area: l; }
+.collage-14 .collage-cell:nth-child(13), .collage-14-a .collage-cell:nth-child(13), .collage-14-b .collage-cell:nth-child(13), .collage-14-c .collage-cell:nth-child(13) { grid-area: m; }
+.collage-14 .collage-cell:nth-child(14), .collage-14-a .collage-cell:nth-child(14), .collage-14-b .collage-cell:nth-child(14), .collage-14-c .collage-cell:nth-child(14) { grid-area: n; }
+
+.collage-15, .collage-15-a { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m n o ."; }
+.collage-15-b { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr 1fr; grid-template-areas: "a b c" "d e f" "g h i" "j k l" "m n o"; }
+.collage-15-c { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; grid-template-areas: "a b c d" "e f g h" "i j k l" "m n o o"; }
+.collage-15 .collage-cell:nth-child(1), .collage-15-a .collage-cell:nth-child(1), .collage-15-b .collage-cell:nth-child(1), .collage-15-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-15 .collage-cell:nth-child(2), .collage-15-a .collage-cell:nth-child(2), .collage-15-b .collage-cell:nth-child(2), .collage-15-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-15 .collage-cell:nth-child(3), .collage-15-a .collage-cell:nth-child(3), .collage-15-b .collage-cell:nth-child(3), .collage-15-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-15 .collage-cell:nth-child(4), .collage-15-a .collage-cell:nth-child(4), .collage-15-b .collage-cell:nth-child(4), .collage-15-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-15 .collage-cell:nth-child(5), .collage-15-a .collage-cell:nth-child(5), .collage-15-b .collage-cell:nth-child(5), .collage-15-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-15 .collage-cell:nth-child(6), .collage-15-a .collage-cell:nth-child(6), .collage-15-b .collage-cell:nth-child(6), .collage-15-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-15 .collage-cell:nth-child(7), .collage-15-a .collage-cell:nth-child(7), .collage-15-b .collage-cell:nth-child(7), .collage-15-c .collage-cell:nth-child(7) { grid-area: g; }
+.collage-15 .collage-cell:nth-child(8), .collage-15-a .collage-cell:nth-child(8), .collage-15-b .collage-cell:nth-child(8), .collage-15-c .collage-cell:nth-child(8) { grid-area: h; }
+.collage-15 .collage-cell:nth-child(9), .collage-15-a .collage-cell:nth-child(9), .collage-15-b .collage-cell:nth-child(9), .collage-15-c .collage-cell:nth-child(9) { grid-area: i; }
+.collage-15 .collage-cell:nth-child(10), .collage-15-a .collage-cell:nth-child(10), .collage-15-b .collage-cell:nth-child(10), .collage-15-c .collage-cell:nth-child(10) { grid-area: j; }
+.collage-15 .collage-cell:nth-child(11), .collage-15-a .collage-cell:nth-child(11), .collage-15-b .collage-cell:nth-child(11), .collage-15-c .collage-cell:nth-child(11) { grid-area: k; }
+.collage-15 .collage-cell:nth-child(12), .collage-15-a .collage-cell:nth-child(12), .collage-15-b .collage-cell:nth-child(12), .collage-15-c .collage-cell:nth-child(12) { grid-area: l; }
+.collage-15 .collage-cell:nth-child(13), .collage-15-a .collage-cell:nth-child(13), .collage-15-b .collage-cell:nth-child(13), .collage-15-c .collage-cell:nth-child(13) { grid-area: m; }
+.collage-15 .collage-cell:nth-child(14), .collage-15-a .collage-cell:nth-child(14), .collage-15-b .collage-cell:nth-child(14), .collage-15-c .collage-cell:nth-child(14) { grid-area: n; }
+.collage-15 .collage-cell:nth-child(15), .collage-15-a .collage-cell:nth-child(15), .collage-15-b .collage-cell:nth-child(15), .collage-15-c .collage-cell:nth-child(15) { grid-area: o; }
+
+.collage-16, .collage-16-a {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c d"
+        "e f g h"
+        "i j k l"
+        "m n o p";
+}
+.collage-16-b {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b" "c d" "e f" "g h" "i j" "k l" "m n" "o p";
+}
+.collage-16-c {
+    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-template-areas:
+        "a b c"
+        "a d e"
+        "f g h"
+        "i j k"
+        "l m n"
+        "o p p";
+}
+.collage-16 .collage-cell:nth-child(1), .collage-16-a .collage-cell:nth-child(1), .collage-16-b .collage-cell:nth-child(1), .collage-16-c .collage-cell:nth-child(1) { grid-area: a; }
+.collage-16 .collage-cell:nth-child(2), .collage-16-a .collage-cell:nth-child(2), .collage-16-b .collage-cell:nth-child(2), .collage-16-c .collage-cell:nth-child(2) { grid-area: b; }
+.collage-16 .collage-cell:nth-child(3), .collage-16-a .collage-cell:nth-child(3), .collage-16-b .collage-cell:nth-child(3), .collage-16-c .collage-cell:nth-child(3) { grid-area: c; }
+.collage-16 .collage-cell:nth-child(4), .collage-16-a .collage-cell:nth-child(4), .collage-16-b .collage-cell:nth-child(4), .collage-16-c .collage-cell:nth-child(4) { grid-area: d; }
+.collage-16 .collage-cell:nth-child(5), .collage-16-a .collage-cell:nth-child(5), .collage-16-b .collage-cell:nth-child(5), .collage-16-c .collage-cell:nth-child(5) { grid-area: e; }
+.collage-16 .collage-cell:nth-child(6), .collage-16-a .collage-cell:nth-child(6), .collage-16-b .collage-cell:nth-child(6), .collage-16-c .collage-cell:nth-child(6) { grid-area: f; }
+.collage-16 .collage-cell:nth-child(7), .collage-16-a .collage-cell:nth-child(7), .collage-16-b .collage-cell:nth-child(7), .collage-16-c .collage-cell:nth-child(7) { grid-area: g; }
+.collage-16 .collage-cell:nth-child(8), .collage-16-a .collage-cell:nth-child(8), .collage-16-b .collage-cell:nth-child(8), .collage-16-c .collage-cell:nth-child(8) { grid-area: h; }
+.collage-16 .collage-cell:nth-child(9), .collage-16-a .collage-cell:nth-child(9), .collage-16-b .collage-cell:nth-child(9), .collage-16-c .collage-cell:nth-child(9) { grid-area: i; }
+.collage-16 .collage-cell:nth-child(10), .collage-16-a .collage-cell:nth-child(10), .collage-16-b .collage-cell:nth-child(10), .collage-16-c .collage-cell:nth-child(10) { grid-area: j; }
+.collage-16 .collage-cell:nth-child(11), .collage-16-a .collage-cell:nth-child(11), .collage-16-b .collage-cell:nth-child(11), .collage-16-c .collage-cell:nth-child(11) { grid-area: k; }
+.collage-16 .collage-cell:nth-child(12), .collage-16-a .collage-cell:nth-child(12), .collage-16-b .collage-cell:nth-child(12), .collage-16-c .collage-cell:nth-child(12) { grid-area: l; }
+.collage-16 .collage-cell:nth-child(13), .collage-16-a .collage-cell:nth-child(13), .collage-16-b .collage-cell:nth-child(13), .collage-16-c .collage-cell:nth-child(13) { grid-area: m; }
+.collage-16 .collage-cell:nth-child(14), .collage-16-a .collage-cell:nth-child(14), .collage-16-b .collage-cell:nth-child(14), .collage-16-c .collage-cell:nth-child(14) { grid-area: n; }
+.collage-16 .collage-cell:nth-child(15), .collage-16-a .collage-cell:nth-child(15), .collage-16-b .collage-cell:nth-child(15), .collage-16-c .collage-cell:nth-child(15) { grid-area: o; }
+.collage-16 .collage-cell:nth-child(16), .collage-16-a .collage-cell:nth-child(16), .collage-16-b .collage-cell:nth-child(16), .collage-16-c .collage-cell:nth-child(16) { grid-area: p; }
 
 /* Memories lightbox overlay */
 .memories-lightbox-overlay {

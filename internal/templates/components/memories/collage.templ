@@ -6,13 +6,15 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/common"
 )
 
-// Collage renders a memories collage grid with 1–8 photos, caption, and data attributes for lightbox.
-// Uses collage-{n} CSS class where n = len(assets). Cells use /image/:id for lazy loading.
+// Collage renders a memories collage grid with 3–16 photos, caption, and data attributes for lightbox.
+// Uses collage-{n} or collage-{n}-{variant} CSS class when LayoutVariant is set. Cells use /image/:id for lazy loading.
 templ Collage(viewData common.ViewData, secret string) {
 	{{ n := len(viewData.Assets) }}
 	{{ if n < 1 { n = 1 } }}
+	{{ layoutClass := fmt.Sprintf("collage-%d", n) }}
+	{{ if viewData.LayoutVariant != "" { layoutClass = fmt.Sprintf("collage-%d-%s", n, viewData.LayoutVariant) } }}
 	<div
-		class={ "collage-grid", fmt.Sprintf("collage-%d", n) }
+		class={ "collage-grid", layoutClass }
 		data-memories="true"
 		data-layout="collage"
 	>

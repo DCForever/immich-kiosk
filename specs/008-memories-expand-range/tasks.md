@@ -47,9 +47,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Update `ProcessMemoriesCollage` in `internal/routes/routes_asset_helpers.go`: read `collage.TimeRange`; select i18n key for caption (`memories_caption`, `memories_caption_week`, `memories_caption_month`); interpolate month name for month caption; pick random `LayoutVariant` for asset count; validate 3 ≤ len(Assets) ≤ 16; pass LayoutVariant to ViewData
-- [ ] T010 [US1] Update `internal/templates/components/memories/collage.templ`: use `collage-{n}-{LayoutVariant}` class when LayoutVariant is set, else fallback to `collage-{n}` for backward compatibility; in 008 flow n is always 3–16 (provider returns empty when fewer than 3)
-- [ ] T011 [US1] Add ≥3 CSS layout variants per count 3–16 in `frontend/src/css/collage.css`: `.collage-3-a`, `.collage-3-b`, `.collage-3-c` through `.collage-16-a`, `.collage-16-b`, `.collage-16-c` (42+ layout classes total)
+- [x] T009 [US1] Update `ProcessMemoriesCollage` in `internal/routes/routes_asset_helpers.go`: read `collage.TimeRange`; select i18n key for caption (`memories_caption`, `memories_caption_week`, `memories_caption_month`); interpolate month name for month caption; pick random `LayoutVariant` for asset count; validate 3 ≤ len(Assets) ≤ 16; pass LayoutVariant to ViewData
+- [x] T010 [US1] Update `internal/templates/components/memories/collage.templ`: use `collage-{n}-{LayoutVariant}` class when LayoutVariant is set, else fallback to `collage-{n}` for backward compatibility; in 008 flow n is always 3–16 (provider returns empty when fewer than 3)
+- [x] T011 [US1] Add ≥3 CSS layout variants per count 3–16 in `frontend/src/css/collage.css`: `.collage-3-a`, `.collage-3-b`, `.collage-3-c` through `.collage-16-a`, `.collage-16-b`, `.collage-16-c` (42+ layout classes total)
 
 **Checkpoint**: Slideshow shows memories with progressive fallback; caption reflects TimeRange; layout variants apply; 3–16 photos display correctly
 

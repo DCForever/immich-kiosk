@@ -773,29 +773,48 @@ func PickLayoutVariant(n int) string {
 }
 
 // ProcessMemoriesCollage calls provider.MemoriesCollage, builds ViewData with layout=collage, Duration=45,
-// Assets (1–8), and MemoryCaption. Returns error on empty so caller can skip or retry with a different bucket.
+// Assets (3–16), MemoryCaption (based on TimeRange), and LayoutVariant. Returns error on empty so caller can skip or retry.
 func ProcessMemoriesCollage(provider source.ProviderOps, requestConfig config.Config, requestID, deviceID string, queries map[string][]string) (common.ViewData, error) {
 	collage, err := provider.MemoriesCollage(requestID, deviceID)
 	if err != nil {
 		return common.ViewData{}, err
 	}
-	caption := i18n.TWithData("memories_caption", map[string]interface{}{"YearsAgo": collage.YearsAgo})
-	assets := make([]common.ViewImageData, 0, len(collage.Assets))
+	n := len(collage.Assets)
+	if n < source.MinCollageAssets || n > source.MaxCollageAssets {
+		return common.ViewData{}, source.ErrMemoriesEmpty
+	}
+
+	var caption string
+	switch collage.TimeRange {
+	case source.TimeRangeWeek:
+		caption = i18n.TWithData("memories_caption_week", map[string]interface{}{"YearsAgo": collage.YearsAgo})
+	case source.TimeRangeMonth:
+		monthName := time.Now().Month().String()
+		caption = i18n.TWithData("memories_caption_month", map[string]interface{}{"YearsAgo": collage.YearsAgo, "MonthName": monthName})
+	default:
+		caption = i18n.TWithData("memories_caption", map[string]interface{}{"YearsAgo": collage.YearsAgo})
+	}
+
+	assets := make([]common.ViewImageData, 0, n)
 	for _, a := range collage.Assets {
 		assets = append(assets, common.ViewImageData{
 			Asset: a,
 			User:  requestConfig.SelectedUser,
 		})
 	}
+
+	layoutVariant := PickLayoutVariant(n)
+
 	requestConfig.Layout = kiosk.LayoutCollage
 	requestConfig.Duration = memoriesDurationSeconds
 	viewData := common.ViewData{
-		RequestID:     requestID,
-		DeviceID:      deviceID,
-		Config:        requestConfig,
-		Assets:        assets,
-		MemoryCaption: caption,
-		Queries:       queries,
+		RequestID:      requestID,
+		DeviceID:       deviceID,
+		Config:         requestConfig,
+		Assets:         assets,
+		MemoryCaption:  caption,
+		LayoutVariant:  layoutVariant,
+		Queries:        queries,
 	}
 	return viewData, nil
 }
