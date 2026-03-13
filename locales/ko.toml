@@ -51,3 +51,9 @@ unknown_stats = "알 수 없는 통계"
 unlike_asset = "자산 좋아요 취소"
 url_builder = "URL 빌더"
 view_configuration = "구성 보기"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

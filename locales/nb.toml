@@ -51,3 +51,9 @@ unknown_stats = "Ukjente statistikker"
 unlike_asset = "Fjern like fra ressurs"
 url_builder = "URL-bygger"
 view_configuration = "Vis konfigurasjon"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

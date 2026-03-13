@@ -51,3 +51,9 @@ unknown_stats = "Okänd statistik"
 unlike_asset = "Ogilla objekt"
 url_builder = "URL-byggare"
 view_configuration = "Visa konfiguration"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

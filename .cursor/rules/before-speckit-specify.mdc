@@ -1,0 +1,19 @@
+---
+description: Before running speckit.specify — commit and merge feature branch
+alwaysApply: true
+---
+
+# Workflow: Before running speckit.specify
+
+**Before** running the speckit.specify command (or skill), always:
+
+1. **Commit outstanding changes** on the current branch:
+   - Run tests for the changed area (e.g. `go test ./...`).
+   - Stage and commit all relevant changes with a clear message (exclude debug logs and other non-project artifacts if appropriate).
+
+2. **Merge the feature branch into the default branch**:
+- Identify the default branch: **`feature/photoprism-support`** for this repo (or use `git remote show origin` if unsure).
+- Check out the default branch.
+- Merge the current feature branch into it (e.g. `git merge <feature-branch> -m "Merge <feature-branch> into feature/photoprism-support"`).
+
+Only after both steps are done should you run speckit.specify to create or update a feature specification.

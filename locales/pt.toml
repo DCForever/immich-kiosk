@@ -51,3 +51,9 @@ unknown_stats = "Estatísticas desconhecidas"
 unlike_asset = "Descurtir ativo"
 url_builder = "Construtor de URL"
 view_configuration = "Ver configuração"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

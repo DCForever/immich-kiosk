@@ -51,3 +51,9 @@ unknown_stats = "Ismeretlen statisztika"
 unlike_asset = "Elem nem kedvelése"
 url_builder = "URL készítő"
 view_configuration = "Konfiguráció megtekintése"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

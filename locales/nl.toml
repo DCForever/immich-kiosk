@@ -51,3 +51,9 @@ unknown_stats = "Onbekende statistieken"
 unlike_asset = "Asset niet leuk vinden"
 url_builder = "URL Bouwer"
 view_configuration = "Configuratie bekijken"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

@@ -51,3 +51,9 @@ unknown_stats = "Tuntemattomat tilastot"
 unlike_asset = "Peru tykkäys aineistosta"
 url_builder = "URL-rakentaja"
 view_configuration = "Näytä asetukset"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

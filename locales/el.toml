@@ -51,3 +51,9 @@ unknown_stats = "Άγνωστα στατιστικά"
 unlike_asset = "Αφαίρεση από τα αγαπημένα"
 url_builder = "Δημιουργία URL"
 view_configuration = "Προβολή διαμόρφωσης"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

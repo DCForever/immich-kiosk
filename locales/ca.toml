@@ -51,3 +51,9 @@ unknown_stats = "Estadístiques desconegudes"
 unlike_asset = "No m'agrada el recurs"
 url_builder = "Constructor d'URL"
 view_configuration = "Veure configuració"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

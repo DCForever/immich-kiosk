@@ -51,3 +51,9 @@ unknown_stats = "Ukendte statistikker"
 unlike_asset = "Fjern synes godt om element"
 url_builder = "URL-generator"
 view_configuration = "Vis konfiguration"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

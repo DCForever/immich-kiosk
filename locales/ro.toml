@@ -51,3 +51,9 @@ unknown_stats = "Statistici necunoscute"
 unlike_asset = "Nu mai aprecia elementul"
 url_builder = "Generator URL"
 view_configuration = "Vezi configurația"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

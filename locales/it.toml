@@ -51,3 +51,9 @@ unknown_stats = "Statistiche sconosciute"
 unlike_asset = "Rimuovi mi piace dall'elemento"
 url_builder = "Generatore URL"
 view_configuration = "Visualizza configurazione"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

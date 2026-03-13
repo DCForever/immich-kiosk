@@ -71,3 +71,9 @@ birthdate_add = "Add birthdate"
 birthdate_edit = "Edit birthdate"
 birthdate_remove = "Remove birthdate"
 birthdate_confirm_remove = "Remove this person's birthdate?"
+
+# Memories (on this day)
+memories_caption = "Memories from {{.YearsAgo}} years ago"
+memories_no_photos = "No memories for this day"
+memories_error_load = "Couldn't load memories"
+memories_back = "Back"

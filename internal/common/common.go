@@ -100,6 +100,7 @@ type ViewData struct {
 	Assets        []ViewImageData // Assets contains the collection of assets to display in view
 	Queries       url.Values      // Queries contains the URL query parameters
 	CustomCSS     []byte          // CustomCSS contains custom CSS styling as bytes
+	MemoryCaption string          // MemoryCaption is set for memories view (e.g. "Memories from X years ago")
 	config.Config                 // Config contains the instance configuration
 }
 

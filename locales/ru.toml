@@ -51,3 +51,9 @@ unknown_stats = "Неизвестная статистика"
 unlike_asset = "Убрать отметку понравившегося"
 url_builder = "Конструктор URL"
 view_configuration = "Просмотреть конфигурацию"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

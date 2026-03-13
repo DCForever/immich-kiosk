@@ -51,3 +51,9 @@ unknown_stats = "Bilinmeyen istatistikler"
 unlike_asset = "Varlığı beğenme"
 url_builder = "URL Oluşturucu"
 view_configuration = "Yapılandırmayı Görüntüle"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

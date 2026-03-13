@@ -51,3 +51,9 @@ unknown_stats = "不明な統計"
 unlike_asset = "アセットのいいねを解除"
 url_builder = "URLビルダー"
 view_configuration = "設定を表示"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

@@ -51,3 +51,9 @@ unknown_stats = "Неизвестна статистика"
 unlike_asset = "Премахнете харесването на ресурса"
 url_builder = "URL генератор"
 view_configuration = "Вижте конфигурацията"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

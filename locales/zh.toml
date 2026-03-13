@@ -51,3 +51,9 @@ unknown_stats = "未知统计"
 unlike_asset = "取消点赞项目"
 url_builder = "URL 构建器"
 view_configuration = "查看配置"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

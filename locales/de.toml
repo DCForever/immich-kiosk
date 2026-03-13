@@ -51,3 +51,9 @@ unknown_stats = "Unbekannte Statistiken"
 unlike_asset = "Medienobjekt nicht mehr mögen"
 url_builder = "URL-Generator"
 view_configuration = "Konfiguration anzeigen"
+
+# Memories (on this day)
+memories_caption = ""
+memories_no_photos = ""
+memories_error_load = ""
+memories_back = ""

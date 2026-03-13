@@ -17,8 +17,8 @@
 
 **Purpose**: i18n keys and shared types needed across all stories
 
-- [ ] T001 [P] Add i18n keys for memories in `locales/en.toml` and other locale files: `memories_caption`, `memories_no_photos`, `memories_error_load`, `memories_back`
-- [ ] T002 [P] Add `MemoriesCollage` type and `MemoryCaption` field to `internal/common/common.go` (or define in source package) per data-model.md
+- [x] T001 [P] Add i18n keys for memories in `locales/en.toml` and other locale files: `memories_caption`, `memories_no_photos`, `memories_error_load`, `memories_back`
+- [x] T002 [P] Add `MemoriesCollage` type and `MemoryCaption` field to `internal/common/common.go` (or define in source package) per data-model.md
 
 ---
 

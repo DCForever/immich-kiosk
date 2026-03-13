@@ -134,6 +134,13 @@ type DisplayAsset struct {
 	UserOwnsAsset bool
 }
 
+// MemoriesCollage represents a single memories moment: up to 8 photos from a chosen past year (same month and day as today).
+type MemoriesCollage struct {
+	Year     int            // The chosen past year (e.g. 2007)
+	Assets   []DisplayAsset // Up to 8 photos from that year's month-day
+	YearsAgo int            // Current year minus Year (for caption "X years ago")
+}
+
 // HasTag returns true if the asset has a tag with the given value (e.g. kiosk.TagSkip).
 func (a *DisplayAsset) HasTag(tagValue string) bool {
 	for _, t := range a.Tags {
