@@ -21,3 +21,5 @@ The kiosk supports two media backends: **Immich** and **PhotoPrism**. Most behav
 | **Offline mode** | ✅ | ✅ (same flow) |
 
 When `source: photoprism`, star rating is not supported (the rating endpoint returns not implemented). Like, hide, tag, and archive actions are intentional no-ops and do not change PhotoPrism. People filtering uses PhotoPrism subject names (config `people`); if GET /api/v1/subjects is available, the URL builder shows people in the dropdown. Memories use PhotoPrism search filters (exact date, then week, then month).
+
+The PhotoPrism client reads `GET /api/v1/config` once per provider and logs the `version` field when debug logging is on. A failed or missing version does not block the slideshow. List and detail JSON is decoded defensively (key case, empty dates, numeric booleans and strings, wrapped `{photos:[]}` collections, and preview-token header aliases). Thumbnail requests try `fit_720`, then `fit_1280`, then `fit_1920`. Fork-specific endpoints are not assumed until they are confirmed.

@@ -9,12 +9,12 @@ package photoprism
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -24,10 +24,14 @@ const (
 )
 
 // Client performs authenticated requests to a PhotoPrism instance.
+// Version is probed once and cached; a failed probe does not block requests.
 type Client struct {
-	BaseURL    string       // e.g. https://photoprism.example.com (no trailing slash)
-	Token      string       // Bearer token: app password (Settings → Account) or session/access token per Client Authentication docs
-	HTTPClient *http.Client // nil uses default with timeout
+	BaseURL     string       // e.g. https://photoprism.example.com (no trailing slash)
+	Token       string       // Bearer token: app password (Settings → Account) or session/access token per Client Authentication docs
+	HTTPClient  *http.Client // nil uses default with timeout
+	versionOnce sync.Once
+	mu          sync.Mutex
+	version     string
 }
 
 // NewClient returns a client for the given base URL and token.
@@ -68,7 +72,7 @@ func (c *Client) do(ctx context.Context, path string, query url.Values) (*http.R
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		_ = resp.Body.Close()
 		return nil, fmt.Errorf("photoprism api: %s %s", resp.Status, rawURL)
 	}
@@ -83,53 +87,31 @@ func (c *Client) getJSON(ctx context.Context, path string, query url.Values, v a
 		return nil, err
 	}
 	defer resp.Body.Close()
-	headers = make(map[string]string)
-	for k, v := range resp.Header {
-		if len(v) > 0 {
-			headers[strings.ToLower(k)] = v[0]
-		}
-	}
+	headers = headerMap(resp.Header)
+	c.noteVersion(headerVersion(headers))
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
+	absorbTokens(headers, body)
 	if v != nil {
-		if err := json.Unmarshal(body, v); err != nil {
-			return nil, fmt.Errorf("photoprism api json: %w", err)
+		if err := decodeBody(body, v); err != nil {
+			return nil, err
 		}
 	}
 	return headers, nil
 }
 
-// fileDecode is used when decoding GetPhoto response to capture "markers" (lowercase) as well as "Markers".
-type fileDecode struct {
-	File
-	MarkersLower []Marker `json:"markers"`
-}
-
 // GetPhoto fetches full details for one photo by UID (GET /api/v1/photos/{uid}).
 // The detail response may include Files with Markers (faces/subjects) when the list endpoint omits them.
-// Handles both "Files"/"files" and "Markers"/"markers" JSON key casings.
+// Key casing, numeric booleans, and empty dates are accepted by Photo.UnmarshalJSON.
 func (c *Client) GetPhoto(ctx context.Context, uid string) (*Photo, error) {
-	var out struct {
-		Photo
-		FilesLower []fileDecode `json:"files"`
-	}
+	var photo Photo
 	path := apiPrefix + "/photos/" + url.PathEscape(uid)
-	_, err := c.getJSON(ctx, path, nil, &out)
-	if err != nil {
+	if _, err := c.getJSON(ctx, path, nil, &photo); err != nil {
 		return nil, err
 	}
-	if len(out.Photo.Files) == 0 && len(out.FilesLower) > 0 {
-		out.Photo.Files = make([]File, len(out.FilesLower))
-		for i := range out.FilesLower {
-			out.Photo.Files[i] = out.FilesLower[i].File
-			if len(out.Photo.Files[i].Markers) == 0 && len(out.FilesLower[i].MarkersLower) > 0 {
-				out.Photo.Files[i].Markers = out.FilesLower[i].MarkersLower
-			}
-		}
-	}
-	return &out.Photo, nil
+	return &photo, nil
 }
 
 // getBytes performs a GET request and returns the raw body (e.g. for thumbnail/video binary).

@@ -78,12 +78,24 @@ func NewProvider(ctx context.Context, cfg config.Config) source.ProviderOps {
 			birthdateLoader = loader
 		}
 	}
+	client := NewClient(cfg.PhotoprismURL, cfg.PhotoprismToken)
+	if version, probed := client.lookupVersion(ctx); probed {
+		logPhotoPrismVersion(version)
+	}
 	return &Provider{
-		client:          NewClient(cfg.PhotoprismURL, cfg.PhotoprismToken),
+		client:          client,
 		cfg:             cfg,
 		ctx:             ctx,
 		birthdateLoader: birthdateLoader,
 	}
+}
+
+func logPhotoPrismVersion(version string) {
+	if version != "" {
+		log.Debug("photoprism: server version", "version", version)
+		return
+	}
+	log.Debug("photoprism: version unknown; continuing")
 }
 
 func (p *Provider) photosQuery(count int, order string, albumUID string, searchQ string) url.Values {
@@ -111,6 +123,7 @@ func (p *Provider) fetchPhotos(albumUID string, order string, count int, searchQ
 	if err != nil {
 		return nil, "", "", err
 	}
+	list = compactPhotos(list)
 	preview := headers["x-preview-token"]
 	download := headers["x-download-token"]
 	if p.cfg.Kiosk.Debug && len(list) > 0 {
@@ -928,11 +941,7 @@ func (p *Provider) AllTags(requestID, deviceID string) (source.Tags, string, err
 	// PhotoPrism labels: GET /api/v1/labels
 	q := url.Values{}
 	q.Set("count", "500")
-	var list []struct {
-		UID  string `json:"UID"`
-		Name string `json:"Name"`
-		Slug string `json:"Slug"`
-	}
+	var list []Label
 	_, err := p.client.getJSON(p.ctx, apiPrefix+"/labels", q, &list)
 	if err != nil {
 		return nil, "", err
@@ -989,32 +998,6 @@ func (p *Provider) AllAlbums(requestID, deviceID string) (source.Albums, error) 
 		out[i] = source.Album{ID: a.UID, AlbumName: a.Title}
 	}
 	return out, nil
-}
-
-func (p *Provider) ImagePreview() ([]byte, string, error) {
-	ph := p.currentPhoto()
-	if ph == nil {
-		return nil, "", fmt.Errorf("photoprism: no current photo")
-	}
-	token := p.previewToken
-	if token == "" {
-		token = "public"
-	}
-	path := fmt.Sprintf("%s/t/%s/%s/fit_720", apiPrefix, ph.PrimaryHash(), token)
-	return p.client.getBytes(p.ctx, path)
-}
-
-func (p *Provider) Video() ([]byte, string, error) {
-	ph := p.currentPhoto()
-	if ph == nil || !strings.EqualFold(ph.Type, "video") {
-		return nil, "", fmt.Errorf("photoprism: no current video")
-	}
-	token := p.previewToken
-	if token == "" {
-		token = "public"
-	}
-	path := fmt.Sprintf("%s/videos/%s/%s/avc", apiPrefix, ph.PrimaryHash(), token)
-	return p.client.getBytes(p.ctx, path)
 }
 
 func (p *Provider) AddTag(tag source.Tag) error                                { return nil }

@@ -106,5 +106,6 @@ See [FEATURES-BY-SOURCE.md](FEATURES-BY-SOURCE.md) for a table of what works wit
 - **Star rating** – Not supported. Rating requests return not implemented and do not write a rating.
 - **Like/Hide/Tag/Archive** – Intentional no-ops. They do not change state in PhotoPrism.
 - **Videos** – Supported if PhotoPrism returns them from the photos API; playback uses PhotoPrism’s video endpoint.
+- **API shape** – The client accepts stock PhotoPrism JSON and common variants (key case, empty dates, numeric booleans, wrapped lists). It logs the server version from `GET /api/v1/config` when debug logging is on, and continues when that probe fails. Custom fork endpoints are not called until they are confirmed.
 
 If you see “no photos” or empty slides, check that PhotoPrism has indexed photos and that the token has access. Use `KIOSK_LOG_LEVEL=debug` to see API requests and any errors.
