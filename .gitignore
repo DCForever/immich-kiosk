@@ -61,3 +61,9 @@ frontend/public/assets/js/*.js
 
 # Windows reserved device name (accidental redirect creates this file)
 nul
+result
+result-*
+
+data/
+
+docker-compose-local.yaml

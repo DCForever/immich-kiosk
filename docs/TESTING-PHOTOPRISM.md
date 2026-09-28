@@ -101,10 +101,14 @@ See [FEATURES-BY-SOURCE.md](FEATURES-BY-SOURCE.md) for a table of what works wit
 
 ## 8. Known limitations (PhotoPrism source)
 
-- **People** – Not supported (filter/weighting skipped).
-- **Memories** – Not supported.
-- **Star rating** – Not supported.
-- **Like/Hide/Tag** – Buttons work in the UI but do not change state in PhotoPrism (no-ops).
-- **Videos** – Supported if PhotoPrism returns them from the photos API; playback uses PhotoPrism’s video endpoint.
+- **API target** – Stock PhotoPrism `/api/v1` only. The DCForever PhotoPrism fork’s vision / OpenAI / LM Studio work is not called.
+- **People** – Supported. `GET /api/v1/subjects?type=person`, then `person:"Name"`, `people:"A & B"`, or `face:<uid>`. Birth dates come from the kiosk mapping files, not from Subject.
+- **Albums** – Supported for `type=album`. Owned and shared picks use the same album list. Photos in an album use `s=<album uid>`.
+- **Memories** – Supported as a collage (3–16 images) via `taken:` / `after:` / `before:` and `type:image`. There is no PhotoPrism memories endpoint, and a single random memory asset stays unsupported.
+- **Favourites** – Supported as `favorite=true`. Like and unlike do not write to PhotoPrism.
+- **Star rating** – Not supported. PhotoPrism quality is 1–7, not Immich stars. Some tokens omit photos with quality below 3. Rating requests return not implemented.
+- **Like/Hide/Tag/Archive** – Intentional no-ops. They do not change state in PhotoPrism.
+- **Videos** – Supported when the photos API returns them. Playback uses `/api/v1/videos/{hash}/{token}/avc` with the download or preview token.
+- **API shape** – `ID` may be a string or number. `Files`/`files` and `Markers`/`markers` are both accepted. Empty dates, numeric booleans, and wrapped lists are accepted. Version probe failures do not block the slideshow.
 
 If you see “no photos” or empty slides, check that PhotoPrism has indexed photos and that the token has access. Use `KIOSK_LOG_LEVEL=debug` to see API requests and any errors.

@@ -37,6 +37,14 @@
       ],
       "examples": ["12", "24"]
     },
+    "show_seconds": {
+      "type": "boolean",
+      "default": false,
+      "description": "Show seconds when displaying clock"
+    },
+    "show_am_pm": {
+      "type": "boolean"
+    },
     "show_date": {
       "type": "boolean"
     },
@@ -144,6 +152,11 @@
     "memories": {
       "type": "boolean"
     },
+    "memories_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "!memories has to be set to true if you wish to use this feature! Only display memories when memories is set to true and no other sources (people, albums, tags etc) are set."
+    },
     "past_memory_days": {
       "type": "integer",
       "minimum": 0,
@@ -152,8 +165,23 @@
     "memory_weight": {
       "type": "number"
     },
-    "date_filter": {
-      "type": "string"
+    "filter_date": {
+      "type": "string",
+      "description": "Filter to limit assets to a certain date range"
+    },
+    "filter_newest": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000,
+      "description": "Filter to limit assets to the newest X"
+    },
+    "filter_exclude_faces": {
+      "type": "boolean",
+      "description": "Exclude assets where Immich has detected a face"
+    },
+    "filter_favorites": {
+      "type": "boolean",
+      "description": "Filter to only show favorite assets"
     },
     "show_videos": {
       "type": "boolean"
@@ -168,6 +196,11 @@
     },
     "live_photo_loop_delay": {
       "type": "integer"
+    },
+    "show_animated_gifs": {
+      "type": "boolean",
+      "default": false,
+      "description": "Show animated GIFs"
     },
     "menu_position": {
       "type": "string"
@@ -248,6 +281,16 @@
     "cross_fade_transition_duration": {
       "type": "number",
       "minimum": 0
+    },
+    "slide_transition_duration": {
+      "type": "number",
+      "minimum": 0,
+      "default": 2
+    },
+    "push_transition_duration": {
+      "type": "number",
+      "minimum": 0,
+      "default": 3
     },
     "show_clear_cache_button": {
       "type": "boolean"
@@ -369,28 +412,46 @@
     "show_image_id": {
       "type": "boolean"
     },
-    "show_more_info": {
-      "type": "boolean"
+    "more_info": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display": {
+          "type": "boolean",
+          "description": "Show the more info overlay"
+        },
+        "like_button_action": {
+          "type": "string",
+          "enum": ["album", "favorite", "both"],
+          "description": "Action performed by the like button"
+        },
+        "hide_button_action": {
+          "type": "string",
+          "enum": ["tag", "archive", "both"],
+          "description": "Action performed by the hide button"
+        },
+        "show": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "asset_link": { "type": "boolean" },
+            "qr_code": { "type": "boolean" },
+            "rating": { "type": "boolean" },
+            "like_button": { "type": "boolean" },
+            "hide_button": { "type": "boolean" }
+          }
+        }
+      }
     },
-    "show_more_info_image_link": {
-      "type": "boolean"
+    "qr_code_open_in_app": {
+      "type": "boolean",
+      "default": true,
+      "description": "When enabled, QR codes will link to assets via the Immich app (my.immich.app)"
     },
-    "show_more_info_qr_code": {
-      "type": "boolean"
-    },
-    "like_button_action": {
-      "type": ["string", "array"],
-      "items": {
-        "type": "string"
-      },
-      "uniqueItems": true
-    },
-    "hide_button_action": {
-      "type": ["string", "array"],
-      "items": {
-        "type": "string"
-      },
-      "uniqueItems": true
+    "button_open_in_app": {
+      "type": "boolean",
+      "default": false,
+      "description": "When enabled, image link buttons will open assets via the Immich app (my.immich.app)"
     },
     "weather": {
       "type": "object",
@@ -427,25 +488,86 @@
               "lang": {
                 "type": "string"
               },
-              "forecast": {
-                "type": "boolean",
-                "default": false,
-                "description": "Whether to include 3 day forecast data"
-              },
               "round_temperature": {
                 "type": "boolean",
                 "default": false,
                 "description": "Whether to round temperature values to the nearest integer"
               },
+              "custom_weather_url": {
+                "type": ["string", "null"],
+                "default": null,
+                "description": "URL of a custom weather API to use instead of OpenWeatherMap",
+                "format": "uri"
+              },
+              "forecast": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether to include 3 day forecast data"
+              },
+              "show": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "humidity": {
+                    "type": "boolean",
+                    "description": "Show the current humidity",
+                    "default": false
+                  },
+                  "wind": {
+                    "type": "boolean",
+                    "description": "Show the current wind speed and wind direction (N, NE, E, etc.)",
+                    "default": false
+                  },
+                  "wind_direction": {
+                    "type": "boolean",
+                    "description": "Also show wind direction as degrees",
+                    "default": false
+                  },
+                  "visibility": {
+                    "type": "boolean",
+                    "description": "Show the current visibility",
+                    "default": false
+                  },
+                  "temperature_range": {
+                    "type": "boolean",
+                    "description": "Show the next 24-hour forecast high/low temperature (requires forecast: true)",
+                    "default": false
+                  }
+                }
+              },
               "default": {
                 "type": "boolean"
               }
             },
-            "required": ["name", "lat", "lon"]
+            "required": ["name"]
           }
         }
       },
       "required": ["locations"]
+    },
+    "redirects": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "show_albums": {
+          "type": "boolean",
+          "default": false
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "url": { "type": "string" },
+              "category": { "type": "string" },
+              "type": { "type": "string" }
+            },
+            "required": ["name", "url"]
+          }
+        }
+      }
     },
     "webhooks": {
       "type": "array",
@@ -491,13 +613,6 @@
       },
       "required": []
     },
-    "user": {
-      "type": ["string", "array"],
-      "items": {
-        "type": "string"
-      },
-      "uniqueItems": true
-    },
     "show_user": {
       "type": "boolean"
     },
@@ -512,7 +627,7 @@
           "type": "integer"
         },
         "max_size": {
-          "type": "string"
+          "type": ["string", "integer"]
         },
         "parallel_downloads": {
           "type": "integer"
@@ -524,6 +639,11 @@
     },
     "use_offline_mode": {
       "type": "boolean"
+    },
+    "cache_duration": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Specified duration (in seconds) for which cache entries should be kept before expiring."
     },
     "kiosk": {
       "type": "object",
@@ -587,8 +707,18 @@
         "enable_url_builder": {
           "type": "boolean"
         },
+        "demo_mode": {
+          "type": "boolean"
+        },
+        "allowed_origins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "redirects": {
           "type": "array",
+          "description": "DEPRECATED. See https://docs.immichkiosk.app/configuration/redirects.",
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -599,20 +729,14 @@
               "url": {
                 "type": "string"
               },
+              "category": {
+                "type": "string"
+              },
               "type": {
                 "type": "string"
               }
             },
             "required": ["name", "url"]
-          }
-        },
-        "demo_mode": {
-          "type": "boolean"
-        },
-        "allowed_origins": {
-          "type": "array",
-          "items": {
-            "type": "string"
           }
         }
       },

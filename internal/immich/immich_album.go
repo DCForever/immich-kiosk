@@ -9,10 +9,12 @@ import (
 	"net/url"
 	"path"
 	"slices"
+	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 
 	"github.com/damongolding/immich-kiosk/internal/cache"
+	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/utils"
 )
@@ -27,10 +29,9 @@ import (
 //   - AppearsIn field of the ImmichAsset is updated with list of albums
 //   - Any error during API call is logged but function does not return an error
 func (a *Asset) AlbumsThatContainAsset(requestID, deviceID string) {
-
 	var albumsContainingAsset Albums
 
-	albums, _, err := a.albums(requestID, deviceID, false, a.ID, false)
+	albums, _, err := a.albums(requestID, deviceID, true, true, a.ID, false)
 	if err != nil {
 		log.Error("Failed to get albums containing asset", "err", err)
 		return
@@ -43,7 +44,7 @@ func (a *Asset) AlbumsThatContainAsset(requestID, deviceID string) {
 
 // albums retrieves albums from Immich based on the shared parameter.
 // It constructs the API URL, makes the API call, and returns the albums.
-func (a *Asset) albums(requestID, deviceID string, shared bool, contains string, bypassCache bool) (Albums, string, error) {
+func (a *Asset) albums(requestID, deviceID string, withOwned, withShared bool, contains string, bypassCache bool) (Albums, string, error) {
 	var albums Albums
 
 	u, err := url.Parse(a.requestConfig.ImmichURL)
@@ -59,8 +60,15 @@ func (a *Asset) albums(requestID, deviceID string, shared bool, contains string,
 
 	queryParams := url.Values{}
 
-	if shared {
-		queryParams.Set("shared", "true")
+	switch {
+	case withOwned && withShared:
+		// All albums
+	case withShared:
+		// Only shared albums
+		queryParams.Set("isShared", "true")
+	case withOwned:
+		// Only owned albums
+		queryParams.Set("isOwned", "true")
 	}
 
 	if contains != "" {
@@ -72,13 +80,13 @@ func (a *Asset) albums(requestID, deviceID string, shared bool, contains string,
 	var body []byte
 
 	if bypassCache {
-		body, _, err = a.immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
+		body, _, _, err = a.immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
 		if err != nil {
 			return immichAPIFail(albums, err, body, apiURL.String())
 		}
 	} else {
 		immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, albums)
-		body, _, err = immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
+		body, _, _, err = immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
 		if err != nil {
 			return immichAPIFail(albums, err, body, apiURL.String())
 		}
@@ -94,50 +102,44 @@ func (a *Asset) albums(requestID, deviceID string, shared bool, contains string,
 
 // allSharedAlbums retrieves all shared albums from Immich.
 func (a *Asset) allSharedAlbums(requestID, deviceID string) (Albums, string, error) {
-	return a.albums(requestID, deviceID, true, "", false)
+	return a.albums(requestID, deviceID, false, true, "", false)
 }
 
-// allAlbums retrieves all albums (owned and shared) from Immich.
+// // allAlbums retrieves all albums (owned and shared) from Immich.
+// func (a *Asset) allAlbums(requestID, deviceID string) (Albums, string, error) {
+// 	owned, ownedURL, ownedErr := a.albums(requestID, deviceID, false, "", false)
+// 	shared, sharedURL, sharedErr := a.albums(requestID, deviceID, true, "", false)
+// 	all := make(Albums, len(owned)+len(shared))
+// 	copy(all, owned)
+// 	copy(all[len(owned):], shared)
+
+// 	var err error
+// 	if ownedErr != nil {
+// 		err = errors.Join(err, ownedErr)
+// 	}
+
+// 	if sharedErr != nil {
+// 		err = errors.Join(err, sharedErr)
+// 	}
+
+// 	return all, ownedURL + " && " + sharedURL, err
+// }
+
 func (a *Asset) allAlbums(requestID, deviceID string) (Albums, string, error) {
-	owned, ownedURL, ownedErr := a.albums(requestID, deviceID, false, "", false)
-	shared, sharedURL, sharedErr := a.albums(requestID, deviceID, true, "", false)
-	all := make(Albums, len(owned)+len(shared))
-	copy(all, owned)
-	copy(all[len(owned):], shared)
-
-	var err error
-	if ownedErr != nil {
-		err = errors.Join(err, ownedErr)
-	}
-
-	if sharedErr != nil {
-		err = errors.Join(err, sharedErr)
-	}
-
-	return all, ownedURL + " && " + sharedURL, err
+	return a.albums(requestID, deviceID, true, true, "", false)
 }
 
 func (a *Asset) AllAlbums(requestID, deviceID string) (Albums, error) {
-	all, _, err := a.allAlbums(requestID, deviceID)
+	all, _, err := a.albums(requestID, deviceID, true, true, "", false)
 	return all, err
 }
 
 // allOwnedAlbums retrieves all non-shared albums from Immich.
 func (a *Asset) allOwnedAlbums(requestID, deviceID string) (Albums, string, error) {
-	return a.albums(requestID, deviceID, false, "", false)
+	return a.albums(requestID, deviceID, true, false, "", false)
 }
 
-// albumAssets retrieves details and assets for a specific album from Immich.
-// Parameters:
-//   - albumID: The ID of the album to fetch
-//   - requestID: ID used for tracking API call
-//   - deviceID: ID of the device making the request
-//
-// Returns:
-//   - ImmichAlbum: The album details and associated assets
-//   - string: The API URL that was called
-//   - error: Any error encountered during the request
-func (a *Asset) albumAssets(albumID, requestID, deviceID string) (Album, string, error) {
+func (a *Asset) albumAssets(albumID, requestID, deviceID string, favoritesOnly bool) (Album, string, error) {
 	var album Album
 
 	u, err := url.Parse(a.requestConfig.ImmichURL)
@@ -145,24 +147,46 @@ func (a *Asset) albumAssets(albumID, requestID, deviceID string) (Album, string,
 		return immichAPIFail(album, err, nil, "")
 	}
 
-	apiURL := url.URL{
-		Scheme: u.Scheme,
-		Host:   u.Host,
-		Path:   path.Join("api", "albums", albumID),
+	filter := NewSearchFilterBuilder().
+		WithVideos(a.requestConfig.ShowVideos).
+		WithAlbumsAny(albumID).
+		WithArchived(a.requestConfig.ShowArchived).
+		WithFilterDate(a.requestConfig.FilterDate).
+		ExcludePeople(a.requestConfig.ExcludedPeople).
+		ExcludeAlbums(a.requestConfig.ExcludedAlbums).
+		ExcludeTags(a.requestConfig.ExcludedTags).
+		WithFilterFavorites(favoritesOnly).
+		Build()
+
+	requestBody := SearchRandomBody{
+		Filter:     filter,
+		WithPeople: true,
+		WithExif:   true,
+		Size:       a.requestConfig.Kiosk.FetchedAssetsSize,
 	}
 
-	immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, album)
-	body, _, err := immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
+	assetOrder := AlbumOrder(a.requestConfig.AlbumOrder)
+	if assetOrder != Rand {
+		requestBody.OrderBy = SearchOrder{
+			Direction: assetOrder,
+		}
+	}
+
+	var res PaginatedMetadataResponse
+
+	if a.requestConfig.Kiosk.Cache {
+		res, err = a.fetchPaginatedMetadataWithCache(u, requestBody, requestID, deviceID)
+	} else {
+		res, err = a.fetchPaginatedMetadata(u, requestBody, requestID, deviceID)
+	}
 	if err != nil {
-		return immichAPIFail(album, err, body, apiURL.String())
+		return album, res.URL, err
 	}
 
-	err = json.Unmarshal(body, &album)
-	if err != nil {
-		return immichAPIFail(album, err, body, apiURL.String())
-	}
+	album.Assets = res.Assets
+	album.ID = albumID
 
-	return album, apiURL.String(), nil
+	return album, res.URL, nil
 }
 
 // countAssetsInAlbums calculates the total number of assets across multiple albums.
@@ -193,38 +217,37 @@ func (a *Asset) AlbumImageCount(albumID string, requestID, deviceID string) (int
 	case kiosk.AlbumKeywordAll:
 		albums, albumsURL, err := a.allAlbums(requestID, deviceID)
 		if err != nil {
-			return 0, fmt.Errorf("failed to get all albums (%s) err=%w", albumsURL, err)
+			return 0, fmt.Errorf("get all albums (%s) err=%w", albumsURL, err)
 		}
 		return countAssetsInAlbums(albums), nil
 
 	case kiosk.AlbumKeywordOwned:
 		albums, albumsURL, err := a.allOwnedAlbums(requestID, deviceID)
 		if err != nil {
-			return 0, fmt.Errorf("failed to get owned albums (%s) err=%w", albumsURL, err)
-
+			return 0, fmt.Errorf("get owned albums (%s) err=%w", albumsURL, err)
 		}
 		return countAssetsInAlbums(albums), nil
 
 	case kiosk.AlbumKeywordShared:
 		albums, albumsURL, err := a.allSharedAlbums(requestID, deviceID)
 		if err != nil {
-			return 0, fmt.Errorf("failed to get shared albums (%s) err=%w", albumsURL, err)
+			return 0, fmt.Errorf("get shared albums (%s) err=%w", albumsURL, err)
 		}
 		return countAssetsInAlbums(albums), nil
 
 	case kiosk.AlbumKeywordFavourites, kiosk.AlbumKeywordFavorites:
 		favouriteAssetCount, err := a.favouriteAssetsCount(requestID, deviceID)
 		if err != nil {
-			return 0, fmt.Errorf("failed to get favorite assets: %w", err)
+			return 0, fmt.Errorf("get favorite assets: %w", err)
 		}
 		return favouriteAssetCount, nil
 
 	default:
-		album, _, err := a.albumAssets(albumID, requestID, deviceID)
+		album, _, err := a.albumAssets(albumID, requestID, deviceID, a.requestConfig.FilterFavorites)
 		if err != nil {
-			return 0, fmt.Errorf("failed to get album assets for album %s: %w", albumID, err)
+			return 0, fmt.Errorf("get album assets for album %s: %w", albumID, err)
 		}
-		return album.AssetCount, nil
+		return len(album.Assets), nil
 	}
 }
 
@@ -242,40 +265,42 @@ func (a *Asset) AlbumImageCount(albumID string, requestID, deviceID string) (int
 // Returns:
 //   - error: Any error encountered during the asset retrieval process, including when No viable assets are found
 //     after maximum retry attempts
-func (a *Asset) AssetFromAlbum(albumID string, albumAssetsOrder AssetOrder, requestID, deviceID string) error {
+func (a *Asset) AssetFromAlbum(albumID string, requestID, deviceID string) error {
+	filterNewest := a.requestConfig.FilterNewest > 0
+	filterFavourites := a.requestConfig.FilterFavorites
+	var apiCacheKey string
 
 	for range MaxRetries {
 
-		album, apiURL, err := a.albumAssets(albumID, requestID, deviceID)
+		album, apiURL, err := a.albumAssets(albumID, requestID, deviceID, filterFavourites)
 		if err != nil {
 			return err
 		}
 
-		apiCacheKey := cache.APICacheKey(apiURL, deviceID, a.requestConfig.SelectedUser)
+		if apiCacheKey == "" {
+			apiCacheKey = cache.APICacheKey(apiURL, deviceID, a.requestConfig.SelectedUser)
+		}
 
 		if len(album.Assets) == 0 {
 			log.Debug(requestID+" No assets left in cache. Refreshing and trying again for album", albumID)
 			cache.Delete(apiCacheKey)
 
-			al, _, retryErr := a.albumAssets(albumID, requestID, deviceID)
-			if retryErr != nil || len(al.Assets) == 0 {
+			album, _, err = a.albumAssets(albumID, requestID, deviceID, filterFavourites)
+			if err != nil || len(album.Assets) == 0 {
 				return fmt.Errorf("no assets found for album %s after refresh", albumID)
 			}
 
 			continue
 		}
 
-		switch albumAssetsOrder {
-		case Rand:
+		if filterNewest && len(album.Assets) > a.requestConfig.FilterNewest {
+			album.Assets = album.Assets[:a.requestConfig.FilterNewest]
+		}
+
+		if strings.EqualFold(a.requestConfig.AlbumOrder, config.AlbumOrderRandom) {
 			rand.Shuffle(len(album.Assets), func(i, j int) {
 				album.Assets[i], album.Assets[j] = album.Assets[j], album.Assets[i]
 			})
-		case Asc:
-			if !album.AssetsOrdered {
-				slices.Reverse(album.Assets)
-				album.AssetsOrdered = true
-			}
-		case Desc:
 		}
 
 		allowedTypes := ImageOnlyAssetTypes
@@ -295,22 +320,32 @@ func (a *Asset) AssetFromAlbum(albumID string, albumAssetsOrder AssetOrder, requ
 			}
 
 			if a.requestConfig.Kiosk.Cache {
-				// Remove the current image from the slice
-				assetsToCache := album
-				assetsToCache.Assets = slices.Delete(album.Assets, assetIndex, assetIndex+1)
-				jsonBytes, marshalErr := json.Marshal(assetsToCache)
-				if marshalErr != nil {
-					log.Error("Failed to marshal assetsToCache", "error", marshalErr)
-					return marshalErr
-				}
 
-				// replace with cache minus used asset
-				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration)
+				err = removeAssetFromPaginatedCache(apiCacheKey, asset.ID, a.requestConfig.Duration, a.requestConfig.CacheDuration)
+				if err != nil {
+					log.Debug("removing asset from paginated cache", "error", err)
+
+					// from Immich V3 album assets use the PaginatedMetadataResponse type
+					assetsToCache := PaginatedMetadataResponse{
+						URL: apiURL,
+						// Remove the current image from the slice
+						Assets: slices.Delete(album.Assets, assetIndex, assetIndex+1),
+					}
+
+					jsonBytes, marshalErr := json.Marshal(assetsToCache)
+					if marshalErr != nil {
+						log.Error("Failed to marshal assetsToCache", "error", marshalErr)
+						return marshalErr
+					}
+
+					// replace with cache minus used asset
+					cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration, a.requestConfig.CacheDuration)
+				}
 			}
 
 			asset.BucketID = album.ID
 			if asset.requestConfig.SelectedUser != "" {
-				asset.BucketID = fmt.Sprintf("%s@%s", album.ID, asset.requestConfig.SelectedUser)
+				asset.BucketID = fmt.Sprintf("%s%s%s", album.ID, kiosk.MultipleUserIndicator, asset.requestConfig.SelectedUser)
 			}
 
 			*a = asset
@@ -318,7 +353,7 @@ func (a *Asset) AssetFromAlbum(albumID string, albumAssetsOrder AssetOrder, requ
 			return nil
 		}
 
-		log.Debug(requestID + " No viable assets left in cache. Refreshing and trying again")
+		log.Debug(requestID+" No viable assets left in cache. Refreshing and trying again", "cacheKey", apiCacheKey)
 		cache.Delete(apiCacheKey)
 	}
 
@@ -418,12 +453,11 @@ func (a *Albums) RemoveExcludedAlbums(exclude []string) {
 //   - Album: The found liked album
 //   - error: Error if album not found or API call fails
 func (a *Asset) kioskLikedAlbum(requestID, deviceID string) (Album, error) {
-
 	var album Album
 
-	albums, _, err := a.albums(requestID, deviceID, false, "", true)
+	albums, _, err := a.albums(requestID, deviceID, true, false, "", true)
 	if err != nil {
-		return album, fmt.Errorf("failed to fetch albums: %w", err)
+		return album, fmt.Errorf("fetch albums: %w", err)
 	}
 
 	if len(albums) == 0 {
@@ -448,7 +482,6 @@ func (a *Asset) kioskLikedAlbum(requestID, deviceID string) (Album, error) {
 //   - string: ID of created album
 //   - error: Error if creation fails
 func (a *Asset) createKioskLikedAlbum() (string, error) {
-
 	var res Album
 
 	u, err := url.Parse(a.requestConfig.ImmichURL)
@@ -472,7 +505,7 @@ func (a *Asset) createKioskLikedAlbum() (string, error) {
 		return "", fmt.Errorf("marshaling request body: %w", marshalErr)
 	}
 
-	body, _, err := a.immichAPICall(a.ctx, http.MethodPost, apiURL.String(), jsonBody)
+	body, _, _, err := a.immichAPICall(a.ctx, http.MethodPost, apiURL.String(), jsonBody)
 	if err != nil {
 		_, _, resErr := immichAPIFail(res, err, body, apiURL.String())
 		return "", resErr
@@ -502,7 +535,7 @@ func (a *Asset) AddToKioskLikedAlbum(requestID, deviceID string) error {
 	if err != nil {
 		album.ID, err = a.createKioskLikedAlbum()
 		if err != nil {
-			return fmt.Errorf("failed to create kiosk liked album: %w", err)
+			return fmt.Errorf("create kiosk liked album: %w", err)
 		}
 		log.Debug(requestID+" Created", "albumName", kiosk.FavoriteAlbumName, "albumID", album.ID)
 	}
@@ -516,7 +549,7 @@ func (a *Asset) RemoveFromKioskLikedAlbum(requestID, deviceID string) error {
 
 	album, err := a.kioskLikedAlbum(requestID, deviceID)
 	if err != nil {
-		return fmt.Errorf("failed to get kiosk liked album: %w", err)
+		return fmt.Errorf("get kiosk liked album: %w", err)
 	}
 
 	if album.ID == "" {
@@ -557,7 +590,7 @@ func (a *Asset) modifyAssetInAlbum(albumID string, method string) error {
 		return fmt.Errorf("marshaling request body: %w", marshalErr)
 	}
 
-	body, _, err := a.immichAPICall(a.ctx, method, apiURL.String(), jsonBody)
+	body, _, _, err := a.immichAPICall(a.ctx, method, apiURL.String(), jsonBody)
 	if err != nil {
 		_, _, err = immichAPIFail(res, err, body, apiURL.String())
 		return err

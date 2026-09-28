@@ -1,6 +1,5 @@
 {
   "extends": "//",
-  "$schema": "https://biomejs.dev/schemas/2.4.5/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -9,6 +8,7 @@
   "files": {
     "ignoreUnknown": true,
     "includes": [
+      "**/*.css",
       "**/*.ts",
       "**/*.js",
       "**/*.tsx",
@@ -27,12 +27,20 @@
         "noDuplicateProperties": "off"
       },
       "correctness": {
-        "noUnknownProperty": "off"
+        "noUnknownProperty": {
+          "level": "on",
+          "options": {
+            "ignore": ["font-smoothing", "-webkit-perspective"]
+          }
+        }
       },
       "style": {
         "noDescendingSpecificity": "off"
       },
-      "recommended": true
+      "complexity": {
+        "noImportantStyles": "off"
+      },
+      "preset": "recommended"
     }
   },
   "javascript": {
@@ -49,6 +57,7 @@
     "enabled": true,
     "actions": {
       "source": {
+        "useSortedProperties": "on",
         "organizeImports": "on"
       }
     }

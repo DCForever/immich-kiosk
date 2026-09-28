@@ -5,15 +5,17 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/labstack/echo/v5"
 
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/i18n"
+	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/source"
 	imageComponent "github.com/damongolding/immich-kiosk/internal/templates/components/image"
@@ -24,11 +26,10 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/webhooks"
 )
 
-// NewAsset returns an echo.HandlerFunc that handles requests for new assets.
+// NewAsset returns an echo.HandlerFunc that handles requests fogr new assets.
 // It manages image processing, caching, and prefetching based on the configuration.
 func NewAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err
@@ -104,7 +105,6 @@ func NewAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 		}
 
 		return Render(c, http.StatusOK, imageComponent.Image(viewData, com.Secret()))
-
 	}
 }
 
@@ -112,7 +112,6 @@ func NewAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 // It processes the image without any additional transformations and returns it as a blob.
 func Image(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err
@@ -175,13 +174,12 @@ func Image(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 			return err
 		}
 
-		return c.Blob(http.StatusOK, "image/jpeg", imgBytes)
+		return c.Blob(http.StatusOK, kiosk.MimeTypeJpeg, imgBytes)
 	}
 }
 
 func ImageWithReload(baseConfig *config.Config) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err
@@ -220,7 +218,6 @@ func ImageWithReload(baseConfig *config.Config) echo.HandlerFunc {
 // Returns HTTP 400 if the image ID is missing or if the image cannot be retrieved.
 func ImageWithID(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err
@@ -251,12 +248,13 @@ func ImageWithID(baseConfig *config.Config, com *common.Common) echo.HandlerFunc
 
 		provider := getProvider(com.Context(), requestConfig)
 		if assetInfoErr := provider.AssetInfo(imageID, requestID, ""); assetInfoErr != nil {
-			log.Error(requestID, "error getting asset info", "imageID", imageID, "error", assetInfoErr)
+			log.Error(requestID, "getting asset info", "imageID", imageID, "error", assetInfoErr)
 			return assetInfoErr
 		}
 
 		imgBytes, _, previewErr := provider.ImagePreview()
 		if previewErr != nil {
+			log.Error(requestID, "getting image preview", "imageID", imageID, "error", previewErr)
 			return echo.NewHTTPError(http.StatusBadRequest, "unable to retrieve image")
 		}
 
@@ -271,7 +269,6 @@ func ImageWithID(baseConfig *config.Config, com *common.Common) echo.HandlerFunc
 // Returns HTTP 200 on success or appropriate error codes if validation fails or tag addition fails.
 func TagAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err
@@ -315,14 +312,14 @@ func TagAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 		}
 		addTagErr := provider.AddTag(source.Tag{Name: tagName})
 		if addTagErr != nil {
-			log.Error(requestID+" error adding tag", "assetID", assetID, "tagName", tagName, "error", addTagErr)
+			log.Error("adding tag", "assetID", assetID, "tagName", tagName, "error", addTagErr)
 			return echo.NewHTTPError(http.StatusInternalServerError, "unable to add tag")
 		}
 
 		// remove asset data from cache as we've changed its tags
 		cacheErr := provider.RemoveAssetCache(requestData.DeviceID)
 		if cacheErr != nil {
-			log.Error(requestID+" error removing asset from cache", "assetID", assetID, "error", cacheErr)
+			log.Error("removing asset from cache", "assetID", assetID, "error", cacheErr)
 		}
 
 		return c.String(http.StatusOK, "SUCCESS")
@@ -346,7 +343,6 @@ func TagAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 //   - Fresh like button HTML is returned regardless of success/failure
 func LikeAsset(baseConfig *config.Config, com *common.Common, setAssetAsLiked bool) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err
@@ -388,34 +384,38 @@ func LikeAsset(baseConfig *config.Config, com *common.Common, setAssetAsLiked bo
 		provider := getProvider(com.Context(), requestConfig)
 		infoErr := provider.AssetInfo(assetID, requestID, requestData.DeviceID)
 		if infoErr != nil {
-			log.Error(requestID+" error getting asset info", "assetID", assetID, "error", infoErr)
+			log.Error("getting asset info", "assetID", assetID, "error", infoErr)
 			return infoErr
 		}
 
 		var eg error
 
+		if slices.Contains(requestConfig.MoreInfo.LikeButtonAction, kiosk.ButtonActionBoth) {
+			requestConfig.MoreInfo.LikeButtonAction = []string{kiosk.LikeButtonActionAlbum, kiosk.LikeButtonActionFavorite}
+		}
+
 		// Favourite Asset
-		if slices.Contains(requestConfig.LikeButtonAction, kiosk.LikeButtonActionFavorite) {
+		if slices.Contains(requestConfig.MoreInfo.LikeButtonAction, kiosk.LikeButtonActionFavorite) {
 			favouriteErr := provider.FavouriteStatus(requestData.DeviceID, setAssetAsLiked)
 			if favouriteErr != nil {
-				log.Error(requestID+" error favouriting asset", "assetID", assetID, "error", favouriteErr)
+				log.Error("favouriting asset", "assetID", assetID, "error", favouriteErr)
 				eg = errors.Join(eg, favouriteErr)
 			}
 		}
 
 		// add asset to kiosk liked album
-		if slices.Contains(requestConfig.LikeButtonAction, kiosk.LikeButtonActionAlbum) {
+		if slices.Contains(requestConfig.MoreInfo.LikeButtonAction, kiosk.LikeButtonActionAlbum) {
 			switch setAssetAsLiked {
 			case true:
 				addErr := provider.AddToKioskLikedAlbum(requestID, requestData.DeviceID)
 				if addErr != nil {
-					log.Error(requestID+" error adding asset to kiosk liked album", "assetID", assetID, "error", addErr)
+					log.Error("adding asset to kiosk liked album", "assetID", assetID, "error", addErr)
 					eg = errors.Join(eg, addErr)
 				}
 			case false:
 				rmErr := provider.RemoveFromKioskLikedAlbum(requestID, requestData.DeviceID)
 				if rmErr != nil {
-					log.Error(requestID+" error removing asset from kiosk liked album", "assetID", assetID, "error", rmErr)
+					log.Error("removing asset from kiosk liked album", "assetID", assetID, "error", rmErr)
 					eg = errors.Join(eg, rmErr)
 				}
 			}
@@ -444,7 +444,6 @@ func LikeAsset(baseConfig *config.Config, com *common.Common, setAssetAsLiked bo
 //   - HTTP 500 if tag addition/removal fails
 func HideAsset(baseConfig *config.Config, com *common.Common, hideAsset bool) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err
@@ -492,13 +491,17 @@ func HideAsset(baseConfig *config.Config, com *common.Common, hideAsset bool) ec
 		provider := getProvider(com.Context(), requestConfig)
 		infoErr := provider.AssetInfo(assetID, requestID, requestData.DeviceID)
 		if infoErr != nil {
-			log.Error(requestID+" error getting asset info", "assetID", assetID, "error", infoErr)
+			log.Error("getting asset info", "assetID", assetID, "error", infoErr)
 			return infoErr
 		}
 
 		var eg error
 
-		if slices.Contains(requestConfig.HideButtonAction, kiosk.HideButtonActionTag) {
+		if slices.Contains(requestConfig.MoreInfo.HideButtonAction, kiosk.ButtonActionBoth) {
+			requestConfig.MoreInfo.HideButtonAction = []string{kiosk.HideButtonActionTag, kiosk.HideButtonActionArchive}
+		}
+
+		if slices.Contains(requestConfig.MoreInfo.HideButtonAction, kiosk.HideButtonActionTag) {
 			tag := source.Tag{
 				Name: tagName,
 			}
@@ -507,22 +510,22 @@ func HideAsset(baseConfig *config.Config, com *common.Common, hideAsset bool) ec
 			case true:
 				addTagErr := provider.AddTag(tag)
 				if addTagErr != nil {
-					log.Error(requestID+" error adding tag to asset", "assetID", assetID, "error", addTagErr)
+					log.Error("adding tag to asset", "assetID", assetID, "error", addTagErr)
 					eg = errors.Join(eg, addTagErr)
 				}
 			case false:
 				rmTagErr := provider.RemoveTag(tag)
 				if rmTagErr != nil {
-					log.Error(requestID+" error removing tag from asset", "assetID", assetID, "error", rmTagErr)
+					log.Error("removing tag from asset", "assetID", assetID, "error", rmTagErr)
 					eg = errors.Join(eg, rmTagErr)
 				}
 			}
 		}
 
-		if slices.Contains(requestConfig.HideButtonAction, kiosk.HideButtonActionArchive) {
+		if slices.Contains(requestConfig.MoreInfo.HideButtonAction, kiosk.HideButtonActionArchive) {
 			archivedErr := provider.ArchiveStatus(requestData.DeviceID, hideAsset)
 			if archivedErr != nil {
-				log.Error(requestID+" error archiving asset", "assetID", assetID, "error", archivedErr)
+				log.Error("archiving asset", "assetID", assetID, "error", archivedErr)
 				eg = errors.Join(eg, archivedErr)
 			}
 		}
@@ -532,5 +535,141 @@ func HideAsset(baseConfig *config.Config, com *common.Common, hideAsset bool) ec
 		}
 
 		return Render(c, http.StatusOK, partials.HideButton(assetID, user, hideAsset, true, com.Secret()))
+	}
+}
+
+func RatingAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		if baseConfig.Kiosk.DemoMode {
+			return nil
+		}
+
+		requestData, err := InitializeRequestData(c, baseConfig)
+		if err != nil {
+			return err
+		}
+
+		requestConfig := requestData.RequestConfig
+		requestID := requestData.RequestID
+
+		if requestConfig.Source == config.SourcePhotoPrism {
+			return echo.NewHTTPError(http.StatusNotImplemented, "rating is not supported for PhotoPrism")
+		}
+
+		log.Debug(
+			requestID,
+			"method", c.Request().Method,
+			"path", c.Request().URL.String(),
+			"requestConfig", requestConfig.String(),
+		)
+
+		assetID := c.FormValue("assetID")
+		ratingStr := c.FormValue("rating")
+		allowEdit, _ := strconv.ParseBool(c.FormValue("allowEdit"))
+		user := strings.TrimSpace(c.FormValue("user"))
+		if user != "" {
+			requestConfig.SelectedUser = user
+		}
+
+		if assetID == "" {
+			log.Error("Asset ID is required")
+			return echo.NewHTTPError(http.StatusBadRequest, "Asset ID is required")
+		}
+
+		if ratingStr == "" {
+			log.Error("Rating is required")
+			return echo.NewHTTPError(http.StatusBadRequest, "Rating is required")
+		}
+
+		rating, err := strconv.Atoi(ratingStr)
+		if err != nil {
+			log.Error("Invalid rating", "rating", ratingStr, "error", err)
+			return echo.NewHTTPError(http.StatusBadRequest, "Invalid rating")
+		}
+
+		if rating < 0 || rating > 5 {
+			log.Error("Rating out of range", "rating", ratingStr)
+			return echo.NewHTTPError(http.StatusBadRequest, "Invalid rating")
+		}
+
+		immichAsset := immich.New(com.Context(), requestConfig)
+		immichAsset.ID = assetID
+		infoErr := immichAsset.AssetInfo(requestID, requestData.DeviceID)
+		if infoErr != nil {
+			log.Error("getting asset info", "assetID", assetID, "error", infoErr)
+			return infoErr
+		}
+
+		// Update Asset Rating
+		ratingErr := immichAsset.UpdateRating(requestData.DeviceID, rating)
+		if ratingErr != nil {
+			log.Error("changing asset rating", "assetID", assetID, "error", ratingErr)
+			return nil
+		}
+
+		return Render(c, http.StatusOK, partials.RatingStars(assetID, user, rating, allowEdit, true))
+	}
+}
+
+func ClearRatingAsset(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		if baseConfig.Kiosk.DemoMode {
+			return nil
+		}
+
+		requestData, err := InitializeRequestData(c, baseConfig)
+		if err != nil {
+			return err
+		}
+
+		requestConfig := requestData.RequestConfig
+		requestID := requestData.RequestID
+
+		if requestConfig.Source == config.SourcePhotoPrism {
+			return echo.NewHTTPError(http.StatusNotImplemented, "rating is not supported for PhotoPrism")
+		}
+
+		log.Debug(
+			requestID,
+			"method", c.Request().Method,
+			"path", c.Request().URL.String(),
+			"requestConfig", requestConfig.String(),
+		)
+
+		assetID := c.FormValue("assetID")
+		allowEdit, _ := strconv.ParseBool(c.FormValue("allowEdit"))
+		user := strings.TrimSpace(c.FormValue("user"))
+		if user != "" {
+			requestConfig.SelectedUser = user
+		}
+
+		if assetID == "" {
+			log.Error("Asset ID is required")
+			return echo.NewHTTPError(http.StatusBadRequest, "Asset ID is required")
+		}
+
+		immichAsset := immich.New(com.Context(), requestConfig)
+		immichAsset.ID = assetID
+		infoErr := immichAsset.AssetInfo(requestID, requestData.DeviceID)
+		if infoErr != nil {
+			log.Error("getting asset info", "assetID", assetID, "error", infoErr)
+			return infoErr
+		}
+
+		var eg error
+
+		// Update Asset Rating
+		ratingErr := immichAsset.UpdateRating(requestData.DeviceID, -1)
+		if ratingErr != nil {
+			log.Error("changing asset rating", "assetID", assetID, "error", ratingErr)
+			eg = errors.Join(eg, ratingErr)
+		}
+
+		if eg != nil {
+			log.Error("changing asset rating", "assetID", assetID, "error", eg)
+			return nil
+		}
+
+		return Render(c, http.StatusOK, partials.RatingStars(assetID, user, 0, allowEdit, true))
 	}
 }

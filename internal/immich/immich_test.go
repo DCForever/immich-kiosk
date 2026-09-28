@@ -4,12 +4,12 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestArchiveLogic tests the handling of archived and trashed assets
 func TestArchiveLogic(t *testing.T) {
-
 	tests := []struct {
 		Type                  string
 		IsTrashed             bool
@@ -58,7 +58,6 @@ func TestArchiveLogic(t *testing.T) {
 
 // TestFacesCenterPoint tests the calculation of the center point between detected faces in an asset
 func TestFacesCenterPoint(t *testing.T) {
-
 	tests := []struct {
 		name  string
 		asset Asset
@@ -560,7 +559,6 @@ func TestTagMatches(t *testing.T) {
 }
 
 func TestExpandTags(t *testing.T) {
-
 	tests := []struct {
 		name     string
 		tag      string
@@ -593,7 +591,6 @@ func TestExpandTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			expandedTags := []string{}
 
 			expandedTags = addRecursiveTags(tt.tag, expandedTags, allTags)
@@ -601,6 +598,50 @@ func TestExpandTags(t *testing.T) {
 			if !slices.Equal(expandedTags, tt.expected) {
 				t.Errorf("expandedTags = %v, expected %v",
 					expandedTags, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsAnimatedGif(t *testing.T) {
+	tests := []struct {
+		name     string
+		asset    *Asset
+		expected bool
+	}{
+		{
+			name:     "animated gif",
+			asset:    &Asset{OriginalMimeType: kiosk.MimeTypeGif, Duration: 1000},
+			expected: true,
+		},
+		{
+			name:     "non-animated gif",
+			asset:    &Asset{OriginalMimeType: kiosk.MimeTypeGif, Duration: 0},
+			expected: false,
+		},
+		{
+			name:     "non-gif",
+			asset:    &Asset{OriginalMimeType: "image/jpeg", Duration: 1000},
+			expected: false,
+		},
+		{
+			name:     "animated gif with invalid duration",
+			asset:    &Asset{OriginalMimeType: kiosk.MimeTypeGif, Duration: -1},
+			expected: false,
+		},
+		{
+			name:     "animated gif with invalid duration - missing minutes and seconds",
+			asset:    &Asset{OriginalMimeType: kiosk.MimeTypeGif, Duration: 0},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.asset.isAnimatedGif()
+			if result != tt.expected {
+				t.Errorf("isAnimatedGif() = %v, expected %v",
+					result, tt.expected)
 			}
 		})
 	}

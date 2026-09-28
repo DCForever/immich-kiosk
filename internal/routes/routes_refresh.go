@@ -3,7 +3,7 @@ package routes
 import (
 	"net/http"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/labstack/echo/v5"
 
 	"github.com/damongolding/immich-kiosk/internal/config"
@@ -13,7 +13,6 @@ import (
 // RefreshCheck endpoint to check if device requires a refresh
 func RefreshCheck(baseConfig *config.Config) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		kioskVersionHeader := c.Request().Header.Get("kiosk-version")
 		kioskRefreshTimestampHeader := c.Request().Header.Get("kiosk-reload-timestamp")
 		requestID := utils.ColorizeRequestID(c.Response().Header().Get(echo.HeaderXRequestID))

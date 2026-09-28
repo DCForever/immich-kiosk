@@ -1,10 +1,10 @@
 package views
 
 import (
+	"charm.land/log/v2"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/charmbracelet/log"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
@@ -180,7 +180,7 @@ func getLatestRelease(owner, repo string) (string, string) {
 
 	link = fmt.Sprintf("https://github.com/%s/%s/releases/tag/%s", owner, repo, release.TagName)
 
-	cache.Set(url, release, 0)
+	cache.Set(url, release, 0, 0)
 
 	return release.TagName, link
 }

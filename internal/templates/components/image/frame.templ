@@ -28,12 +28,18 @@ templ frame() {
 }
 
 // smartZoom calculates the transform origin for an image based on detected faces.
-// For source.DisplayAsset only People count is available; face center is not, so a random origin is used when people exist.
 func smartZoom(image source.DisplayAsset) templ.CSSClass {
-	if len(image.People) == 0 {
+	if image.FaceCenterX == 0 || image.FaceCenterY == 0 {
 		return transformOrigin(fmt.Sprintf("%s%% %s%%", utils.RandomItem([]string{"30", "70"}), utils.RandomItem([]string{"30", "70"})))
 	}
-	return transformOrigin(fmt.Sprintf("%s%% %s%%", utils.RandomItem([]string{"30", "70"}), utils.RandomItem([]string{"30", "70"})))
+	return transformOrigin(fmt.Sprintf("%f%% %f%%", image.FaceCenterX, image.FaceCenterY))
+}
+
+func smartCover(image source.DisplayAsset) templ.CSSClass {
+	if image.FaceCenterX == 0 || image.FaceCenterY == 0 {
+		return transformOrigin("center")
+	}
+	return transformOrigin(fmt.Sprintf("%f%% %f%%", image.FaceCenterX, image.FaceCenterY))
 }
 
 // frameWithZoom is a template function that renders a frame with zoom effect for an image.

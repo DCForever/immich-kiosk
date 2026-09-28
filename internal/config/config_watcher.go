@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 )
 
 // WatchConfig sets up a configuration file watcher that monitors for changes
@@ -88,6 +88,8 @@ func (c *Config) reloadConfig(reason string) {
 	log.Infof("Config file %s, reloading config", reason)
 
 	newConfig := New()
+
+	newConfig.SystemLang = c.SystemLang
 
 	if err := newConfig.Load(); err != nil {
 		log.Error("Reloading config:", err)

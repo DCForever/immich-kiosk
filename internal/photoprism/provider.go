@@ -1,7 +1,7 @@
-// Package photoprism provider implements source.ProviderOps for PhotoPrism.
-// People (subjects) are supported via search filters person:"Name" and people:"A & B";
-// AllNamedPeople and RandomPersonFromAllPeople use GET /api/v1/subjects when available.
-// Memories and mutations (AddTag, FavouriteStatus, etc.) are no-ops or best-effort where the API supports them.
+// Package photoprism implements source.ProviderOps for stock PhotoPrism /api/v1.
+// People use GET /api/v1/subjects?type=person and the search filters person:, people:, and face:.
+// Memories are a collage over taken/after/before search. PhotoPrism has no memories API.
+// Like, hide, tag, archive, and rating writes are no-ops. Birth dates come from the kiosk mapping.
 package photoprism
 
 import (
@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/birthdate"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/config"
@@ -23,20 +23,6 @@ import (
 )
 
 const cacheBatchSize = 30
-
-// buildPersonSearchQuery returns PhotoPrism search q value for person/people filter.
-// For RequireAllPeople with multiple config people uses people:"A & B"; else person:"name".
-// Names with double quotes are escaped for the search query.
-func buildPersonSearchQuery(cfg config.Config, singlePersonID string) string {
-	if cfg.RequireAllPeople && len(cfg.People) > 1 {
-		escaped := make([]string, 0, len(cfg.People))
-		for _, name := range cfg.People {
-			escaped = append(escaped, strings.ReplaceAll(name, `"`, `\"`))
-		}
-		return `people:"` + strings.Join(escaped, " & ") + `"`
-	}
-	return `person:"` + strings.ReplaceAll(singlePersonID, `"`, `\"`) + `"`
-}
 
 // cachedPhotoBatch is stored in cache (JSON) to reuse API responses.
 type cachedPhotoBatch struct {
@@ -78,12 +64,24 @@ func NewProvider(ctx context.Context, cfg config.Config) source.ProviderOps {
 			birthdateLoader = loader
 		}
 	}
+	client := NewClient(cfg.PhotoprismURL, cfg.PhotoprismToken)
+	if version, probed := client.lookupVersion(ctx); probed {
+		logPhotoPrismVersion(version)
+	}
 	return &Provider{
-		client:          NewClient(cfg.PhotoprismURL, cfg.PhotoprismToken),
+		client:          client,
 		cfg:             cfg,
 		ctx:             ctx,
 		birthdateLoader: birthdateLoader,
 	}
+}
+
+func logPhotoPrismVersion(version string) {
+	if version != "" {
+		log.Debug("photoprism: server version", "version", version)
+		return
+	}
+	log.Debug("photoprism: version unknown; continuing")
 }
 
 func (p *Provider) photosQuery(count int, order string, albumUID string, searchQ string) url.Values {
@@ -111,6 +109,7 @@ func (p *Provider) fetchPhotos(albumUID string, order string, count int, searchQ
 	if err != nil {
 		return nil, "", "", err
 	}
+	list = compactPhotos(list)
 	preview := headers["x-preview-token"]
 	download := headers["x-download-token"]
 	if p.cfg.Kiosk.Debug && len(list) > 0 {
@@ -169,7 +168,7 @@ func (p *Provider) fetchPhotosWithCache(albumUID, order, label, dateFilter, pers
 							DownloadToken: batch.DownloadToken,
 						}
 						jsonBytes, _ := json.Marshal(rest)
-						cache.Set(cacheKey, jsonBytes, p.cfg.Duration)
+						cache.Set(cacheKey, jsonBytes, p.cfg.Duration, p.cfg.CacheDuration)
 					} else {
 						cache.Delete(cacheKey)
 					}
@@ -200,7 +199,7 @@ func (p *Provider) fetchPhotosWithCache(albumUID, order, label, dateFilter, pers
 			DownloadToken: download,
 		}
 		jsonBytes, _ := json.Marshal(rest)
-		cache.Set(cacheKey, jsonBytes, p.cfg.Duration)
+		cache.Set(cacheKey, jsonBytes, p.cfg.Duration, p.cfg.CacheDuration)
 	}
 	p.enrichCurrentPhotoWithMarkers()
 	return nil
@@ -395,9 +394,10 @@ func (p *Provider) RandomAssetOfPerson(personID, requestID, deviceID string, isP
 	return nil
 }
 
-// RandomMemoryAsset is not supported by PhotoPrism.
+// RandomMemoryAsset is unsupported. PhotoPrism has no memories endpoint.
+// Memories are served as a collage through MemoriesCollage.
 func (p *Provider) RandomMemoryAsset(requestID, deviceID string) error {
-	return fmt.Errorf("photoprism: memories not supported")
+	return source.ErrMemoriesNotSupported
 }
 
 const (
@@ -492,8 +492,8 @@ func (p *Provider) memoriesCollageExact(requestID, deviceID string) (source.Memo
 
 		return source.MemoriesCollage{
 			Year:      year,
-			Assets:   displayAssets,
-			YearsAgo: yearsAgo,
+			Assets:    displayAssets,
+			YearsAgo:  yearsAgo,
 			TimeRange: source.TimeRangeExactDate,
 		}, nil
 	}
@@ -575,8 +575,8 @@ func (p *Provider) memoriesCollageWeek(requestID, deviceID string) (source.Memor
 
 		return source.MemoriesCollage{
 			Year:      year,
-			Assets:   displayAssets,
-			YearsAgo: yearsAgo,
+			Assets:    displayAssets,
+			YearsAgo:  yearsAgo,
 			TimeRange: source.TimeRangeWeek,
 		}, nil
 	}
@@ -658,8 +658,8 @@ func (p *Provider) memoriesCollageMonth(requestID, deviceID string) (source.Memo
 
 		return source.MemoriesCollage{
 			Year:      year,
-			Assets:   displayAssets,
-			YearsAgo: yearsAgo,
+			Assets:    displayAssets,
+			YearsAgo:  yearsAgo,
 			TimeRange: source.TimeRangeMonth,
 		}, nil
 	}
@@ -732,22 +732,22 @@ func (p *Provider) photoToDisplayAsset(ph *Photo, bucket kiosk.Source, bucketID 
 	}
 	exif := source.ExifInfo{
 		Description:      ph.Description,
-		DateTimeOriginal:  ph.TakenAt,
-		Make:              ph.CameraMake,
-		Model:             ph.CameraModel,
-		LensModel:         ph.LensModel,
-		Iso:               ph.Iso,
-		FocalLength:       float64(ph.FocalLength),
-		FNumber:           ph.FNumber,
-		ExposureTime:      ph.Exposure,
-		ExifImageWidth:    ph.Width,
-		ExifImageHeight:   ph.Height,
-		Latitude:          ph.Lat,
-		Longitude:         ph.Lng,
-		City:              ph.PlaceCity,
-		State:             ph.PlaceState,
-		Country:           ph.PlaceCountry,
-		TimeZone:          ph.TimeZone,
+		DateTimeOriginal: ph.TakenAt,
+		Make:             ph.CameraMake,
+		Model:            ph.CameraModel,
+		LensModel:        ph.LensModel,
+		Iso:              ph.Iso,
+		FocalLength:      float64(ph.FocalLength),
+		FNumber:          ph.FNumber,
+		ExposureTime:     ph.Exposure,
+		ExifImageWidth:   ph.Width,
+		ExifImageHeight:  ph.Height,
+		Latitude:         ph.Lat,
+		Longitude:        ph.Lng,
+		City:             ph.PlaceCity,
+		State:            ph.PlaceState,
+		Country:          ph.PlaceCountry,
+		TimeZone:         ph.TimeZone,
 	}
 	people := photoMarkersToPeople(ph)
 	if p.birthdateLoader != nil {
@@ -822,15 +822,12 @@ func (p *Provider) PersonAssetCount(personID, requestID, deviceID string) (int, 
 }
 
 func (p *Provider) AlbumImageCount(albumID, requestID, deviceID string) (int, error) {
-	// GET /api/v1/albums?count=1&uid=albumID or list and find
-	q := url.Values{}
-	q.Set("count", "500")
 	var list []Album
-	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", q, &list)
+	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", stockAlbumsQuery(), &list)
 	if err != nil {
 		return 0, err
 	}
-	for _, a := range list {
+	for _, a := range regularAlbums(list) {
 		if a.UID == albumID || a.Title == albumID {
 			return a.PhotoCount, nil
 		}
@@ -859,10 +856,8 @@ func (p *Provider) AssetsWithRatingCount(rating float32, requestID, deviceID str
 }
 
 func (p *Provider) RandomAlbumFromAllAlbums(requestID, deviceID string, excludedAlbums []string) (string, error) {
-	q := url.Values{}
-	q.Set("count", "500")
 	var list []Album
-	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", q, &list)
+	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", stockAlbumsQuery(), &list)
 	if err != nil {
 		return "", err
 	}
@@ -871,7 +866,7 @@ func (p *Provider) RandomAlbumFromAllAlbums(requestID, deviceID string, excluded
 		excl[id] = struct{}{}
 	}
 	var candidates []Album
-	for _, a := range list {
+	for _, a := range regularAlbums(list) {
 		if a.PhotoCount <= 0 {
 			continue
 		}
@@ -891,9 +886,11 @@ func (p *Provider) RandomAlbumFromAllAlbums(requestID, deviceID string, excluded
 }
 
 func (p *Provider) RandomAlbumFromOwnedAlbums(requestID, deviceID string, excludedAlbums []string) (string, error) {
+	// Stock PhotoPrism has no separate owned-album feed for this client. Use all albums.
 	return p.RandomAlbumFromAllAlbums(requestID, deviceID, excludedAlbums)
 }
 func (p *Provider) RandomAlbumFromSharedAlbums(requestID, deviceID string, excludedAlbums []string) (string, error) {
+	// Stock PhotoPrism has no separate shared-album feed for this client. Use all albums.
 	return p.RandomAlbumFromAllAlbums(requestID, deviceID, excludedAlbums)
 }
 
@@ -927,11 +924,7 @@ func (p *Provider) AllTags(requestID, deviceID string) (source.Tags, string, err
 	// PhotoPrism labels: GET /api/v1/labels
 	q := url.Values{}
 	q.Set("count", "500")
-	var list []struct {
-		UID  string `json:"UID"`
-		Name string `json:"Name"`
-		Slug string `json:"Slug"`
-	}
+	var list []Label
 	_, err := p.client.getJSON(p.ctx, apiPrefix+"/labels", q, &list)
 	if err != nil {
 		return nil, "", err
@@ -952,9 +945,10 @@ func (p *Provider) ExpandTagPatterns(tags []string, requestID, deviceID string) 
 }
 
 func (p *Provider) AllNamedPeople(requestID, deviceID string) ([]source.Person, error) {
-	// Try GET /api/v1/subjects; if the endpoint does not exist or fails, return empty (URL builder people dropdown stays empty).
+	// GET /api/v1/subjects?type=person. A missing endpoint leaves the people dropdown empty.
 	q := url.Values{}
 	q.Set("count", "500")
+	q.Set("type", "person")
 	var list []Subject
 	_, err := p.client.getJSON(p.ctx, apiPrefix+"/subjects", q, &list)
 	if err != nil {
@@ -962,64 +956,50 @@ func (p *Provider) AllNamedPeople(requestID, deviceID string) ([]source.Person, 
 	}
 	out := make([]source.Person, 0, len(list))
 	for _, s := range list {
-		name := strings.TrimSpace(s.Name)
-		if name == "" {
+		person, ok := p.personFromSubject(s)
+		if !ok {
 			continue
 		}
-		out = append(out, source.Person{
-			ID:        s.UID,
-			Name:      name,
-			BirthDate: source.BirthDate(s.BirthDate),
-		})
+		out = append(out, person)
 	}
 	return out, nil
 }
 
+func (p *Provider) personFromSubject(s Subject) (source.Person, bool) {
+	if t := strings.ToLower(strings.TrimSpace(s.Type)); t != "" && t != "person" {
+		return source.Person{}, false
+	}
+	name := strings.TrimSpace(s.Name)
+	if name == "" {
+		return source.Person{}, false
+	}
+	person := source.Person{ID: s.UID, Name: name}
+	if p.birthdateLoader != nil {
+		if dob := p.birthdateLoader.Lookup(s.UID, name); dob != "" {
+			person.BirthDate = source.BirthDate(dob)
+		}
+	}
+	return person, true
+}
+
 func (p *Provider) AllAlbums(requestID, deviceID string) (source.Albums, error) {
-	q := url.Values{}
-	q.Set("count", "500")
 	var list []Album
-	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", q, &list)
+	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", stockAlbumsQuery(), &list)
 	if err != nil {
 		return nil, err
 	}
-	out := make(source.Albums, len(list))
-	for i, a := range list {
+	albums := regularAlbums(list)
+	out := make(source.Albums, len(albums))
+	for i, a := range albums {
 		out[i] = source.Album{ID: a.UID, AlbumName: a.Title}
 	}
 	return out, nil
 }
 
-func (p *Provider) ImagePreview() ([]byte, string, error) {
-	ph := p.currentPhoto()
-	if ph == nil {
-		return nil, "", fmt.Errorf("photoprism: no current photo")
-	}
-	token := p.previewToken
-	if token == "" {
-		token = "public"
-	}
-	path := fmt.Sprintf("%s/t/%s/%s/fit_720", apiPrefix, ph.PrimaryHash(), token)
-	return p.client.getBytes(p.ctx, path)
-}
-
-func (p *Provider) Video() ([]byte, string, error) {
-	ph := p.currentPhoto()
-	if ph == nil || !strings.EqualFold(ph.Type, "video") {
-		return nil, "", fmt.Errorf("photoprism: no current video")
-	}
-	token := p.previewToken
-	if token == "" {
-		token = "public"
-	}
-	path := fmt.Sprintf("%s/videos/%s/%s/avc", apiPrefix, ph.PrimaryHash(), token)
-	return p.client.getBytes(p.ctx, path)
-}
-
-func (p *Provider) AddTag(tag source.Tag) error       { return nil }
-func (p *Provider) RemoveTag(tag source.Tag) error   { return nil }
-func (p *Provider) FavouriteStatus(deviceID string, favourite bool) error { return nil }
-func (p *Provider) AddToKioskLikedAlbum(requestID, deviceID string) error { return nil }
+func (p *Provider) AddTag(tag source.Tag) error                                { return nil }
+func (p *Provider) RemoveTag(tag source.Tag) error                             { return nil }
+func (p *Provider) FavouriteStatus(deviceID string, favourite bool) error      { return nil }
+func (p *Provider) AddToKioskLikedAlbum(requestID, deviceID string) error      { return nil }
 func (p *Provider) RemoveFromKioskLikedAlbum(requestID, deviceID string) error { return nil }
-func (p *Provider) ArchiveStatus(deviceID string, archive bool) error { return nil }
-func (p *Provider) RemoveAssetCache(deviceID string) error { return nil }
+func (p *Provider) ArchiveStatus(deviceID string, archive bool) error          { return nil }
+func (p *Provider) RemoveAssetCache(deviceID string) error                     { return nil }

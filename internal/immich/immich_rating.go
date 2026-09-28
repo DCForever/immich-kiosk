@@ -1,23 +1,19 @@
 package immich
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
-	"github.com/google/go-querystring/query"
 )
 
 func (a *Asset) AssetsWithRatingCount(rating float32, requestID, deviceID string) (int, error) {
-
 	var totalAssetsCount int
 
 	u, err := url.Parse(a.requestConfig.ImmichURL)
@@ -26,85 +22,54 @@ func (a *Asset) AssetsWithRatingCount(rating float32, requestID, deviceID string
 		return totalAssetsCount, err
 	}
 
+	filter := NewSearchFilterBuilder().
+		WithVideos(a.requestConfig.ShowVideos).
+		WithRating(&rating).
+		WithArchived(a.requestConfig.ShowArchived).
+		ExcludePeople(a.requestConfig.ExcludedPeople).
+		ExcludeAlbums(a.requestConfig.ExcludedAlbums).
+		ExcludeTags(a.requestConfig.ExcludedTags).
+		WithFilterDate(a.requestConfig.FilterDate).
+		WithFilterFavorites(a.requestConfig.FilterFavorites).
+		Build()
+
 	requestBody := SearchRandomBody{
-		Type:       string(ImageType),
-		Rating:     &rating,
+		Filter:     filter,
 		WithPeople: false,
 		WithExif:   false,
 		Size:       a.requestConfig.Kiosk.FetchedAssetsSize,
 	}
 
-	// Include videos if show videos is enabled
-	if a.requestConfig.ShowVideos {
-		requestBody.Type = ""
-	}
-
-	if a.requestConfig.ShowArchived {
-		requestBody.WithArchived = true
-	}
-
-	DateFilter(&requestBody, a.requestConfig.DateFilter)
-
-	allAssetsCount, assetsErr := a.fetchPaginatedMetadata(u, requestBody, requestID, deviceID)
+	res, assetsErr := a.fetchPaginatedMetadata(u, requestBody, requestID, deviceID)
 	if assetsErr != nil {
 		return totalAssetsCount, assetsErr
 	}
 
-	totalAssetsCount += allAssetsCount
+	totalAssetsCount += len(res.Assets)
 
 	return totalAssetsCount, nil
 }
 
 func (a *Asset) AssetsWithRating(rating float32, requestID, deviceID string) ([]Asset, string, error) {
-
-	var immichAssets []Asset
-
-	u, err := url.Parse(a.requestConfig.ImmichURL)
-	if err != nil {
-		return immichAPIFail(immichAssets, err, nil, "")
-	}
+	filter := NewSearchFilterBuilder().
+		WithVideos(a.requestConfig.ShowVideos).
+		WithRating(&rating).
+		WithArchived(a.requestConfig.ShowArchived).
+		ExcludePeople(a.requestConfig.ExcludedPeople).
+		ExcludeAlbums(a.requestConfig.ExcludedAlbums).
+		ExcludeTags(a.requestConfig.ExcludedTags).
+		WithFilterDate(a.requestConfig.FilterDate).
+		WithFilterFavorites(a.requestConfig.FilterFavorites).
+		Build()
 
 	requestBody := SearchRandomBody{
-		Type:       string(ImageType),
-		Rating:     &rating,
+		Filter:     filter,
 		WithExif:   true,
 		WithPeople: true,
 		Size:       a.requestConfig.Kiosk.FetchedAssetsSize,
 	}
 
-	// Include videos if show videos is enabled
-	if a.requestConfig.ShowVideos {
-		requestBody.Type = ""
-	}
-
-	if a.requestConfig.ShowArchived {
-		requestBody.WithArchived = true
-	}
-
-	DateFilter(&requestBody, a.requestConfig.DateFilter)
-
-	// convert body to queries so url is unique and can be cached
-	queries, _ := query.Values(requestBody)
-
-	apiURL := url.URL{
-		Scheme:   u.Scheme,
-		Host:     u.Host,
-		Path:     "api/search/random",
-		RawQuery: fmt.Sprintf("kiosk=%x", sha256.Sum256([]byte(queries.Encode()))),
-	}
-
-	jsonBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return immichAPIFail(immichAssets, err, nil, apiURL.String())
-	}
-
-	immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, immichAssets)
-	apiBody, _, err := immichAPICall(a.ctx, http.MethodPost, apiURL.String(), jsonBody)
-	if err != nil {
-		return immichAPIFail(immichAssets, err, nil, apiURL.String())
-	}
-
-	err = json.Unmarshal(apiBody, &immichAssets)
+	immichAssets, apiURL, err := a.fetchAssets(requestID, deviceID, requestBody)
 	if err != nil {
 		return immichAPIFail(immichAssets, err, nil, apiURL.String())
 	}
@@ -113,7 +78,6 @@ func (a *Asset) AssetsWithRating(rating float32, requestID, deviceID string) ([]
 }
 
 func (a *Asset) RandomAssetWithRating(ratingID string, requestID, deviceID string, isPrefetch bool) error {
-
 	_, ratingStr, ok := strings.Cut(ratingID, "-")
 	if !ok {
 		return fmt.Errorf("invalid rating format (cut): %s", ratingID)
@@ -178,7 +142,7 @@ func (a *Asset) RandomAssetWithRating(ratingID string, requestID, deviceID strin
 				}
 
 				// replace cache with used asset(s) removed
-				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration)
+				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration, a.requestConfig.CacheDuration)
 			}
 
 			asset.BucketID = fmt.Sprintf("rating-%.2f", rating)
@@ -193,4 +157,14 @@ func (a *Asset) RandomAssetWithRating(ratingID string, requestID, deviceID strin
 	}
 
 	return fmt.Errorf("no assets found with rating '%.2f'. Max retries reached", rating)
+}
+
+func (a *Asset) UpdateRating(deviceID string, rating int) error {
+	body := UpdateAssetBody{
+		Rating:     rating,
+		IsFavorite: a.IsFavorite,
+		IsArchived: a.IsArchived,
+	}
+
+	return a.updateAsset(deviceID, body)
 }

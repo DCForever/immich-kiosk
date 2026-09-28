@@ -10,8 +10,10 @@ import (
 	"context"
 	"crypto/subtle"
 	"embed"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -19,7 +21,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/goodsign/monday"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
@@ -31,9 +33,16 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/i18n"
 	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/routes"
+	"github.com/damongolding/immich-kiosk/internal/templates/partials"
 	"github.com/damongolding/immich-kiosk/internal/utils"
 	"github.com/damongolding/immich-kiosk/internal/video"
 	"github.com/damongolding/immich-kiosk/internal/weather"
+)
+
+const (
+	supportedImmichVersionMajor = 3
+	supportedImmichVersionMinor = 2
+	supportedImmichVersionPatch = 0
 )
 
 // version current build version number
@@ -55,10 +64,22 @@ func init() {
 	}
 	config.SchemaJSON = SchemaJSON
 	i18n.LocaleFS = localeFS
+
+	bg, err := public.ReadFile("frontend/public/assets/images/noise-lite.png")
+	if err != nil {
+		log.Error(err)
+	}
+	partials.BGNoiseURI = fmt.Sprintf(
+		"data:image/png;base64,%s",
+		base64.StdEncoding.EncodeToString(bg),
+	)
 }
 
 // main initializes and starts the Immich Kiosk web server, sets up configuration, middleware, routes, and manages graceful shutdown.
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--healthcheck" {
+		os.Exit(healthCheck())
+	}
 
 	var logLevel log.Level
 	setLogLevel(&logLevel)
@@ -97,7 +118,7 @@ func main() {
 
 	configErr := baseConfig.Load()
 	if configErr != nil {
-		log.Error("Failed to load config", "err", configErr)
+		log.Fatal("Failed to load config", "err", configErr)
 	}
 
 	if baseConfig.Kiosk.DemoMode {
@@ -105,9 +126,16 @@ func main() {
 		cache.DemoMode = true
 	}
 
-	cache.Initialize()
+	var immichVersion string
+	var versionOK bool
+	immichVersion, versionOK = versionCheck(c.Context(), baseConfig.ImmichURL)
+	if !versionOK {
+		os.Exit(1)
+	}
 
 	immich.HTTPClient.Timeout = time.Second * time.Duration(baseConfig.Kiosk.HTTPTimeout)
+
+	cache.Initialize()
 
 	videoManager, videoManagerErr := video.New(c.Context())
 	if videoManagerErr != nil {
@@ -151,12 +179,14 @@ func main() {
 	e.FileFS("/assets/js/kiosk.*.js", "frontend/public/assets/js/kiosk.js", public, StaticCacheMiddlewareWithConfig(baseConfig))
 	e.FileFS("/assets/js/url-builder.*.js", "frontend/public/assets/js/url-builder.js", public, StaticCacheMiddlewareWithConfig(baseConfig))
 
+	e.GET("/assets/js/sw.js", routes.ServiceWorker(baseConfig, public))
+
 	// serve embdedd staic assets
 	e.StaticFS("/assets", echo.MustSubFS(public, "frontend/public/assets"))
 
 	if !baseConfig.Kiosk.DisableConfigEndpoint {
 		e.GET("/config", func(c *echo.Context) error {
-			return c.String(http.StatusOK, baseConfig.SanitizedYaml())
+			return c.String(http.StatusOK, baseConfig.SanitizedYaml(immichVersion))
 		})
 	}
 
@@ -165,6 +195,8 @@ func main() {
 	e.GET("/health", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
+
+	e.GET("/recover", routes.Recovering(baseConfig, &public))
 
 	if baseConfig.Kiosk.EnableURLBuilder {
 		e.GET("/url-builder", routes.URLBuilderPage(baseConfig, c, false))
@@ -192,6 +224,9 @@ func main() {
 
 	e.POST("/asset/tag", routes.TagAsset(baseConfig, c))
 
+	e.POST("/asset/rating", routes.RatingAsset(baseConfig, c))
+	e.POST("/asset/rating/clear", routes.ClearRatingAsset(baseConfig, c))
+
 	e.POST("/asset/like", routes.LikeAsset(baseConfig, c, true))
 	e.POST("/asset/unlike", routes.LikeAsset(baseConfig, c, false))
 
@@ -207,7 +242,7 @@ func main() {
 
 	e.GET("/sleep", routes.Sleep(baseConfig))
 
-	e.GET("/cache/flush", routes.FlushCache(baseConfig, c))
+	e.Match([]string{http.MethodGet, http.MethodPost}, "/cache/flush", routes.FlushCache(baseConfig, c))
 
 	e.POST("/refresh/check", routes.RefreshCheck(baseConfig))
 
@@ -218,13 +253,10 @@ func main() {
 	e.GET("/video/:videoID", routes.NewVideo(baseConfig.Kiosk.DemoMode), AssetCacheMiddlewareWithConfig(baseConfig))
 
 	e.GET("/:redirect", routes.Redirect(baseConfig, c))
+	e.GET("/redirects/albums", routes.AlbumRedirects(baseConfig, c))
 
 	for _, w := range baseConfig.Weather.Locations {
-		if w.Forecast {
-			go weather.AddWeatherLocationWithForecast(c.Context(), w)
-		} else {
-			go weather.AddWeatherLocation(c.Context(), w)
-		}
+		go weather.AddWeatherLocationWithForecast(c.Context(), w)
 	}
 
 	if logLevel == log.ErrorLevel || logLevel == log.WarnLevel {
@@ -279,7 +311,7 @@ func addMiddleware(e *echo.Echo, baseConfig *config.Config) {
 				path := c.Request().URL.Path
 				return strings.HasPrefix(path, "/assets/") || path == "/health" || path == "/favicon.ico"
 			},
-			KeyLookup: "header:Authorization,header:X-Api-Key,query:authsecret,query:password,form:authsecret,form:password",
+			KeyLookup: "header:Authorization:Bearer ,header:X-Api-Key,query:authsecret,query:password,form:authsecret,form:password",
 			Validator: func(c *echo.Context, key string, _ middleware.ExtractorSource) (bool, error) {
 				if subtle.ConstantTimeCompare([]byte(key), []byte(baseConfig.Kiosk.Password)) == 1 {
 					return true, nil
@@ -335,7 +367,6 @@ func NoCacheMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 // Middleware for static routes with access to baseConfig
 func StaticCacheMiddlewareWithConfig(baseConfig *config.Config) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-
 		if baseConfig.Kiosk.Debug || baseConfig.Kiosk.DebugVerbose {
 			return NoCacheMiddleware(next)
 		}
@@ -350,7 +381,6 @@ func StaticCacheMiddlewareWithConfig(baseConfig *config.Config) echo.MiddlewareF
 // Middleware for asset(s) routes with access to baseConfig
 func AssetCacheMiddlewareWithConfig(baseConfig *config.Config) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-
 		if baseConfig.Kiosk.Debug || baseConfig.Kiosk.DebugVerbose {
 			return NoCacheMiddleware(next)
 		}
@@ -360,4 +390,70 @@ func AssetCacheMiddlewareWithConfig(baseConfig *config.Config) echo.MiddlewareFu
 			return next(c)
 		}
 	}
+}
+
+func healthCheck() int {
+	port := os.Getenv("KIOSK_PORT")
+	if port == "" {
+		port = "3000"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://localhost:%s/health", port), nil)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "FAIL")
+		return 1
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "FAIL")
+		return 1
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "FAIL")
+		return 1
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintln(os.Stderr, "FAIL")
+		return 1
+	}
+
+	fmt.Println(string(body))
+
+	if resp.StatusCode != http.StatusOK {
+		return 1
+	}
+
+	return 0
+}
+
+func versionCheck(c context.Context, immichURL string) (string, bool) {
+	immich.HTTPClient.Timeout = time.Second * 20
+	immichVersion, immichVersionErr := immich.Version(c, immichURL)
+	var iv string
+	if immichVersionErr != nil {
+		log.Error("Failed to get Immich version. Skipping version check.", "err", immichVersionErr)
+	} else {
+		sv := fmt.Sprintf("%d.%d.%d", supportedImmichVersionMajor, supportedImmichVersionMinor, supportedImmichVersionPatch)
+		iv = fmt.Sprintf("%d.%d.%d", immichVersion.Major, immichVersion.Minor, immichVersion.Patch)
+
+		unsupported := immichVersion.Major < supportedImmichVersionMajor ||
+			(immichVersion.Major == supportedImmichVersionMajor && immichVersion.Minor < supportedImmichVersionMinor) ||
+			(immichVersion.Major == supportedImmichVersionMajor && immichVersion.Minor == supportedImmichVersionMinor && immichVersion.Patch < supportedImmichVersionPatch)
+
+		if unsupported {
+			log.Error("Immich version not supported", "Immich version", iv, "supported version", sv)
+			return iv, false
+		}
+	}
+
+	return iv, true
 }

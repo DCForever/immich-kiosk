@@ -1,7 +1,6 @@
 package immich
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,10 +10,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
-	"github.com/google/go-querystring/query"
 )
 
 type Tags []Tag
@@ -23,7 +21,6 @@ type Tags []Tag
 // Returns the matching Tag and nil error if found, or empty Tag and error if not found.
 // The tagValue parameter can be either the tag's text value or ID.
 func (t Tags) Get(tagValue string) (Tag, error) {
-
 	tagValue, err := url.PathUnescape(tagValue)
 	if err != nil {
 		return Tag{}, err
@@ -56,7 +53,7 @@ func (a *Asset) AllTags(requestID, deviceID string) (Tags, string, error) {
 	}
 
 	immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, tags)
-	body, _, err := immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
+	body, _, _, err := immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
 	if err != nil {
 		return immichAPIFail(tags, err, body, apiURL.String())
 	}
@@ -73,7 +70,6 @@ func (a *Asset) AllTags(requestID, deviceID string) (Tags, string, error) {
 // The tagID parameter is the unique identifier of the tag to count assets for.
 // The requestID and deviceID are used for caching and logging purposes.
 func (a *Asset) AssetsWithTagCount(tagID string, requestID, deviceID string) (int, error) {
-
 	var totalAssetsCount int
 
 	u, err := url.Parse(a.requestConfig.ImmichURL)
@@ -82,31 +78,30 @@ func (a *Asset) AssetsWithTagCount(tagID string, requestID, deviceID string) (in
 		return totalAssetsCount, err
 	}
 
+	filter := NewSearchFilterBuilder().
+		WithVideos(a.requestConfig.ShowVideos).
+		WithTagsAll(tagID).
+		WithArchived(a.requestConfig.ShowArchived).
+		ExcludePeople(a.requestConfig.ExcludedPeople).
+		ExcludeAlbums(a.requestConfig.ExcludedAlbums).
+		ExcludeTags(a.requestConfig.ExcludedTags).
+		WithFilterDate(a.requestConfig.FilterDate).
+		WithFilterFavorites(a.requestConfig.FilterFavorites).
+		Build()
+
 	requestBody := SearchRandomBody{
-		Type:       string(ImageType),
-		TagIDs:     []string{tagID},
+		Filter:     filter,
 		WithPeople: false,
 		WithExif:   false,
 		Size:       a.requestConfig.Kiosk.FetchedAssetsSize,
 	}
 
-	// Include videos if show videos is enabled
-	if a.requestConfig.ShowVideos {
-		requestBody.Type = ""
-	}
-
-	if a.requestConfig.ShowArchived {
-		requestBody.WithArchived = true
-	}
-
-	DateFilter(&requestBody, a.requestConfig.DateFilter)
-
-	allAssetsCount, assetsErr := a.fetchPaginatedMetadata(u, requestBody, requestID, deviceID)
+	res, assetsErr := a.fetchPaginatedMetadata(u, requestBody, requestID, deviceID)
 	if assetsErr != nil {
 		return totalAssetsCount, assetsErr
 	}
 
-	totalAssetsCount += allAssetsCount
+	totalAssetsCount += len(res.Assets)
 
 	return totalAssetsCount, nil
 }
@@ -116,55 +111,25 @@ func (a *Asset) AssetsWithTagCount(tagID string, requestID, deviceID string) (in
 // The requestID and deviceID are used for caching and logging purposes.
 // It returns the list of assets, the API URL used, and any error encountered.
 func (a *Asset) AssetsWithTag(tagID string, requestID, deviceID string) ([]Asset, string, error) {
-
-	var immichAssets []Asset
-
-	u, err := url.Parse(a.requestConfig.ImmichURL)
-	if err != nil {
-		return immichAPIFail(immichAssets, err, nil, "")
-	}
+	filter := NewSearchFilterBuilder().
+		WithVideos(a.requestConfig.ShowVideos).
+		WithTagsAll(tagID).
+		WithArchived(a.requestConfig.ShowArchived).
+		ExcludePeople(a.requestConfig.ExcludedPeople).
+		ExcludeAlbums(a.requestConfig.ExcludedAlbums).
+		ExcludeTags(a.requestConfig.ExcludedTags).
+		WithFilterDate(a.requestConfig.FilterDate).
+		WithFilterFavorites(a.requestConfig.FilterFavorites).
+		Build()
 
 	requestBody := SearchRandomBody{
-		Type:       string(ImageType),
-		TagIDs:     []string{tagID},
+		Filter:     filter,
 		WithExif:   true,
 		WithPeople: true,
 		Size:       a.requestConfig.Kiosk.FetchedAssetsSize,
 	}
 
-	// Include videos if show videos is enabled
-	if a.requestConfig.ShowVideos {
-		requestBody.Type = ""
-	}
-
-	if a.requestConfig.ShowArchived {
-		requestBody.WithArchived = true
-	}
-
-	DateFilter(&requestBody, a.requestConfig.DateFilter)
-
-	// convert body to queries so url is unique and can be cached
-	queries, _ := query.Values(requestBody)
-
-	apiURL := url.URL{
-		Scheme:   u.Scheme,
-		Host:     u.Host,
-		Path:     "api/search/random",
-		RawQuery: fmt.Sprintf("kiosk=%x", sha256.Sum256([]byte(queries.Encode()))),
-	}
-
-	jsonBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return immichAPIFail(immichAssets, err, nil, apiURL.String())
-	}
-
-	immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, immichAssets)
-	apiBody, _, err := immichAPICall(a.ctx, http.MethodPost, apiURL.String(), jsonBody)
-	if err != nil {
-		return immichAPIFail(immichAssets, err, nil, apiURL.String())
-	}
-
-	err = json.Unmarshal(apiBody, &immichAssets)
+	immichAssets, apiURL, err := a.fetchAssets(requestID, deviceID, requestBody)
 	if err != nil {
 		return immichAPIFail(immichAssets, err, nil, apiURL.String())
 	}
@@ -178,7 +143,6 @@ func (a *Asset) AssetsWithTag(tagID string, requestID, deviceID string) ([]Asset
 // The isPrefetch parameter indicates if this is a prefetch request.
 // The method updates the receiver Asset with the randomly selected asset's data.
 func (a *Asset) RandomAssetWithTag(tagID string, requestID, deviceID string, isPrefetch bool) error {
-
 	if isPrefetch {
 		log.Debug(requestID, "PREFETCH", deviceID, "Getting Random asset with tag", "ID", tagID)
 	} else {
@@ -231,7 +195,7 @@ func (a *Asset) RandomAssetWithTag(tagID string, requestID, deviceID string, isP
 				}
 
 				// replace cache with used asset(s) removed
-				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration)
+				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration, a.requestConfig.CacheDuration)
 			}
 
 			asset.BucketID = tagID
@@ -298,7 +262,6 @@ func (a *Asset) RemoveTag(tag Tag) error {
 // It makes a PUT request to the tags API endpoint with the tag name.
 // Returns the created/existing tag and any error encountered.
 func (a *Asset) upsertTag(tag Tag) (Tag, error) {
-
 	var response UpsertTagResponse
 	var createdTag Tag
 
@@ -322,7 +285,7 @@ func (a *Asset) upsertTag(tag Tag) (Tag, error) {
 		return createdTag, fmt.Errorf("marshaling request body: %w", marshalErr)
 	}
 
-	apiBody, _, resErr := a.immichAPICall(a.ctx, http.MethodPut, apiURL.String(), jsonBody)
+	apiBody, _, _, resErr := a.immichAPICall(a.ctx, http.MethodPut, apiURL.String(), jsonBody)
 	if resErr != nil {
 		_, _, resErr = immichAPIFail(response, resErr, apiBody, apiURL.String())
 		log.Error("api call failed while creating tag", "error", resErr)
@@ -337,7 +300,7 @@ func (a *Asset) upsertTag(tag Tag) (Tag, error) {
 
 	if len(response) == 0 || (len(response) > 0 && response[0].ID == "") {
 		log.Error("failed to create tag", "response", response, "error", err)
-		return createdTag, errors.New("failed to create tag")
+		return createdTag, errors.New("create tag")
 	}
 
 	createdTag = Tag{
@@ -384,7 +347,7 @@ func (a *Asset) modifyTagAsset(tag Tag, assetID string, method string, action st
 		return fmt.Errorf("marshaling request body: %w", marshalErr)
 	}
 
-	apiBody, _, resErr := a.immichAPICall(a.ctx, method, apiURL.String(), jsonBody)
+	apiBody, _, _, resErr := a.immichAPICall(a.ctx, method, apiURL.String(), jsonBody)
 	if resErr != nil {
 		_, _, resErr = immichAPIFail(response, resErr, apiBody, apiURL.String())
 		log.Error("api failed to "+action+" tag to asset", "error", resErr)
@@ -398,11 +361,11 @@ func (a *Asset) modifyTagAsset(tag Tag, assetID string, method string, action st
 	}
 
 	if len(response) == 0 {
-		return fmt.Errorf("failed to "+action+" tag from asset: %s", tag.ID)
+		return fmt.Errorf(action+" tag from asset: %s", tag.ID)
 	}
 
 	if !response[0].Success {
-		return fmt.Errorf("failed to "+action+" tag from asset: %s", response[0].Error)
+		return fmt.Errorf(action+" tag from asset: %s", response[0].Error)
 	}
 
 	// remove asset data from cache as we've changed its tags

@@ -175,6 +175,13 @@ func TestBuildPersonSearchQuery(t *testing.T) {
 			t.Errorf("got %q", got)
 		}
 	})
+	t.Run("subject uid", func(t *testing.T) {
+		cfg := config.Config{}
+		got := buildPersonSearchQuery(cfg, "abcdefghijklmnop")
+		if got != "face:abcdefghijklmnop" {
+			t.Errorf("got %q", got)
+		}
+	})
 }
 
 func TestProvider_PersonAssetCount(t *testing.T) {
@@ -432,4 +439,57 @@ func TestPhotoMarkersToPeople(t *testing.T) {
 			t.Errorf("got[0].Name = %q, want s2", got[0].Name)
 		}
 	})
+}
+
+func TestProvider_AllAlbums_typeAlbum(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("type") != "album" {
+			t.Errorf("type = %q", r.URL.Query().Get("type"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]Album{
+			{UID: "a1", Title: "Trip", Type: "album", PhotoCount: 4},
+			{UID: "f1", Title: "Folders", Type: "folder", PhotoCount: 9},
+		})
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "t")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: config.Config{}, ctx: context.Background()}
+	albums, err := p.AllAlbums("req", "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(albums) != 1 || albums[0].ID != "a1" {
+		t.Fatalf("albums = %+v", albums)
+	}
+}
+
+func TestProvider_AllNamedPeople_stockSubjects(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("type") != "person" {
+			t.Errorf("type = %q", r.URL.Query().Get("type"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[
+			{"UID":"abcdefghijklmnop","Name":"Ada","Type":"person","BirthDate":"1990-01-01"},
+			{"UID":"qrstuvwxyz234567","Name":"Spot","Type":"pet"}
+		]`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "t")
+	client.HTTPClient = server.Client()
+	p := &Provider{client: client, cfg: config.Config{}, ctx: context.Background()}
+	people, err := p.AllNamedPeople("req", "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(people) != 1 {
+		t.Fatalf("people = %+v", people)
+	}
+	if people[0].Name != "Ada" || people[0].BirthDate != "" {
+		t.Fatalf("people[0] = %+v", people[0])
+	}
 }

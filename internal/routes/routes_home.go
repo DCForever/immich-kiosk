@@ -4,11 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
-	"os"
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/labstack/echo/v5"
 
 	"github.com/damongolding/immich-kiosk/internal/common"
@@ -21,7 +20,6 @@ import (
 // Home returns an HTTP handler for the home endpoint, initializing request data, applying custom CSS if available, and rendering the home view with device identification and configuration context.
 func Home(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		c.SetCookie(&http.Cookie{
 			Name:   redirectCountHeader,
 			MaxAge: -1,
@@ -57,7 +55,7 @@ func Home(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 
 		var customCSS []byte
 
-		customCSS, err = loadCustomCSS()
+		customCSS, err = utils.LoadCustomCSS()
 		if err != nil {
 			log.Error("loading custom css", "err", err)
 		}
@@ -111,11 +109,4 @@ func generateDeviceID(c *echo.Context) string {
 	deviceID := hex.EncodeToString(hash[:])
 
 	return deviceID
-}
-
-func loadCustomCSS() ([]byte, error) {
-	if !utils.FileExists("./custom.css") {
-		return nil, nil
-	}
-	return os.ReadFile("./custom.css")
 }

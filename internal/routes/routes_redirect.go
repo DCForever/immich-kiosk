@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/templates/partials"
 	"github.com/damongolding/immich-kiosk/internal/utils"
 
 	"github.com/labstack/echo/v5"
@@ -19,9 +20,7 @@ import (
 // It manages redirect counts via cookies to prevent redirect loops, supports both internal and external redirects, and merges query parameters as needed.
 // If the redirect name is not found, it redirects to the root path. If the maximum number of redirects is exceeded, it returns HTTP 429.
 func Redirect(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
-
 	return func(c *echo.Context) error {
-
 		if baseConfig.Kiosk.DisableURLQueries {
 			log.Warn("URL query overrides disabled, redirecting to root")
 			homeURL, _ := url.Parse("/")
@@ -63,7 +62,7 @@ func Redirect(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusBadRequest, "Redirect name is required")
 		}
 
-		if redirectItem, exists := baseConfig.Kiosk.RedirectsMap[redirectName]; exists {
+		if redirectItem, exists := baseConfig.RedirectsMap[redirectName]; exists {
 
 			if strings.EqualFold(redirectItem.Type, kiosk.RedirectExternal) {
 				c.SetCookie(&http.Cookie{
@@ -120,7 +119,7 @@ func Redirect(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 // 1. Extracts queries from both the request and redirect URL
 // 2. Merges them using utils.MergeQueries
 // 3. Updates the redirect URL with the combined query string
-func mergeRequestQueries(requestQueries url.Values, redirectItem config.Redirect) config.Redirect {
+func mergeRequestQueries(requestQueries url.Values, redirectItem config.RedirectItem) config.RedirectItem {
 	redirectURL, err := url.Parse(redirectItem.URL)
 	if err != nil {
 		log.Error("parse redirect URL", "url", redirectItem.URL, "err", err)
@@ -135,4 +134,39 @@ func mergeRequestQueries(requestQueries url.Values, redirectItem config.Redirect
 	redirectItem.URL = redirectURL.String()
 
 	return redirectItem
+}
+
+func AlbumRedirects(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		requestData, err := InitializeRequestData(c, baseConfig)
+		if err != nil {
+			return err
+		}
+
+		if requestData == nil {
+			log.Info("Refreshing clients")
+			return nil
+		}
+
+		requestConfig := requestData.RequestConfig
+		requestID := requestData.RequestID
+
+		tabIndexStr := c.Request().URL.Query().Get("tabindex")
+		if tabIndexStr == "" {
+			tabIndexStr = "0"
+		}
+
+		tabIndex, err := strconv.Atoi(tabIndexStr)
+		if err != nil {
+			tabIndex = 0
+		}
+
+		log.Debug(
+			requestID,
+			"method", c.Request().Method,
+			"path", c.Request().URL.String(),
+		)
+
+		return Render(c, http.StatusOK, partials.AlbumRedirectsFragment(requestConfig, c.QueryParams(), com.Context(), tabIndex))
+	}
 }

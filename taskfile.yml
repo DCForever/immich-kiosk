@@ -1,6 +1,9 @@
 version: "3"
+
 env:
-  VERSION: 0.33.0
+  VERSION: 0.44.1-beta.1
+
+silent: true
 
 includes:
   frontend:
@@ -27,7 +30,7 @@ tasks:
   verbose:
     desc: Run kiosk in verbose debug mode
     cmds:
-      - go tool air -build.cmd="task build-verbose" -build.full_bin="KIOSK_DEBUG_VERBOSE=true ./dist/kiosk"
+      - go tool air -build.cmd="task build:verbose" -build.full_bin="KIOSK_DEBUG_VERBOSE=true ./dist/kiosk"
 
   # Backend tasks
   templ:
@@ -40,57 +43,99 @@ tasks:
     deps: [templ]
     cmds:
       - go test ./...
+      - task: frontend:typecheck
 
   lint:
     desc: Run linters
+    deps: [templ]
     cmds:
       - golangci-lint run
-      - cd frontend && bun run lint
+      - task: frontend:lint
 
   # Build tasks
   build:
     desc: Build kiosk
     deps: [frontend, templ]
     cmds:
-      - CGO_ENABLED=0 go build -installsuffix cgo -ldflags "-X main.version={{.VERSION}}" -o dist/kiosk .
+      - CGO_ENABLED=0 go build -installsuffix cgo -ldflags "-X main.version={{.VERSION}} -s -w" -o dist/kiosk .
 
-  build-verbose:
+  build:verbose:
     desc: Build kiosk with face detection debugging enabled
     deps: [frontend, templ]
     cmds:
-      - CGO_ENABLED=0 go build -installsuffix cgo -ldflags "-X main.version={{.VERSION}} -X github.com/damongolding/immich-kiosk/routes.drawFacesOnImages=true" -o dist/kiosk .
+      - CGO_ENABLED=0 go build -installsuffix cgo -ldflags "-X main.version={{.VERSION}} -X github.com/damongolding/immich-kiosk/internal/routes.drawFacesOnImages=true -s -w" -o dist/kiosk .
 
   # Maintenance tasks
   install:
     desc: Install development dependencies
-    deps: [frontend-install]
+    deps: [frontend:install]
     cmds:
-      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.5
       - go mod tidy
+    preconditions:
+      - sh: golangci-lint --version
+        msg: golangci-lint is not installed. Please follow the instructions at https://golangci-lint.run/docs/welcome/install/local
+      - sh: gofumpt --version
+        msg: gofumpt is not installed. Please follow the instructions at https://github.com/mvdan/gofumpt
 
-  update-go:
+  go:update:
     desc: Sync local Go version with go.mod and Dockerfile
     cmds:
       - |
         GO_VERSION_FULL=$(go version | awk '{print $3}' | sed 's/go//')
         echo "📦 Updating go.mod to use Go $GO_VERSION_FULL"
         go mod edit -go=$GO_VERSION_FULL
-
         echo "🛠️  Updating Dockerfile to use Go $GO_VERSION_FULL"
         sed -i.bak -E "s|golang:[0-9]+\.[0-9]+(\.[0-9]+)?-[[:alnum:]-]+|golang:${GO_VERSION_FULL}-bookworm|g" Dockerfile
-
         echo "--- Dockerfile diff ---"
         diff Dockerfile.bak Dockerfile || true
         rm Dockerfile.bak
 
-  outdated-go:
+  go:outdated:
     desc: Check for outdated Go dependencies
     cmds:
       - (printf "Module\tCurrent\tLatest\n" && go list -u -m -json all | jq -r 'select(.Main or .Indirect | not) | select(.Update) | [.Path, .Version, .Update.Version] | @tsv') | column -t -s $'\t'
 
+  mise:outdated:
+    desc: Check for outdated Mise dependencies
+    cmds:
+      - cmd: mise outdated --bump
+        if: command -v mise >/dev/null 2>&1
+
+  go:update-deps:
+    desc: Update Go dependencies
+    cmds:
+      - eval $(go list -u -m -json all | jq -rs '[.[] | select(.Main or .Indirect | not) | select(.Update) | .Path + "@latest"] | "go get " + join(" ")')
+
+  go:fmt:
+    desc: Run gofumpt on the codebase
+    cmds:
+      - go fmt ./...
+      - cmd: gofumpt -w .
+        if: command -v gofumpt >/dev/null 2>&1
+
+  templ:fmt:
+    desc: Run templ fmt on the codebase
+    cmds:
+      - cmd: go tool templ fmt internal/templates
+
+  fmt:
+    desc: Run formatters on the codebase
+    deps: [go:fmt, templ:fmt, frontend:fmt]
+
   outdated:
     desc: Check for outdated Go and frontend dependencies
-    deps: [outdated-go, frontend-outdated]
+    deps: [go:outdated, frontend:outdated, mise:outdated]
+
+  tools:update:
+    desc: Update tools
+    cmds:
+      - mise up
+
+  deps:update:
+    desc: Update Go and frontend dependencies
+    deps: [go:update-deps, frontend:update, tools:update]
+    cmds:
+      - go mod tidy
 
   openapi:
     desc: Generate OpenAPI specification

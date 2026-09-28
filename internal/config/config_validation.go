@@ -6,16 +6,22 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/xeipuuv/gojsonschema"
 )
 
+const uuidPattern = `[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`
+
 var (
+	uuidRe           = regexp.MustCompile(`^` + uuidPattern + `$`)
+	uuidWithSuffixRe = regexp.MustCompile(`^` + uuidPattern + `(@.+)?$`)
+
 	SchemaJSON string
 )
 
@@ -32,7 +38,7 @@ func validateConfigFile(path string) error {
 		return nil
 	}
 	if fileInfo.IsDir() {
-		return fmt.Errorf("Config file is a directory: %s", path)
+		return fmt.Errorf("config file is a directory: %s", path)
 	}
 	return nil
 }
@@ -107,7 +113,6 @@ func loadSecretFromFile(filePath string) (string, bool) {
 }
 
 func (c *Config) checkSecrets() {
-
 	apiKeyFile := os.Getenv(apiKeyFileEnv)
 	if apiKeyFile != "" {
 		apiKeyFile = filepath.Clean(apiKeyFile)
@@ -250,7 +255,6 @@ func (c *Config) cleanupSlice(slice []string, placeholders ...string) []string {
 // - Filtering out invalid date range formats
 // The cleaned lists are then stored back in their respective Config fields.
 func (c *Config) checkAssetBuckets() {
-
 	c.Albums = c.cleanupSlice(c.Albums, "ALBUM_ID")
 	c.ExcludedAlbums = c.cleanupSlice(c.ExcludedAlbums, "ALBUM_ID")
 
@@ -342,17 +346,19 @@ func (c *Config) checkWeatherLocations() {
 	var validLocations []WeatherLocation
 
 	for _, w := range c.Weather.Locations {
+		usingCustomWeatherURL := strings.TrimSpace(w.CustomWeatherURL) != ""
+
 		missingFields := []string{}
 		if w.Name == "" {
 			missingFields = append(missingFields, "name")
 		}
-		if w.Lat == "" {
+		if w.Lat == "" && !usingCustomWeatherURL {
 			missingFields = append(missingFields, "latitude")
 		}
-		if w.Lon == "" {
+		if w.Lon == "" && !usingCustomWeatherURL {
 			missingFields = append(missingFields, "longitude")
 		}
-		if w.API == "" {
+		if w.API == "" && !usingCustomWeatherURL {
 			missingFields = append(missingFields, "API key")
 		}
 		if w.Default {
@@ -426,10 +432,16 @@ func (c *Config) checkFetchedAssetsSize() {
 // The function updates the Config's RedirectsMap field with valid redirects.
 // Invalid redirects are logged as warnings and excluded from the final map.
 func (c *Config) checkRedirects() {
-	redirects := make(map[string]Redirect)
+	redirects := make(map[string]RedirectItem)
 	seen := make(map[string]bool)
 
-	for _, r := range c.Kiosk.Redirects {
+	if len(c.Kiosk.RedirectsDeprecated) > 0 && len(c.Redirects.Items) == 0 {
+		log.Warn("Redirects in the kiosk object are deprecated. See https://docs.immichkiosk.app/configuration/redirects for new configuration details.")
+		c.Redirects.Items = c.Kiosk.RedirectsDeprecated
+		c.Kiosk.RedirectsDeprecated = nil
+	}
+
+	for _, r := range c.Redirects.Items {
 		if r.Name == "" {
 			log.Warn("Skipping redirect with empty name", "url", r.URL)
 			continue
@@ -452,7 +464,7 @@ func (c *Config) checkRedirects() {
 		if strings.HasPrefix(r.URL, "?") {
 			r.URL = "/" + r.URL
 		}
-		redirects[r.Name] = Redirect{
+		redirects[r.Name] = RedirectItem{
 			URL:  r.URL,
 			Type: r.Type,
 		}
@@ -493,7 +505,7 @@ func (c *Config) checkRedirects() {
 		}
 	}
 
-	c.Kiosk.RedirectsMap = redirects
+	c.RedirectsMap = redirects
 }
 
 // checkAlbumOrder validates the album order value and sets it to the default if invalid.
@@ -723,5 +735,39 @@ func (c *Config) checkRating() {
 	if c.Rating < -1 || c.Rating > 5 {
 		log.Warn("Rating must be -1 (disabled) or 0–5; disabling rating", "value", c.Rating)
 		c.Rating = -1
+	}
+}
+
+func (c *Config) checkFilterNewest() {
+	if c.FilterNewest < 0 {
+		log.Warn("FilterNewest must be 0 or greater; setting to 0", "value", c.FilterNewest)
+		c.FilterNewest = 0
+	}
+
+	if c.FilterNewest > 1000 {
+		log.Warn("FilterNewest must be 1000 or less; setting to 1000", "value", c.FilterNewest)
+		c.FilterNewest = 1000
+	}
+}
+
+func (c *Config) checkIDs(key string, s []string, allowSuffix, allowKeywords bool) {
+	re := uuidRe
+	if allowSuffix {
+		re = uuidWithSuffixRe
+	}
+
+	for _, id := range s {
+		if allowKeywords {
+			switch id {
+			case kiosk.AlbumKeywordAll, kiosk.AlbumKeywordOwned,
+				kiosk.AlbumKeywordShared, kiosk.AlbumKeywordFavourites,
+				kiosk.AlbumKeywordFavorites:
+				continue
+			}
+		}
+
+		if !re.MatchString(id) {
+			log.Warn("Invalid ID format", "type", key, "value", id)
+		}
 	}
 }

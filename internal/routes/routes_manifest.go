@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
+	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/labstack/echo/v5"
 )
 
@@ -57,12 +58,12 @@ func Manifest(c *echo.Context) error {
 			{
 				Src:   "/assets/images/android-chrome-192x192.png",
 				Sizes: "192x192",
-				Type:  "image/png",
+				Type:  kiosk.MimeTypePng,
 			},
 			{
 				Src:   "/assets/images/android-chrome-512x512.png",
 				Sizes: "512x512",
-				Type:  "image/png",
+				Type:  kiosk.MimeTypePng,
 			},
 		},
 	}

@@ -18,7 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/i18n"
@@ -47,7 +47,6 @@ var ErrMaxStorageReached = errors.New("max offline storage size reached")
 // If no valid offline assets are available or assets have expired, it initiates an asynchronous download and displays a status page.
 func OfflineMode(baseConfig *config.Config, com *common.Common) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err
@@ -56,11 +55,9 @@ func OfflineMode(baseConfig *config.Config, com *common.Common) echo.HandlerFunc
 		requestID := requestData.RequestID
 		deviceID := requestData.DeviceID
 
-		requestConfig := *baseConfig
-		requestConfig.History = requestData.RequestConfig.History
+		requestConfig := requestData.RequestConfig
 		requestConfig.Memories = false
 		requestConfig.ShowVideos = false
-		requestConfig.Theme = requestData.RequestConfig.Theme
 
 		if len(requestConfig.History) > 1 && !strings.HasPrefix(requestConfig.History[len(requestConfig.History)-1], "*") {
 			return NextHistoryAsset(baseConfig, com, c)
@@ -77,11 +74,16 @@ func OfflineMode(baseConfig *config.Config, com *common.Common) echo.HandlerFunc
 		}
 
 		if _, err = os.Stat(OfflineAssetsPath); os.IsNotExist(err) {
-			log.Warn("creating offline assets directory - NOTE: If running in Docker, this data will not persist between container restarts")
-			err = os.MkdirAll(OfflineAssetsPath, 0755)
+
+			if utils.RunningInContainer() {
+				s := "offline assets directory does not exist. Please mount a volume at " + OfflineAssetsPath + "."
+				log.Error(s)
+				return RenderError(c, err, s, requestConfig.Duration, requestConfig.Source)
+			}
+
+			err = os.MkdirAll(OfflineAssetsPath, 0o755)
 			if err != nil {
-				log.Error("OfflineMode", "err", err)
-				return err
+				return RenderError(c, err, "offline assets directory does not exist", requestConfig.Duration, requestConfig.Source)
 			}
 		}
 
@@ -133,13 +135,13 @@ func OfflineMode(baseConfig *config.Config, com *common.Common) echo.HandlerFunc
 				continue
 			}
 
+			viewData.Config = requestConfig
+
 			viewData.KioskVersion = KioskVersion
 			viewData.RequestID = requestID
 			viewData.DeviceID = deviceID
 			utils.TrimHistory(&requestConfig.History, kiosk.HistoryLimit)
 			viewData.History = requestConfig.History
-			viewData.Theme = requestConfig.Theme
-			viewData.Kiosk.DemoMode = requestConfig.Kiosk.DemoMode
 
 			go webhooks.Trigger(com.Context(), requestData, KioskVersion, webhooks.NewOfflineAsset, viewData)
 
@@ -151,7 +153,6 @@ func OfflineMode(baseConfig *config.Config, com *common.Common) echo.HandlerFunc
 			Message: "Check Kiosk logs for more information",
 			Source:  requestConfig.Source,
 		}))
-
 	}
 }
 
@@ -220,7 +221,6 @@ func downloadOfflineAssets(requestConfig config.Config, requestCtx common.Contex
 
 	for range numberOfAssets {
 		eg.Go(func() error {
-
 			for range 3 {
 				if err := checkCanceled(egCtx); err != nil {
 					return err
@@ -285,7 +285,8 @@ func downloadOfflineAssets(requestConfig config.Config, requestCtx common.Contex
 					once.Do(func() {
 						humanOfflineSize := humanize.Bytes(uint64(offlineSize.Load()))
 						humanMaxSize := humanize.Bytes(uint64(maxSize))
-						log.Info("Max offline storage size reached",
+						log.Info(
+							"Max offline storage size reached",
 							"total assets saved", humanOfflineSize,
 							"maxOfflineSize", humanMaxSize,
 						)
@@ -294,7 +295,7 @@ func downloadOfflineAssets(requestConfig config.Config, requestCtx common.Contex
 					return nil
 				}
 				if err != nil {
-					log.Error("SaveOfflineAsset: saveMsgpackZstd", "err", err)
+					log.Warn("SaveOfflineAsset: saveMsgpackZstd", "err", err)
 					continue
 				}
 				return nil
@@ -331,7 +332,6 @@ func downloadOfflineAssets(requestConfig config.Config, requestCtx common.Contex
 // Returns an error if encoding, compression or file operations fail.
 // Returns ErrMaxStorageReached if adding the file would exceed the configured max size.
 func saveMsgpackZstd(ctx context.Context, filename string, data common.ViewData, offlineSize *atomic.Int64, maxSize int64, createdFiles *sync.Map) error {
-
 	defer func() {
 		createdFiles.Delete(filename)
 	}()
@@ -490,7 +490,8 @@ func handleNoOfflineAssets(c *echo.Context, requestConfig config.Config, com *co
 
 	t := i18n.T()
 
-	message := fmt.Sprintf(`
+	message := fmt.Sprintf(
+		`
 		<ul>
 			<li>%s: <strong>%v</strong> %s</li>
 			<li>%s: <strong>%s</strong></li>
