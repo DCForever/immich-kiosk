@@ -202,6 +202,7 @@ func (a *Album) UnmarshalJSON(b []byte) error {
 	}
 	a.UID = decodeString(fields, "uid")
 	a.Title = decodeString(fields, "title")
+	a.Type = decodeString(fields, "type")
 	a.PhotoCount = decodeInt(fields, "photocount")
 	return nil
 }
@@ -224,7 +225,7 @@ func (s *Subject) UnmarshalJSON(b []byte) error {
 	}
 	s.UID = decodeString(fields, "uid")
 	s.Name = decodeString(fields, "name")
-	s.BirthDate = decodeString(fields, "birthdate")
+	s.Type = decodeString(fields, "type")
 	return nil
 }
 

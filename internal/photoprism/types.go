@@ -75,10 +75,11 @@ func (p *Photo) PrimaryHash() string {
 	return p.Hash
 }
 
-// Album from GET /api/v1/albums.
+// Album from GET /api/v1/albums. Type is "album" for regular albums.
 type Album struct {
 	UID        string `json:"UID"`
 	Title      string `json:"Title"`
+	Type       string `json:"Type"`
 	PhotoCount int    `json:"PhotoCount"`
 }
 
@@ -89,10 +90,10 @@ type Label struct {
 	Slug string `json:"Slug"`
 }
 
-// Subject from PhotoPrism GET /api/v1/subjects (list). Used for AllNamedPeople when the endpoint exists.
-// API reference: https://docs.photoprism.dev/
+// Subject from stock GET /api/v1/subjects. PhotoPrism does not provide BirthDate here.
+// The kiosk birthdate mapping is the only date of birth.
 type Subject struct {
-	UID       string `json:"UID"`
-	Name      string `json:"Name"`
-	BirthDate string `json:"BirthDate,omitempty"`
+	UID  string `json:"UID"`
+	Name string `json:"Name"`
+	Type string `json:"Type"`
 }

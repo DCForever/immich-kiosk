@@ -1,7 +1,7 @@
-// Package photoprism provider implements source.ProviderOps for PhotoPrism.
-// People (subjects) are supported via search filters person:"Name" and people:"A & B";
-// AllNamedPeople and RandomPersonFromAllPeople use GET /api/v1/subjects when available.
-// Memories and mutations (AddTag, FavouriteStatus, etc.) are no-ops or best-effort where the API supports them.
+// Package photoprism implements source.ProviderOps for stock PhotoPrism /api/v1.
+// People use GET /api/v1/subjects?type=person and the search filters person:, people:, and face:.
+// Memories are a collage over taken/after/before search. PhotoPrism has no memories API.
+// Like, hide, tag, archive, and rating writes are no-ops. Birth dates come from the kiosk mapping.
 package photoprism
 
 import (
@@ -23,20 +23,6 @@ import (
 )
 
 const cacheBatchSize = 30
-
-// buildPersonSearchQuery returns PhotoPrism search q value for person/people filter.
-// For RequireAllPeople with multiple config people uses people:"A & B"; else person:"name".
-// Names with double quotes are escaped for the search query.
-func buildPersonSearchQuery(cfg config.Config, singlePersonID string) string {
-	if cfg.RequireAllPeople && len(cfg.People) > 1 {
-		escaped := make([]string, 0, len(cfg.People))
-		for _, name := range cfg.People {
-			escaped = append(escaped, strings.ReplaceAll(name, `"`, `\"`))
-		}
-		return `people:"` + strings.Join(escaped, " & ") + `"`
-	}
-	return `person:"` + strings.ReplaceAll(singlePersonID, `"`, `\"`) + `"`
-}
 
 // cachedPhotoBatch is stored in cache (JSON) to reuse API responses.
 type cachedPhotoBatch struct {
@@ -408,8 +394,8 @@ func (p *Provider) RandomAssetOfPerson(personID, requestID, deviceID string, isP
 	return nil
 }
 
-// RandomMemoryAsset is unused for PhotoPrism. Memories are served as a collage
-// through MemoriesCollage, not as a single random memory asset.
+// RandomMemoryAsset is unsupported. PhotoPrism has no memories endpoint.
+// Memories are served as a collage through MemoriesCollage.
 func (p *Provider) RandomMemoryAsset(requestID, deviceID string) error {
 	return source.ErrMemoriesNotSupported
 }
@@ -836,15 +822,12 @@ func (p *Provider) PersonAssetCount(personID, requestID, deviceID string) (int, 
 }
 
 func (p *Provider) AlbumImageCount(albumID, requestID, deviceID string) (int, error) {
-	// GET /api/v1/albums?count=1&uid=albumID or list and find
-	q := url.Values{}
-	q.Set("count", "500")
 	var list []Album
-	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", q, &list)
+	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", stockAlbumsQuery(), &list)
 	if err != nil {
 		return 0, err
 	}
-	for _, a := range list {
+	for _, a := range regularAlbums(list) {
 		if a.UID == albumID || a.Title == albumID {
 			return a.PhotoCount, nil
 		}
@@ -873,10 +856,8 @@ func (p *Provider) AssetsWithRatingCount(rating float32, requestID, deviceID str
 }
 
 func (p *Provider) RandomAlbumFromAllAlbums(requestID, deviceID string, excludedAlbums []string) (string, error) {
-	q := url.Values{}
-	q.Set("count", "500")
 	var list []Album
-	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", q, &list)
+	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", stockAlbumsQuery(), &list)
 	if err != nil {
 		return "", err
 	}
@@ -885,7 +866,7 @@ func (p *Provider) RandomAlbumFromAllAlbums(requestID, deviceID string, excluded
 		excl[id] = struct{}{}
 	}
 	var candidates []Album
-	for _, a := range list {
+	for _, a := range regularAlbums(list) {
 		if a.PhotoCount <= 0 {
 			continue
 		}
@@ -905,9 +886,11 @@ func (p *Provider) RandomAlbumFromAllAlbums(requestID, deviceID string, excluded
 }
 
 func (p *Provider) RandomAlbumFromOwnedAlbums(requestID, deviceID string, excludedAlbums []string) (string, error) {
+	// Stock PhotoPrism has no separate owned-album feed for this client. Use all albums.
 	return p.RandomAlbumFromAllAlbums(requestID, deviceID, excludedAlbums)
 }
 func (p *Provider) RandomAlbumFromSharedAlbums(requestID, deviceID string, excludedAlbums []string) (string, error) {
+	// Stock PhotoPrism has no separate shared-album feed for this client. Use all albums.
 	return p.RandomAlbumFromAllAlbums(requestID, deviceID, excludedAlbums)
 }
 
@@ -962,9 +945,10 @@ func (p *Provider) ExpandTagPatterns(tags []string, requestID, deviceID string) 
 }
 
 func (p *Provider) AllNamedPeople(requestID, deviceID string) ([]source.Person, error) {
-	// Try GET /api/v1/subjects; if the endpoint does not exist or fails, return empty (URL builder people dropdown stays empty).
+	// GET /api/v1/subjects?type=person. A missing endpoint leaves the people dropdown empty.
 	q := url.Values{}
 	q.Set("count", "500")
+	q.Set("type", "person")
 	var list []Subject
 	_, err := p.client.getJSON(p.ctx, apiPrefix+"/subjects", q, &list)
 	if err != nil {
@@ -972,29 +956,41 @@ func (p *Provider) AllNamedPeople(requestID, deviceID string) ([]source.Person, 
 	}
 	out := make([]source.Person, 0, len(list))
 	for _, s := range list {
-		name := strings.TrimSpace(s.Name)
-		if name == "" {
+		person, ok := p.personFromSubject(s)
+		if !ok {
 			continue
 		}
-		out = append(out, source.Person{
-			ID:        s.UID,
-			Name:      name,
-			BirthDate: source.BirthDate(s.BirthDate),
-		})
+		out = append(out, person)
 	}
 	return out, nil
 }
 
+func (p *Provider) personFromSubject(s Subject) (source.Person, bool) {
+	if t := strings.ToLower(strings.TrimSpace(s.Type)); t != "" && t != "person" {
+		return source.Person{}, false
+	}
+	name := strings.TrimSpace(s.Name)
+	if name == "" {
+		return source.Person{}, false
+	}
+	person := source.Person{ID: s.UID, Name: name}
+	if p.birthdateLoader != nil {
+		if dob := p.birthdateLoader.Lookup(s.UID, name); dob != "" {
+			person.BirthDate = source.BirthDate(dob)
+		}
+	}
+	return person, true
+}
+
 func (p *Provider) AllAlbums(requestID, deviceID string) (source.Albums, error) {
-	q := url.Values{}
-	q.Set("count", "500")
 	var list []Album
-	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", q, &list)
+	_, err := p.client.getJSON(p.ctx, apiPrefix+"/albums", stockAlbumsQuery(), &list)
 	if err != nil {
 		return nil, err
 	}
-	out := make(source.Albums, len(list))
-	for i, a := range list {
+	albums := regularAlbums(list)
+	out := make(source.Albums, len(albums))
+	for i, a := range albums {
 		out[i] = source.Album{ID: a.UID, AlbumName: a.Title}
 	}
 	return out, nil

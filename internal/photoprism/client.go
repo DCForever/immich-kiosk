@@ -1,7 +1,6 @@
-// Package photoprism provides a minimal HTTP client for the PhotoPrism REST API.
-// It uses only the Go standard library (net/http, encoding/json). Authentication
-// is via Bearer token (app password or session token); set Authorization header
-// on each request.
+// Package photoprism provides a minimal HTTP client for stock PhotoPrism /api/v1.
+// Authentication is a Bearer app password or session token on each GET.
+// Vision, OpenAI, and LM Studio endpoints are not used.
 //
 // API reference (Swagger): https://docs.photoprism.dev/
 // Auth docs: https://docs.photoprism.app/developer-guide/api/auth/

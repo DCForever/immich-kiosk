@@ -101,11 +101,14 @@ See [FEATURES-BY-SOURCE.md](FEATURES-BY-SOURCE.md) for a table of what works wit
 
 ## 8. Known limitations (PhotoPrism source)
 
-- **People** – Supported by subject name when the PhotoPrism subjects API is available.
-- **Memories** – Supported. The collage uses PhotoPrism search filters for the same calendar day, then the ISO week, then the month, and shows 3–16 photos.
-- **Star rating** – Not supported. Rating requests return not implemented and do not write a rating.
+- **API target** – Stock PhotoPrism `/api/v1` only. The DCForever PhotoPrism fork’s vision / OpenAI / LM Studio work is not called.
+- **People** – Supported. `GET /api/v1/subjects?type=person`, then `person:"Name"`, `people:"A & B"`, or `face:<uid>`. Birth dates come from the kiosk mapping files, not from Subject.
+- **Albums** – Supported for `type=album`. Owned and shared picks use the same album list. Photos in an album use `s=<album uid>`.
+- **Memories** – Supported as a collage (3–16 images) via `taken:` / `after:` / `before:` and `type:image`. There is no PhotoPrism memories endpoint, and a single random memory asset stays unsupported.
+- **Favourites** – Supported as `favorite=true`. Like and unlike do not write to PhotoPrism.
+- **Star rating** – Not supported. PhotoPrism quality is 1–7, not Immich stars. Some tokens omit photos with quality below 3. Rating requests return not implemented.
 - **Like/Hide/Tag/Archive** – Intentional no-ops. They do not change state in PhotoPrism.
-- **Videos** – Supported if PhotoPrism returns them from the photos API; playback uses PhotoPrism’s video endpoint.
-- **API shape** – The client accepts stock PhotoPrism JSON and common variants (key case, empty dates, numeric booleans, wrapped lists). It logs the server version from `GET /api/v1/config` when debug logging is on, and continues when that probe fails. Custom fork endpoints are not called until they are confirmed.
+- **Videos** – Supported when the photos API returns them. Playback uses `/api/v1/videos/{hash}/{token}/avc` with the download or preview token.
+- **API shape** – `ID` may be a string or number. `Files`/`files` and `Markers`/`markers` are both accepted. Empty dates, numeric booleans, and wrapped lists are accepted. Version probe failures do not block the slideshow.
 
 If you see “no photos” or empty slides, check that PhotoPrism has indexed photos and that the token has access. Use `KIOSK_LOG_LEVEL=debug` to see API requests and any errors.
