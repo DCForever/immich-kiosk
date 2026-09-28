@@ -54,7 +54,9 @@ templ AssetMetadata(viewData common.ViewData, assetIndex int) {
 	}
 	<div class={ "asset--metadata", fmt.Sprintf("asset--metadata--theme-%s", viewData.Theme), templ.KV("right-align-icons", rightAlignIcons), className }>
 		if viewData.ShowImageRating {
-			@ratingStars(viewData.Assets[assetIndex].Asset.ExifInfo.Rating)
+			<div class="metadata--rating">
+				@RatingStars(viewData.Assets[assetIndex].Asset.ID, viewData.Assets[assetIndex].Asset.SelectedUser, viewData.Assets[assetIndex].Asset.ExifInfo.Rating, false, false)
+			</div>
 		}
 		if showUser && viewData.Assets[assetIndex].User != "" {
 			@userIcon(cases.Title(language.English).String(viewData.Assets[assetIndex].User))
@@ -135,6 +137,11 @@ func AssetLocation(info source.ExifInfo, l config.ImageLocation, hideCountries [
 	return strings.Join(parts, ", ")
 }
 
+func trimFloatToString(f float64) string {
+	s := fmt.Sprintf("%.2f", f)
+	return strings.TrimRight(strings.TrimRight(s, "0"), ".")
+}
+
 // AssetExif generates a formatted string containing camera EXIF metadata.
 // Includes f-number (aperture), exposure time, focal length and ISO settings
 // when available in the EXIF data.
@@ -166,7 +173,8 @@ func AssetExif(info source.ExifInfo) string {
 		if stats.Len() > 0 {
 			stats.WriteString("<span class=\"asset--metadata--exif--seperator\">&#124;</span>")
 		}
-		fmt.Fprintf(&stats, "%.2fmm", info.FocalLength)
+		f := trimFloatToString(info.FocalLength)
+		fmt.Fprintf(&stats, "%smm", f)
 	}
 
 	if info.Iso != 0 {
@@ -421,7 +429,7 @@ func AssetPeople(peopleNames string) string {
 	return fmt.Sprintf(`
 		<div class="asset--metadata--has-icon">
 			<div class="asset--metadata--icon">
-				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="448" height="512">
 					<!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
 					<path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z"></path>
 				</svg>

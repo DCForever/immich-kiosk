@@ -13,14 +13,18 @@ import (
 	"sync"
 	"time"
 
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/immich_open_api"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 )
 
-type ImageOrientation string
-type AssetType string
-type AssetOrder string
+type (
+	ImageOrientation string
+	AssetType        string
+	AssetOrder       string
+	AssetVisibility  string
+)
 
 const (
 	MaxRetries = 3
@@ -41,6 +45,14 @@ const (
 	Asc  AssetOrder = "asc"
 	Desc AssetOrder = "desc"
 	Rand AssetOrder = "rand"
+
+	Archive  AssetVisibility = "archive"
+	Hidden   AssetVisibility = "hidden"
+	Locked   AssetVisibility = "locked"
+	Timeline AssetVisibility = "timeline"
+
+	SearchRandomEndpoint   = "api/search/random"
+	SearchMetadataEndpoint = "api/search/metadata"
 )
 
 var (
@@ -65,14 +77,6 @@ var (
 		Transport: httpTransport,
 	}
 
-	supportedImageMimeTypes = []string{
-		"image/jpeg",
-		"image/jpg",
-		"image/png",
-		"image/gif",
-		"image/webp",
-	}
-
 	ImageOnlyAssetTypes = []AssetType{ImageType}
 	VideoOnlyAssetTypes = []AssetType{VideoType}
 	AllAssetTypes       = []AssetType{ImageType, VideoType}
@@ -83,9 +87,13 @@ type PersonStatistics struct {
 }
 
 type Error struct {
-	Error      string   `json:"error"`
-	Message    []string `json:"message"`
-	StatusCode int      `json:"statusCode"`
+	Path    []any  `json:"path"`
+	Message string `json:"message"`
+}
+
+type ErrorResponse struct {
+	Message string  `json:"message"`
+	Errors  []Error `json:"errors"`
 }
 
 type Owner struct {
@@ -115,7 +123,7 @@ type ExifInfo struct {
 	ModifyDate       time.Time `json:"modifyDate"`
 	Orientation      string    `json:"orientation"`
 	ProjectionType   any       `json:"-"` // `json:"projectionType"`
-	Rating           float32   `json:"rating"`
+	Rating           int       `json:"rating"`
 	State            string    `json:"state"`
 	TimeZone         string    `json:"timeZone"`
 }
@@ -145,7 +153,7 @@ type Tag struct {
 	Value     string    `json:"value"` // e.g "parent/child"
 	CreatedAt time.Time `json:"-"`     // `json:"createdAt"`
 	UpdatedAt time.Time `json:"-"`     // `json:"updatedAt"`
-	Color     string    `json:"color"`
+	Color     string    `json:"color,omitempty"`
 }
 
 type Face struct {
@@ -160,102 +168,327 @@ type Face struct {
 }
 
 type Asset struct {
-	FileCreatedAt  time.Time `json:"-"` // `json:"fileCreatedAt"`
-	FileModifiedAt time.Time `json:"-"` // `json:"fileModifiedAt"`
-	LocalDateTime  time.Time `json:"localDateTime"`
-	UpdatedAt      time.Time `json:"-"` // `json:"updatedAt"`
-	StackCount     any       `json:"-"` // `json:"stackCount"`
-	DuplicateID    any       `json:"-"` // `json:"duplicateId"`
+	Checksum         string          `json:"checksum"`
+	DuplicateID      any             `json:"-"`        // `json:"duplicateId"`
+	Duration         int64           `json:"duration"` // milliseconds
+	ExifInfo         ExifInfo        `json:"exifInfo"`
+	FileCreatedAt    time.Time       `json:"-"` // `json:"fileCreatedAt"`
+	FileModifiedAt   time.Time       `json:"-"` // `json:"fileModifiedAt"`
+	HasMetadata      bool            `json:"-"` // `json:"hasMetadata"`
+	ID               string          `json:"id"`
+	IsArchived       bool            `json:"isArchived"`
+	IsEdited         bool            `json:"isEdited"`
+	IsFavorite       bool            `json:"isFavorite"`
+	IsOffline        bool            `json:"-"` // `json:"isOffline"`
+	IsTrashed        bool            `json:"isTrashed"`
+	LibraryID        string          `json:"-"` // `json:"libraryId"`
+	LivePhotoVideoID string          `json:"livePhotoVideoId"`
+	LocalDateTime    time.Time       `json:"localDateTime"`
+	OriginalFileName string          `json:"originalFileName"`
+	OriginalMimeType string          `json:"originalMimeType"`
+	OriginalPath     string          `json:"-"` // `json:"originalPath"`
+	Owner            Owner           `json:"owner"`
+	OwnerID          string          `json:"ownerId"`
+	People           []Person        `json:"people"`
+	StackCount       any             `json:"-"` // `json:"stackCount"`
+	Tags             Tags            `json:"tags"`
+	Thumbhash        string          `json:"-"` // `json:"thumbhash"`
+	Type             AssetType       `json:"type"`
+	UpdatedAt        time.Time       `json:"-"` // `json:"updatedAt"`
+	Visibility       AssetVisibility `json:"visibility"`
 
-	ctx context.Context `json:"-"`
+	// Kiosk specific fields
+	AppearsIn       Albums          `json:"kioskAppearsIn"`
+	Bucket          kiosk.Source    `json:"kioskBucket"`
+	BucketID        string          `json:"kioskBucketId"`
+	ctx             context.Context `json:"-" msgpack:"-"`
+	DeviceID        string          `json:"-"`
+	IsLandscape     bool            `json:"isLandscape"`
+	IsPortrait      bool            `json:"isPortrait"`
+	MemoryTitle     string          `json:"-"`
+	mu              *sync.Mutex
+	RatioWanted     ImageOrientation `json:"-"`
+	requestConfig   config.Config    `json:"-"`
+	ServedMimeType  string           `json:"servedMimeType"` // mime type served from the Immich server
+	UnassignedFaces []Face           `json:"unassignedFaces"`
+}
 
-	mu               *sync.Mutex
-	Owner            Owner     `json:"owner"`
-	ID               string    `json:"id"`
-	DeviceAssetID    string    `json:"-"` // `json:"deviceAssetId"`
-	OwnerID          string    `json:"ownerId"`
-	DeviceID         string    `json:"-"` // `json:"deviceId"`
-	LibraryID        string    `json:"-"` // `json:"libraryId"`
-	Type             AssetType `json:"type"`
-	OriginalPath     string    `json:"-"` // `json:"originalPath"`
-	OriginalFileName string    `json:"originalFileName"`
-	OriginalMimeType string    `json:"originalMimeType"`
-	ServedMimeType   string    `json:"servedMimeType"` // mime type served from the Immich server
-	Thumbhash        string    `json:"-"`              // `json:"thumbhash"`
-	Duration         string    `json:"duration"`
-	LivePhotoVideoID string    `json:"livePhotoVideoId"`
-	Checksum         string    `json:"checksum"`
-	Visibility       string    `json:"-"` // `json:"visibility"`
-
-	RatioWanted ImageOrientation `json:"-"`
-	MemoryTitle string           `json:"-"`
-	Bucket      kiosk.Source     `json:"kioskBucket"`
-	BucketID    string           `json:"kioskBucketId"`
-
-	People          []Person `json:"people"`
-	Tags            Tags     `json:"tags"`
-	UnassignedFaces []Face   `json:"unassignedFaces"`
-	AppearsIn       Albums   `json:"kioskAppearsIn"`
-	ExifInfo        ExifInfo `json:"exifInfo"`
-
-	requestConfig config.Config `json:"-"`
-	IsEdited      bool          `json:"isEdited"`
-	IsFavorite    bool          `json:"isFavorite"`
-	IsArchived    bool          `json:"isArchived"`
-	IsTrashed     bool          `json:"isTrashed"`
-	IsOffline     bool          `json:"-"` // `json:"isOffline"`
-	HasMetadata   bool          `json:"-"` // `json:"hasMetadata"`
-	IsPortrait    bool          `json:"isPortrait"`
-	IsLandscape   bool          `json:"isLandscape"`
+type AlbumUsers struct {
+	User Owner  `json:"user"`
+	Role string `json:"role"`
 }
 
 type Album struct {
-	ID            string  `json:"id"`
-	AlbumName     string  `json:"albumName"`
-	Assets        []Asset `json:"assets"`
-	AssetCount    int     `json:"assetCount"`
-	AssetsOrdered bool    `json:"assetsOrdered"`
+	AlbumName                  string       `json:"albumName"`
+	Description                string       `json:"description"`
+	AlbumThumbnailAssetID      string       `json:"albumThumbnailAssetId"`
+	CreatedAt                  string       `json:"createdAt"`
+	UpdatedAt                  string       `json:"updatedAt"`
+	ID                         string       `json:"id"`
+	AlbumUsers                 []AlbumUsers `json:"albumUsers"`
+	Shared                     bool         `json:"shared"`
+	HasSharedLink              bool         `json:"hasSharedLink"`
+	StartDate                  string       `json:"startDate"`
+	EndDate                    string       `json:"endDate"`
+	AssetCount                 int          `json:"assetCount"`
+	IsActivityEnabled          bool         `json:"isActivityEnabled"`
+	Order                      string       `json:"order"`
+	LastModifiedAssetTimestamp string       `json:"lastModifiedAssetTimestamp"`
+
+	// Kiosk specific fields
+	Assets []Asset `json:"assets"`
 }
 
 type Albums []Album
 
+type StringFilter struct {
+	Eq    string   `json:"eq,omitempty,omitzero"`
+	In    []string `json:"in,omitempty,omitzero"`
+	Ne    string   `json:"ne,omitempty,omitzero"`
+	NotIn []string `json:"notIn,omitempty,omitzero"`
+}
+
+type StringFilterNullable struct {
+	Eq    string   `json:"eq,omitempty,omitzero"`
+	In    []string `json:"in,omitempty,omitzero"`
+	Ne    string   `json:"ne,omitempty,omitzero"`
+	NotIn []string `json:"notIn,omitempty,omitzero"`
+}
+
+type BoolFilter struct {
+	Eq bool `json:"eq,omitempty,omitzero"`
+}
+
+type DateFilter struct {
+	Eq  time.Time `json:"eq,omitzero"`
+	Gt  time.Time `json:"gt,omitzero"`
+	Gte time.Time `json:"gte,omitzero"`
+	Lt  time.Time `json:"lt,omitzero"`
+	Lte time.Time `json:"lte,omitzero"`
+	Ne  time.Time `json:"ne,omitzero"`
+}
+
+type IDsFilter struct {
+	All  []string `json:"all,omitempty,omitzero"`
+	Any  []string `json:"any,omitempty,omitzero"`
+	None []string `json:"none,omitempty,omitzero"`
+}
+
+type StringPatternFilter struct {
+	EndsWith   string   `json:"endsWith,omitempty,omitzero"`
+	Eq         string   `json:"eq,omitempty,omitzero"`
+	In         []string `json:"in,omitempty,omitzero"`
+	Like       string   `json:"like,omitempty,omitzero"`
+	Ne         string   `json:"ne,omitempty,omitzero"`
+	NotIn      []string `json:"notIn,omitempty,omitzero"`
+	NotLike    string   `json:"notLike,omitempty,omitzero"`
+	StartsWith string   `json:"startsWith,omitempty,omitzero"`
+}
+
+type NumberFilter struct {
+	Eq    float64   `json:"eq,omitempty,omitzero"`
+	Gt    float64   `json:"gt,omitempty,omitzero"`
+	Gte   float64   `json:"gte,omitempty,omitzero"`
+	In    []float64 `json:"in,omitempty,omitzero"`
+	Lt    float64   `json:"lt,omitempty,omitzero"`
+	Lte   float64   `json:"lte,omitempty,omitzero"`
+	Ne    float64   `json:"ne,omitempty,omitzero"`
+	NotIn []float64 `json:"notIn,omitempty,omitzero"`
+}
+
+type IDFilter struct {
+	Eq string `json:"eq,omitempty,omitzero"`
+	Ne string `json:"ne,omitempty,omitzero"`
+}
+
+type NumberFilterNullable struct {
+	Eq    float64   `json:"eq,omitempty,omitzero"`
+	Gt    float64   `json:"gt,omitempty,omitzero"`
+	Gte   float64   `json:"gte,omitempty,omitzero"`
+	In    []float64 `json:"in,omitempty,omitzero"`
+	Lt    float64   `json:"lt,omitempty,omitzero"`
+	Lte   float64   `json:"lte,omitempty,omitzero"`
+	Ne    float64   `json:"ne,omitempty,omitzero"`
+	NotIn []float64 `json:"notIn,omitempty,omitzero"`
+}
+
+type IDFilterNullable struct {
+	Eq string `json:"eq,omitempty,omitzero"`
+	Ne string `json:"ne,omitempty,omitzero"`
+}
+
+type StringSimilarityFilter struct {
+	Matches string `json:"matches,omitempty,omitzero"`
+}
+
+type FilterAssetVisibility struct {
+	// Eq Asset visibility
+	Eq AssetVisibility   `json:"eq,omitempty,omitzero"`
+	In []AssetVisibility `json:"in,omitempty,omitzero"`
+
+	// Ne Asset visibility
+	Ne    AssetVisibility   `json:"ne,omitempty,omitzero"`
+	NotIn []AssetVisibility `json:"notIn,omitempty,omitzero"`
+}
+
+type FilterAssetType struct {
+	// Eq Asset type
+	Eq AssetType   `json:"eq,omitempty,omitzero"`
+	In []AssetType `json:"in,omitempty,omitzero"`
+
+	// Ne Asset type
+	Ne    AssetType   `json:"ne,omitempty,omitzero"`
+	NotIn []AssetType `json:"notIn,omitempty,omitzero"`
+}
+
+type SearchOrder struct {
+	// Direction Asset sort order
+	Direction AssetOrder `json:"direction,omitempty,omitzero"`
+	Field     string     `json:"field,omitempty,omitzero"`
+}
+
+type SearchFilter struct {
+	AlbumIDs         IDsFilter              `url:"albumIds,omitempty,omitzero" json:"albumIds,omitzero"`
+	Checksum         StringFilter           `url:"checksum,omitempty,omitzero" json:"checksum,omitzero"`
+	City             StringFilterNullable   `url:"city,omitempty,omitzero" json:"city,omitzero"`
+	Country          StringFilterNullable   `url:"country,omitempty,omitzero" json:"country,omitzero"`
+	CreatedAt        DateFilter             `url:"createdAt,omitempty,omitzero" json:"createdAt,omitzero"`
+	Description      StringPatternFilter    `url:"description,omitempty,omitzero" json:"description,omitzero"`
+	EncodedVideoPath StringFilter           `url:"encodedVideoPath,omitempty,omitzero" json:"encodedVideoPath,omitzero"`
+	FileSizeInBytes  NumberFilter           `url:"fileSizeInBytes,omitempty,omitzero" json:"fileSizeInBytes,omitzero"`
+	HasAlbums        BoolFilter             `url:"hasAlbums,omitempty,omitzero" json:"hasAlbums,omitzero"`
+	HasPeople        BoolFilter             `url:"hasPeople,omitempty,omitzero" json:"hasPeople,omitzero"`
+	HasTags          BoolFilter             `url:"hasTags,omitempty,omitzero" json:"hasTags,omitzero"`
+	ID               IDFilter               `url:"id,omitempty,omitzero" json:"id,omitzero"`
+	IsEncoded        BoolFilter             `url:"isEncoded,omitempty,omitzero" json:"isEncoded,omitzero"`
+	IsFavorite       BoolFilter             `url:"isFavorite,omitempty,omitzero" json:"isFavorite,omitzero"`
+	IsMotion         BoolFilter             `url:"isMotion,omitempty,omitzero" json:"isMotion,omitzero"`
+	IsOffline        BoolFilter             `url:"isOffline,omitempty,omitzero" json:"isOffline,omitzero"`
+	LensModel        StringFilterNullable   `url:"lensModel,omitempty,omitzero" json:"lensModel,omitzero"`
+	LibraryID        IDFilterNullable       `url:"libraryId,omitempty,omitzero" json:"libraryId,omitzero"`
+	Make             StringFilterNullable   `url:"make,omitempty,omitzero" json:"make,omitzero"`
+	Model            StringFilterNullable   `url:"model,omitempty,omitzero" json:"model,omitzero"`
+	Ocr              StringSimilarityFilter `url:"ocr,omitempty,omitzero" json:"ocr,omitzero"`
+	// Or               *[]SearchFilterBranch      `json:"or,omitempty,omitzero"`
+	OriginalFileName StringPatternFilter  `url:"originalFileName,omitempty,omitzero" json:"originalFileName,omitzero"`
+	OriginalPath     StringPatternFilter  `url:"originalPath,omitempty,omitzero" json:"originalPath,omitzero"`
+	PersonIDs        IDsFilter            `url:"personIds,omitempty,omitzero" json:"personIds,omitzero"`
+	Rating           NumberFilterNullable `url:"rating,omitempty,omitzero" json:"rating,omitzero"`
+	State            StringFilterNullable `json:"state,omitzero"`
+	TagIDs           IDsFilter            `url:"tagIds,omitempty,omitzero" json:"tagIds,omitzero"`
+	TakenAt          DateFilter           `url:"takenAt,omitempty,omitzero" json:"takenAt,omitzero"`
+	// TrashedAt        *DateFilterNullable        `json:"trashedAt,omitempty,omitzero"`
+	Type       FilterAssetType       `url:"type,omitempty,omitzero" json:"type,omitzero"`
+	UpdatedAt  DateFilter            `url:"updatedAt,omitempty,omitzero" json:"updatedAt,omitzero"`
+	Visibility FilterAssetVisibility `url:"visibility,omitempty,omitzero" json:"visibility,omitzero"`
+}
+
 type SearchRandomBody struct {
-	AlbumIDs      []string `url:"albumIds,omitempty" json:"albumIds,omitempty"`
-	City          string   `url:"city,omitempty" json:"city,omitempty"`
-	Country       string   `url:"country,omitempty" json:"country,omitempty"`
-	CreatedAfter  string   `url:"createdAfter,omitempty" json:"createdAfter,omitempty"`
-	CreatedBefore string   `url:"createdBefore,omitempty" json:"createdBefore,omitempty"`
-	DeviceID      string   `url:"deviceId,omitempty" json:"deviceId,omitempty"`
-	LensModel     string   `url:"lensModel,omitempty" json:"lensModel,omitempty"`
-	LibraryID     string   `url:"libraryId,omitempty" json:"libraryId,omitempty"`
-	Make          string   `url:"make,omitempty" json:"make,omitempty"`
-	Model         string   `url:"model,omitempty" json:"model,omitempty"`
-	Ocr           string   `url:"ocr,omitempty" json:"ocr,omitempty"`
-	State         string   `url:"state,omitempty" json:"state,omitempty"`
-	TakenAfter    string   `url:"takenAfter,omitempty" json:"takenAfter,omitempty"`
-	TakenBefore   string   `url:"takenBefore,omitempty" json:"takenBefore,omitempty"`
-	TrashedAfter  string   `url:"trashedAfter,omitempty" json:"trashedAfter,omitempty"`
-	TrashedBefore string   `url:"trashedBefore,omitempty" json:"trashedBefore,omitempty"`
-	Type          string   `url:"type,omitempty" json:"type,omitempty"`
-	UpdatedAfter  string   `url:"updatedAfter,omitempty" json:"updatedAfter,omitempty"`
-	UpdatedBefore string   `url:"updatedBefore,omitempty" json:"updatedBefore,omitempty"`
-	Rating        *float32 `url:"rating,omitempty" json:"rating,omitempty"`
-	PersonIDs     []string `url:"personIds,omitempty" json:"personIds,omitempty"`
-	TagIDs        []string `url:"tagIds,omitempty" json:"tagIds,omitempty"`
-	Size          int      `url:"size,omitempty" json:"size,omitempty"`
-	Page          int      `url:"page,omitempty" json:"page,omitempty"`
-	IsArchived    bool     `url:"isArchived,omitempty" json:"isArchived,omitempty"`
-	IsEncoded     bool     `url:"isEncoded,omitempty" json:"isEncoded,omitempty"`
-	IsFavorite    bool     `url:"isFavorite,omitempty" json:"isFavorite,omitempty"`
-	IsMotion      bool     `url:"isMotion,omitempty" json:"isMotion,omitempty"`
-	IsNotInAlbum  bool     `url:"isNotInAlbum,omitempty" json:"isNotInAlbum,omitempty"`
-	IsOffline     bool     `url:"isOffline,omitempty" json:"isOffline,omitempty"`
-	IsVisible     bool     `url:"isVisible,omitempty" json:"isVisible,omitempty"`
-	WithArchived  bool     `url:"withArchived,omitempty" json:"withArchived,omitempty"`
-	WithDeleted   bool     `url:"withDeleted,omitempty" json:"withDeleted,omitempty"`
-	WithExif      bool     `url:"withExif,omitempty" json:"withExif,omitempty"`
-	WithPeople    bool     `url:"withPeople,omitempty" json:"withPeople,omitempty"`
-	WithStacked   bool     `url:"withStacked,omitempty" json:"withStacked,omitempty"`
+	Cursor      string       `url:"cursor,omitempty" json:"cursor,omitempty"`
+	Filter      SearchFilter `url:"filter,omitempty" json:"filter"`
+	OrderBy     SearchOrder  `url:"orderBy,omitempty,omitzero" json:"orderBy,omitzero"`
+	Size        int          `url:"size,omitempty" json:"size,omitempty"`
+	WithExif    bool         `url:"withExif,omitempty" json:"withExif,omitempty"`
+	WithPeople  bool         `url:"withPeople,omitempty" json:"withPeople,omitempty"`
+	WithStacked bool         `url:"withStacked,omitempty" json:"withStacked,omitempty"`
+
+	// Kiosk specific fields
+	PaginationComplete bool `url:"paginationComplete,omitempty" json:"paginationComplete,omitempty"`
+}
+
+func NewSearchFilterBuilder() *SearchFilter {
+	return &SearchFilter{
+		Visibility: FilterAssetVisibility{In: []AssetVisibility{Timeline}},
+		Type:       FilterAssetType{In: []AssetType{ImageType}},
+	}
+}
+
+func (b *SearchFilter) WithAlbumsAny(albumIDs ...string) *SearchFilter {
+	b.AlbumIDs.Any = albumIDs
+	return b
+}
+
+func (b *SearchFilter) WithPeopleAll(personIDs ...string) *SearchFilter {
+	b.PersonIDs.All = personIDs
+	return b
+}
+
+func (b *SearchFilter) WithArchived(enabled bool) *SearchFilter {
+	if enabled {
+		b.Visibility.In = append(b.Visibility.In, Archive)
+	}
+	return b
+}
+
+func (b *SearchFilter) WithVideos(enabled bool) *SearchFilter {
+	if enabled {
+		b.Type.In = append(b.Type.In, VideoType)
+	}
+	return b
+}
+
+func (b *SearchFilter) WithFilterFavorites(enabled bool) *SearchFilter {
+	if enabled {
+		b.IsFavorite = BoolFilter{Eq: true}
+	}
+	return b
+}
+
+func (b *SearchFilter) WithRating(r *float32) *SearchFilter {
+	if r != nil {
+		b.Rating = NumberFilterNullable{Eq: float64(*r)}
+	}
+	return b
+}
+
+func (b *SearchFilter) WithTagsAll(tags ...string) *SearchFilter {
+	if len(tags) > 0 {
+		b.TagIDs.All = tags
+	}
+	return b
+}
+
+func (b *SearchFilter) WithFilterDate(dateFilter string) *SearchFilter {
+	if dateFilter == "" {
+		return b
+	}
+
+	dateStart, dateEnd, err := determineDateRange(dateFilter)
+	if err != nil {
+		log.Error("malformed filter", "err", err)
+	} else {
+		b.TakenAt = DateFilter{
+			Gte: dateStart,
+			Lte: dateEnd,
+		}
+	}
+	return b
+}
+
+func (b *SearchFilter) ExcludePeople(p []string) *SearchFilter {
+	if len(p) > 0 {
+		b.PersonIDs.None = p
+	}
+	return b
+}
+
+func (b *SearchFilter) ExcludeAlbums(a []string) *SearchFilter {
+	if len(a) > 0 {
+		b.AlbumIDs.None = a
+	}
+	return b
+}
+
+// TODO: These need to be tag IDs not value(s). Disabling for now
+func (b *SearchFilter) ExcludeTags(t []string) *SearchFilter {
+	// if len(t) > 0 {
+	// 	b.TagIDs.None = t
+	// }
+	return b
+}
+
+func (b *SearchFilter) Build() SearchFilter {
+	return *b
 }
 
 type TagAssetsBody struct {
@@ -280,8 +513,10 @@ type UpsertTagResponse []struct {
 
 type SearchMetadataResponse struct {
 	Assets struct {
-		NextPage string `json:"nextPage"`
-		Total    int    `json:"total"`
+		Items      []Asset `json:"items"`
+		NextPage   string  `json:"nextPage"`
+		NextCursor string  `json:"nextCursor"`
+		Total      int     `json:"total"`
 	} `json:"assets"`
 }
 
@@ -315,9 +550,9 @@ type AssetFaceResponse struct {
 }
 
 type TagAssetsResponse []struct {
-	Error   immich_open_api.BulkIdResponseDtoError `json:"error"`
-	ID      string                                 `json:"id"`
-	Success bool                                   `json:"success"`
+	Error   string `json:"error"`
+	ID      string `json:"id"`
+	Success bool   `json:"success"`
 }
 
 type AlbumCreateResponse TagAssetsResponse
@@ -379,7 +614,7 @@ type AllPeopleResponse struct {
 	HasNextPage bool     `json:"hasNextPage"`
 }
 
-type apiCall func(context.Context, string, string, []byte, ...map[string]string) ([]byte, string, error)
+type apiCall func(context.Context, string, string, []byte, ...map[string]string) ([]byte, string, bool, error)
 
 type APIResponse interface {
 	Asset |
@@ -400,6 +635,7 @@ type APIResponse interface {
 		UpsertTagResponse |
 		UserResponse |
 		AllPeopleResponse |
+		StatisticsResponse |
 		[]byte
 }
 

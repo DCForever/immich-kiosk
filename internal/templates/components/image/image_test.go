@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/damongolding/immich-kiosk/internal/common"
+	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/source"
 )
 
@@ -21,7 +22,7 @@ func TestModifyGIFAssets(t *testing.T) {
 						ImageData: "original-data-1",
 						Asset: source.DisplayAsset{
 							ID:               "asset-123",
-							OriginalMimeType: "image/gif",
+							OriginalMimeType: kiosk.MimeTypeGif,
 						},
 					},
 				},
@@ -34,9 +35,9 @@ func TestModifyGIFAssets(t *testing.T) {
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "original-data-1",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-456",
-							OriginalMimeType: "image/jpeg",
+							OriginalMimeType: kiosk.MimeTypeJpeg,
 						},
 					},
 				},
@@ -49,16 +50,16 @@ Asset: source.DisplayAsset{
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "original-data-1",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-111",
-							OriginalMimeType: "image/gif",
+							OriginalMimeType: kiosk.MimeTypeGif,
 						},
 					},
 					{
 						ImageData: "original-data-2",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-222",
-							OriginalMimeType: "image/gif",
+							OriginalMimeType: kiosk.MimeTypeGif,
 						},
 					},
 				},
@@ -74,30 +75,30 @@ Asset: source.DisplayAsset{
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "original-data-1",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-gif",
-							OriginalMimeType: "image/gif",
+							OriginalMimeType: kiosk.MimeTypeGif,
 						},
 					},
 					{
 						ImageData: "original-data-2",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-jpeg",
-							OriginalMimeType: "image/jpeg",
+							OriginalMimeType: kiosk.MimeTypeJpeg,
 						},
 					},
 					{
 						ImageData: "original-data-3",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-png",
-							OriginalMimeType: "image/png",
+							OriginalMimeType: kiosk.MimeTypePng,
 						},
 					},
 					{
 						ImageData: "original-data-4",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-gif2",
-							OriginalMimeType: "image/gif",
+							OriginalMimeType: kiosk.MimeTypeGif,
 						},
 					},
 				},
@@ -122,23 +123,23 @@ Asset: source.DisplayAsset{
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "webp-data",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-webp",
-							OriginalMimeType: "image/webp",
+							OriginalMimeType: kiosk.MimeTypeWebp,
 						},
 					},
 					{
 						ImageData: "bmp-data",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-bmp",
-							OriginalMimeType: "image/bmp",
+							OriginalMimeType: kiosk.MimeTypeBmp,
 						},
 					},
 					{
 						ImageData: "gif-data",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-animated",
-							OriginalMimeType: "image/gif",
+							OriginalMimeType: kiosk.MimeTypeGif,
 						},
 					},
 				},
@@ -155,9 +156,9 @@ Asset: source.DisplayAsset{
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "gif-data",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "",
-							OriginalMimeType: "image/gif",
+							OriginalMimeType: kiosk.MimeTypeGif,
 						},
 					},
 				},
@@ -165,19 +166,19 @@ Asset: source.DisplayAsset{
 			want: []string{"/image/?use_original_image=true"},
 		},
 		{
-			name: "Case sensitivity check",
+			name: "Case insensitive GIF mime",
 			viewData: &common.ViewData{
 				Assets: []common.ViewImageData{
 					{
 						ImageData: "original-data",
-Asset: source.DisplayAsset{
+						Asset: source.DisplayAsset{
 							ID:               "asset-case",
-							OriginalMimeType: "image/GIF", // uppercase
+							OriginalMimeType: "image/GIF",
 						},
 					},
 				},
 			},
-			want: []string{"original-data"}, // Should not match due to case sensitivity
+			want: []string{"/image/asset-case?use_original_image=true"},
 		},
 	}
 
@@ -204,7 +205,7 @@ Asset: source.DisplayAsset{
 // only modifies ImageData and doesn't change other fields
 func TestModifyGIFAssetsDoesNotModifyOriginalAsset(t *testing.T) {
 	originalID := "asset-test-123"
-	originalMimeType := "image/gif"
+	originalMimeType := kiosk.MimeTypeGif
 	originalImageData := "base64-encoded-data"
 
 	viewData := &common.ViewData{

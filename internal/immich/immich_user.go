@@ -2,11 +2,13 @@ package immich
 
 import (
 	"encoding/json"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
+	"github.com/damongolding/immich-kiosk/internal/kiosk"
 )
 
 func (a *Asset) Me(requestID, deviceID string) (UserResponse, error) {
@@ -30,7 +32,7 @@ func (a *Asset) Me(requestID, deviceID string) (UserResponse, error) {
 	}
 
 	immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, user)
-	body, _, err := immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
+	body, _, _, err := immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
 	if err != nil {
 		return user, err
 	}
@@ -44,7 +46,6 @@ func (a *Asset) Me(requestID, deviceID string) (UserResponse, error) {
 }
 
 func (a *Asset) UserOwnsAsset(requestID, deviceID string) bool {
-
 	me, meErr := a.Me(requestID, deviceID)
 	if meErr != nil {
 		log.Error("Error getting user", "error", meErr)
@@ -55,16 +56,30 @@ func (a *Asset) UserOwnsAsset(requestID, deviceID string) bool {
 }
 
 func (a *Asset) ApplyUserFromAssetID(assetID string) (string, string) {
+	var userAPI string
+	var userFound bool
 
 	// assetID has @user
-	id, user, ok := strings.Cut(assetID, "@")
+	id, user, ok := strings.Cut(assetID, kiosk.MultipleUserIndicator)
 	if ok {
-		if userAPI, userFound := a.requestConfig.ImmichUsersAPIKeys[user]; userFound {
+		if userAPI, userFound = a.requestConfig.ImmichUsersAPIKeys[user]; userFound {
 			a.requestConfig.SelectedUser = user
 			a.requestConfig.ImmichAPIKey = userAPI
 			return id, user
 		}
-		log.Warn("User not found in API keys, falling back to default")
+		log.Warn("User from assetID not found in API keys")
+	}
+
+	// User provided via URL query parameter
+	if len(a.requestConfig.URLParamUsers) > 0 {
+		randomIndex := rand.IntN(len(a.requestConfig.URLParamUsers))
+		selectedUser := a.requestConfig.URLParamUsers[randomIndex]
+		if userAPI, userFound = a.requestConfig.ImmichUsersAPIKeys[selectedUser]; userFound {
+			a.requestConfig.SelectedUser = selectedUser
+			a.requestConfig.ImmichAPIKey = userAPI
+			return id, selectedUser
+		}
+		log.Warn("User from URL query parameter not found in API keys")
 	}
 
 	// use default

@@ -1,5 +1,4 @@
 :root {
-    /* colours */
     --light-grey: #f7f9f8;
     --mid-grey: #6d727a;
     --dark-grey: #333333;
@@ -24,6 +23,7 @@
     --z-overlay: 500;
     --z-navigation: 600;
     --z-offline: 700;
+    --z-recovery: 800;
 
     /* gradients */
     --fade-gradient:
@@ -40,4 +40,6 @@
 
     --burn-in-fade: 10s;
     --burn-in-opacity: 0.7;
+
+    color-scheme: only light !important;
 }

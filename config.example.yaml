@@ -13,6 +13,7 @@ immich_url: ""
 ## Clock
 show_time: false
 time_format: 24 # 12 or 24
+show_am_pm: true # show am/pm when using 12 hour format
 show_date: false
 date_format: YYYY/MM/DD
 clock_source: client
@@ -64,7 +65,10 @@ excluded_partners:
 memories: false # show memories
 
 ## Filters
-# date_filter: last-30-days # only applies to people and random assets
+# filter_date: last-30-days # Limit assets from sources to a given date range
+# filter_newest: 0 # Limit asset sources to only the newest X assets.
+# filter_exclude_faces: false # Excludes assets where Immich has detected a face
+# filter_favorites: false # Filter to only show favorite assets
 
 ## UI
 show_clear_cache_button: false # Show a menu button to clear the Kiosk server cache
@@ -100,6 +104,7 @@ use_original_image: false # use the original file.
 show_videos: false
 live_photos: false
 live_photo_loop_delay: 0
+show_animated_gifs: false
 
 ## Image METADATA
 show_image_rating: false
@@ -124,12 +129,17 @@ show_image_qr: false
 hide_countries:
   - "country to hide"
 show_image_id: false
-show_more_info: true
-show_more_info_image_link: true
-show_more_info_qr_code: true
 
-like_button_action: favorite # album, favorite or both [album, favorite]
-hide_button_action: tag # tag, archive, or both [tag, archive]
+more_info:
+  display: true # show the more info overlay
+  like_button_action: favorite # album, favorite or both [album, favorite]
+  hide_button_action: tag # tag, archive, or both [tag, archive]
+  show:
+    asset_link: true
+    qr_code: true
+    rating: true
+    like_button: true
+    hide_button: true
 
 ## Weather feature - you’ll need an API key from OpenWeatherMap
 # weather:
@@ -143,6 +153,12 @@ hide_button_action: tag # tag, archive, or both [tag, archive]
 #       lang: en
 #       forecast: false
 #       default: false
+#       show:
+#         humidity: false
+#         wind: false
+#         wind_direction: false
+#         visibility: false
+#         temperature_range: false
 
 ## Add iframes into Kiosk - you can use local files or remote URLs
 #iframe:
@@ -159,7 +175,7 @@ hide_button_action: tag # tag, archive, or both [tag, archive]
 #   enabled: false
 #   number_of_assets: 100
 #   max_size: 0
-#   parallel_downloads: 4
+#   parallel_downloads: 1
 #   expiration_hours: 0
 
 ## Options that can NOT be changed via url params

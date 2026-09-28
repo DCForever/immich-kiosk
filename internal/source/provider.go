@@ -8,7 +8,7 @@ import "errors"
 // ErrMemoriesEmpty indicates no photos exist for the chosen date (same month/day in past years).
 var ErrMemoriesEmpty = errors.New("memories: no photos for this day")
 
-// ErrMemoriesNotSupported indicates the provider does not support memories (e.g. PhotoPrism).
+// ErrMemoriesNotSupported indicates the provider does not support memories.
 var ErrMemoriesNotSupported = errors.New("memories: not supported")
 
 // Provider is a marker interface for the media-source abstraction.

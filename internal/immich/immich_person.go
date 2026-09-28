@@ -1,7 +1,6 @@
 package immich
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +11,9 @@ import (
 	"slices"
 	"sync/atomic"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
-	"github.com/google/go-querystring/query"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -48,14 +46,14 @@ func (a *Asset) people(requestID, deviceID string, knowPeopleOnly bool, bypassCa
 		var body []byte
 
 		if bypassCache {
-			body, _, err = a.immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
+			body, _, _, err = a.immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
 			if err != nil {
 				_, _, err = immichAPIFail(allPeople, err, body, apiURL.String())
 				return people, err
 			}
 		} else {
 			immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, allPeople)
-			body, _, err = immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
+			body, _, _, err = immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
 			if err != nil {
 				_, _, err = immichAPIFail(allPeople, err, body, apiURL.String())
 				return people, err
@@ -139,7 +137,6 @@ func (a *Asset) allPeopleAssetCount(requestID, deviceID string) (int, error) {
 
 // PersonAssetCount returns the number of assets associated with a specific person in Immich.
 func (a *Asset) PersonAssetCount(personID, requestID, deviceID string) (int, error) {
-
 	if personID == kiosk.PersonKeywordAll {
 		return a.allPeopleAssetCount(requestID, deviceID)
 	}
@@ -159,7 +156,7 @@ func (a *Asset) PersonAssetCount(personID, requestID, deviceID string) (int, err
 	}
 
 	immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, personStatistics)
-	body, _, err := immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
+	body, _, _, err := immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
 	if err != nil {
 		_, _, err = immichAPIFail(personStatistics, err, body, apiURL.String())
 		return 0, err
@@ -190,7 +187,6 @@ func (a *Asset) PersonAssetCount(personID, requestID, deviceID string) (int, err
 //
 // The function mutates the receiver (i *ImmichAsset) to store the selected asset if successful.
 func (a *Asset) RandomAssetOfPerson(personID, requestID, deviceID string, isPrefetch bool) error {
-
 	if isPrefetch {
 		log.Debug(requestID, "PREFETCH", deviceID, "Getting Random asset of", personID)
 	} else {
@@ -199,64 +195,31 @@ func (a *Asset) RandomAssetOfPerson(personID, requestID, deviceID string, isPref
 
 	for range MaxRetries {
 
-		var immichAssets []Asset
-
-		u, err := url.Parse(a.requestConfig.ImmichURL)
-		if err != nil {
-			_, _, err = immichAPIFail(immichAssets, err, nil, "")
-			return err
-		}
+		filter := NewSearchFilterBuilder().
+			WithPeopleAll(personID).
+			WithVideos(a.requestConfig.ShowVideos).
+			WithArchived(a.requestConfig.ShowArchived).
+			ExcludePeople(a.requestConfig.ExcludedPeople).
+			ExcludeAlbums(a.requestConfig.ExcludedAlbums).
+			ExcludeTags(a.requestConfig.ExcludedTags).
+			WithFilterDate(a.requestConfig.FilterDate).
+			WithFilterFavorites(a.requestConfig.FilterFavorites).
+			Build()
 
 		requestBody := SearchRandomBody{
-			PersonIDs:  []string{personID},
-			Type:       string(ImageType),
-			WithExif:   true,
+			Filter:     filter,
 			WithPeople: true,
+			WithExif:   true,
 			Size:       a.requestConfig.Kiosk.FetchedAssetsSize,
 		}
 
-		// Include videos if show videos is enabled
-		if a.requestConfig.ShowVideos {
-			requestBody.Type = ""
-		}
-
 		if a.requestConfig.RequireAllPeople {
-			requestBody.PersonIDs = make([]string, len(a.requestConfig.People))
-			copy(requestBody.PersonIDs, a.requestConfig.People)
+			requestBody.Filter.PersonIDs.All = make([]string, len(a.requestConfig.People))
+			copy(requestBody.Filter.PersonIDs.All, a.requestConfig.People)
 		}
 
-		if a.requestConfig.ShowArchived {
-			requestBody.WithArchived = true
-		}
-
-		DateFilter(&requestBody, a.requestConfig.DateFilter)
-
-		// convert body to queries so url is unique and can be cached
-		queries, _ := query.Values(requestBody)
-
-		apiURL := url.URL{
-			Scheme:   u.Scheme,
-			Host:     u.Host,
-			Path:     "api/search/random",
-			RawQuery: fmt.Sprintf("kiosk=%x", sha256.Sum256([]byte(queries.Encode()))),
-		}
-
-		jsonBody, bodyMarshalErr := json.Marshal(requestBody)
-		if bodyMarshalErr != nil {
-			_, _, bodyMarshalErr = immichAPIFail(immichAssets, bodyMarshalErr, nil, apiURL.String())
-			return bodyMarshalErr
-		}
-
-		immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, immichAssets)
-		apiBody, _, err := immichAPICall(a.ctx, http.MethodPost, apiURL.String(), jsonBody)
+		immichAssets, apiURL, err := a.fetchAssets(requestID, deviceID, requestBody)
 		if err != nil {
-			_, _, err = immichAPIFail(immichAssets, err, apiBody, apiURL.String())
-			return err
-		}
-
-		err = json.Unmarshal(apiBody, &immichAssets)
-		if err != nil {
-			_, _, err = immichAPIFail(immichAssets, err, apiBody, apiURL.String())
 			return err
 		}
 
@@ -293,12 +256,12 @@ func (a *Asset) RandomAssetOfPerson(personID, requestID, deviceID string, isPref
 				}
 
 				// Replace cache with remaining assets after removing used asset(s)
-				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration)
+				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration, a.requestConfig.CacheDuration)
 			}
 
 			asset.BucketID = personID
 			if asset.requestConfig.SelectedUser != "" {
-				asset.BucketID = fmt.Sprintf("%s@%s", personID, asset.requestConfig.SelectedUser)
+				asset.BucketID = fmt.Sprintf("%s%s%s", personID, kiosk.MultipleUserIndicator, asset.requestConfig.SelectedUser)
 			}
 
 			*a = asset
@@ -324,10 +287,9 @@ func (a *Asset) RandomAssetOfPerson(personID, requestID, deviceID string, isPref
 //   - string: The ID of the randomly selected person
 //   - error: nil if successful, error if no people are found or if the API call fails
 func (a *Asset) RandomPersonFromAllPeople(requestID, deviceID string, knowPeopleOnly bool) (string, error) {
-
 	people, err := a.people(requestID, deviceID, knowPeopleOnly, false)
 	if err != nil {
-		return "", fmt.Errorf("failed to get people: %w", err)
+		return "", fmt.Errorf("get people: %w", err)
 	}
 
 	if len(people) == 0 {

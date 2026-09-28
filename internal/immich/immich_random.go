@@ -1,18 +1,13 @@
 package immich
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"net/http"
-	"net/url"
 	"slices"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
-	"github.com/google/go-querystring/query"
 )
 
 // RandomAsset fetches a random asset from the Immich API while handling caching and retries.
@@ -32,7 +27,6 @@ import (
 // Returns an error if no suitable asset is found after retries or if there
 // are any issues with API calls, caching, or asset processing.
 func (a *Asset) RandomAsset(requestID, deviceID string, isPrefetch bool) error {
-
 	if isPrefetch {
 		log.Debug(requestID, "PREFETCH", deviceID, "Getting Random asset", true)
 	} else {
@@ -41,58 +35,25 @@ func (a *Asset) RandomAsset(requestID, deviceID string, isPrefetch bool) error {
 
 	for range MaxRetries {
 
-		var immichAssets []Asset
-
-		u, err := url.Parse(a.requestConfig.ImmichURL)
-		if err != nil {
-			_, _, err = immichAPIFail(immichAssets, err, nil, "")
-			return err
-		}
+		filter := NewSearchFilterBuilder().
+			WithVideos(a.requestConfig.ShowVideos).
+			WithArchived(a.requestConfig.ShowArchived).
+			ExcludePeople(a.requestConfig.ExcludedPeople).
+			ExcludeAlbums(a.requestConfig.ExcludedAlbums).
+			ExcludeTags(a.requestConfig.ExcludedTags).
+			WithFilterDate(a.requestConfig.FilterDate).
+			WithFilterFavorites(a.requestConfig.FilterFavorites).
+			Build()
 
 		requestBody := SearchRandomBody{
-			Type:       string(ImageType),
+			Filter:     filter,
 			WithExif:   true,
 			WithPeople: true,
 			Size:       a.requestConfig.Kiosk.FetchedAssetsSize,
 		}
 
-		// Include videos if show videos is enabled
-		if a.requestConfig.ShowVideos {
-			requestBody.Type = ""
-		}
-
-		if a.requestConfig.ShowArchived {
-			requestBody.WithArchived = true
-		}
-
-		DateFilter(&requestBody, a.requestConfig.DateFilter)
-
-		// convert body to queries so url is unique and can be cached
-		queries, _ := query.Values(requestBody)
-
-		apiURL := url.URL{
-			Scheme:   u.Scheme,
-			Host:     u.Host,
-			Path:     "api/search/random",
-			RawQuery: fmt.Sprintf("kiosk=%x", sha256.Sum256([]byte(queries.Encode()))),
-		}
-
-		jsonBody, err := json.Marshal(requestBody)
+		immichAssets, apiURL, err := a.fetchAssets(requestID, deviceID, requestBody)
 		if err != nil {
-			_, _, err = immichAPIFail(immichAssets, err, nil, "")
-			return err
-		}
-
-		immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, immichAssets)
-		apiBody, _, err := immichAPICall(a.ctx, http.MethodPost, apiURL.String(), jsonBody)
-		if err != nil {
-			_, _, err = immichAPIFail(immichAssets, err, apiBody, apiURL.String())
-			return err
-		}
-
-		err = json.Unmarshal(apiBody, &immichAssets)
-		if err != nil {
-			_, _, err = immichAPIFail(immichAssets, err, apiBody, apiURL.String())
 			return err
 		}
 
@@ -129,8 +90,10 @@ func (a *Asset) RandomAsset(requestID, deviceID string, isPrefetch bool) error {
 				}
 
 				// replace with cache minus used asset
-				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration)
+				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration, a.requestConfig.CacheDuration)
 			}
+
+			asset.BucketID = string(kiosk.SourceRandom)
 
 			*a = asset
 

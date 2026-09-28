@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/templates/partials"
@@ -79,7 +79,6 @@ func BuildURL(baseConfig *config.Config) echo.HandlerFunc {
 }
 
 func truncateURLQueries(rawURL string, maxLength int) string {
-
 	base, queryString, ok := strings.Cut(rawURL, "?")
 	if !ok {
 		return rawURL
@@ -105,7 +104,6 @@ func truncateURLQueries(rawURL string, maxLength int) string {
 
 func URLBuilderPage(baseConfig *config.Config, com *common.Common, extended bool) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err

@@ -78,7 +78,7 @@ type ExifInfo struct {
 	Model            string
 	ModifyDate       time.Time
 	Orientation      string
-	Rating           float32
+	Rating           int
 	State            string
 	TimeZone         string
 }
@@ -122,12 +122,17 @@ type DisplayAsset struct {
 	ExifInfo  ExifInfo
 	Owner     Owner
 
-	IsFavorite bool
-	IsPortrait bool
+	IsFavorite  bool
+	IsPortrait  bool
 	IsLandscape bool
 
 	Bucket   kiosk.Source
 	BucketID string
+
+	// FaceCenterX and FaceCenterY are the center of detected faces as percentages
+	// of the image. Zero means no face position is available.
+	FaceCenterX float64
+	FaceCenterY float64
 
 	// Set when building view data from config (for template logic).
 	SelectedUser  string

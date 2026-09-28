@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
@@ -20,9 +20,7 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/utils"
 )
 
-var (
-	customTempVideoDir = filepath.Join(os.TempDir(), "immich-kiosk", "videos")
-)
+var customTempVideoDir = filepath.Join(os.TempDir(), "immich-kiosk", "videos")
 
 // Video represents a downloaded video file and its metadata
 type Video struct {
@@ -57,9 +55,8 @@ func New(ctx context.Context) (*Manager, error) {
 
 // initialise initializes the video temp directory
 func initialise() error {
-
 	// Create custom temp directory if it doesn't exist
-	err := os.MkdirAll(customTempVideoDir, 0755)
+	err := os.MkdirAll(customTempVideoDir, 0o755)
 	if err != nil {
 		log.Error("Error creating custom temp directory", "err", err)
 		return err
@@ -97,7 +94,6 @@ func DeleteTmpDir() {
 
 // RemoveVideo deletes a video file and removes it from the manager
 func (v *Manager) RemoveVideo(id string) {
-
 	for i, video := range v.Videos {
 		if video.ID == id {
 			filePath := filepath.Join(customTempVideoDir, video.FileName)
@@ -128,16 +124,15 @@ func (v *Manager) cleanup() {
 
 	now := time.Now()
 
-	for i := len(v.Videos) - 1; i >= 0; i-- {
-		if now.Sub(v.Videos[i].LastAccessed) > v.MaxAge {
-			v.RemoveVideo(v.Videos[i].ID)
+	for _, v0 := range slices.Backward(v.Videos) {
+		if now.Sub(v0.LastAccessed) > v.MaxAge {
+			v.RemoveVideo(v0.ID)
 		}
 	}
 }
 
 // IsDownloaded checks if a video has already been downloaded
 func (v *Manager) IsDownloaded(id string) bool {
-
 	if _, err := v.GetVideo(id); err == nil {
 		return true
 	}
@@ -224,7 +219,6 @@ func (v *Manager) addToQueue(id string) {
 // DownloadVideo downloads a video file and adds it to the cache.
 // displayAsset is the source-agnostic asset for the view (from provider.DisplayAsset).
 func (v *Manager) DownloadVideo(immichAsset immich.Asset, displayAsset source.DisplayAsset, requestConfig config.Config, deviceID string, requestURL string) {
-
 	videoID := immichAsset.ID
 
 	v.addToQueue(videoID)
@@ -240,7 +234,7 @@ func (v *Manager) DownloadVideo(immichAsset immich.Asset, displayAsset source.Di
 	ext := filepath.Ext(immichAsset.OriginalFileName)
 	if strings.HasPrefix(contentType, "video/") {
 		immichAsset.ServedMimeType = contentType
-		mediaType := strings.Split(contentType, ";")[0]
+		mediaType, _, _ := strings.Cut(contentType, ";")
 		parts := strings.Split(mediaType, "/")
 		if len(parts) == 2 && parts[1] != "" {
 			ext = "." + parts[1]
@@ -278,7 +272,7 @@ func (v *Manager) DownloadVideo(immichAsset immich.Asset, displayAsset source.Di
 		return
 	}
 
-	img, imgErr := utils.BytesToImage(imgBytes, false)
+	img, _, imgErr := utils.BytesToImage(imgBytes, false)
 	if imgErr != nil {
 		log.Error("Image BytesToImage", "err", imgErr)
 	}
@@ -295,12 +289,12 @@ func (v *Manager) DownloadVideo(immichAsset immich.Asset, displayAsset source.Di
 		log.Error("Getting image preview", "err", imgBlurErr)
 	}
 
-	imageData, imageDataErr := utils.ImageToBase64(img)
+	imageData, imageDataErr := utils.ImageToBase64(img, kiosk.MimeTypeJpeg)
 	if imageDataErr != nil {
 		log.Error("Converting image to base64", "err", imageDataErr)
 	}
 
-	imageBlurData, err := utils.ImageToBase64(imgBlur)
+	imageBlurData, err := utils.ImageToBase64(imgBlur, kiosk.MimeTypeJpeg)
 	if err != nil {
 		log.Error("Converting image to base64", "err", err)
 	}

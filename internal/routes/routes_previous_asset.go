@@ -6,9 +6,8 @@ import (
 	"net/http"
 	"path"
 	"strings"
-	"sync"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/dustin/go-humanize"
 	"github.com/labstack/echo/v5"
 	"golang.org/x/sync/errgroup"
@@ -19,6 +18,7 @@ import (
 	"github.com/damongolding/immich-kiosk/internal/immich"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/source"
+	"github.com/damongolding/immich-kiosk/internal/templates/components"
 	imageComponent "github.com/damongolding/immich-kiosk/internal/templates/components/image"
 	videoComponent "github.com/damongolding/immich-kiosk/internal/templates/components/video"
 	"github.com/damongolding/immich-kiosk/internal/utils"
@@ -153,11 +153,63 @@ func historyAsset(baseConfig *config.Config, com *common.Common, c *echo.Context
 
 	go webhooks.Trigger(com.Context(), requestData, KioskVersion, webhookEvent, viewData)
 
-	if len(viewData.Assets) > 0 && requestConfig.ShowTime && viewData.Assets[0].Asset.Type == source.TypeVideo {
-		return Render(c, http.StatusOK, videoComponent.Video(viewData, com.Secret()))
+	s := transitionHandler(useNextImage, requestConfig.Transition)
+
+	if len(viewData.Assets) > 0 && requestConfig.ShowVideos && viewData.Assets[0].Asset.Type == source.TypeVideo {
+		return Render(c, http.StatusOK, videoComponent.Video(viewData, com.Secret(), s...))
 	}
 
-	return Render(c, http.StatusOK, imageComponent.Image(viewData, com.Secret()))
+	return Render(c, http.StatusOK, imageComponent.Image(viewData, com.Secret(), s...))
+}
+
+var oppositeDirection = map[string]string{
+	"left":  "right",
+	"right": "left",
+	"up":    "down",
+	"down":  "up",
+}
+
+func transitionHandler(useNextImage bool, transition string) []components.AssetScript {
+	if !isSlideOrPushTransition(transition) {
+		return nil
+	}
+
+	transitionType, direction, ok := splitTransition(transition)
+	if !ok {
+		return nil
+	}
+
+	opposite := oppositeDirection[direction]
+
+	from := fmt.Sprintf("transition-%s-%s", transitionType, direction)
+	to := fmt.Sprintf("transition-%s-%s", transitionType, opposite)
+
+	if !useNextImage {
+		// user wants a previous image, so the transition should go from the opposite direction
+		from, to = to, from
+	}
+
+	return []components.AssetScript{
+		{
+			FuncName: "kiosk.kioskClass",
+			Args:     []any{from, to},
+		},
+	}
+}
+
+func isSlideOrPushTransition(transition string) bool {
+	if strings.Contains(transition, "random") {
+		return false
+	}
+	return strings.Contains(transition, "push") || strings.Contains(transition, "slide")
+}
+
+func splitTransition(transition string) (string, string, bool) {
+	parts := strings.Split(transition, "-")
+	if len(parts) < 2 {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 // getHistoryAsset returns a function that processes a single asset from the navigation history.
@@ -172,24 +224,19 @@ func getHistoryAsset(requestConfig config.Config, com *common.Common, requestID,
 			return fmt.Errorf("failed to get asset info: %w", assetInfoErr)
 		}
 
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if ad, ok := provider.(*immich.Adapter); ok {
-				asset := ad.Asset()
-				asset.AddRatio()
-				if requestConfig.ShowAlbumName {
-					asset.AlbumsThatContainAsset(requestID, deviceID)
-				}
-				if requestConfig.Memories {
-					if ok, memory, assetIndex := asset.IsMemory(); ok {
-						asset.Bucket = kiosk.SourceMemories
-						asset.MemoryTitle = humanize.Time(memory.Assets[assetIndex].LocalDateTime)
-					}
+		if ad, ok := provider.(*immich.Adapter); ok {
+			asset := ad.Asset()
+			asset.AddRatio()
+			if requestConfig.ShowAlbumName {
+				asset.AlbumsThatContainAsset(requestID, deviceID)
+			}
+			if requestConfig.Memories {
+				if ok, memory, assetIndex := asset.IsMemory(); ok {
+					asset.Bucket = kiosk.SourceMemories
+					asset.MemoryTitle = humanize.Time(memory.Assets[assetIndex].LocalDateTime)
 				}
 			}
-		}()
+		}
 
 		var imgString, imgBlurString string
 		var dominantColor color.RGBA
@@ -198,11 +245,11 @@ func getHistoryAsset(requestConfig config.Config, com *common.Common, requestID,
 		defer func() {
 			displayAsset := provider.DisplayAsset(requestID, deviceID)
 			viewData.Assets[prevAssetsID] = common.ViewImageData{
-				Asset:               displayAsset,
-				ImageData:           imgString,
-				ImageBlurData:       imgBlurString,
-				ImageDominantColor:  dominantColor,
-				User:                selectedUser,
+				Asset:              displayAsset,
+				ImageData:          imgString,
+				ImageBlurData:      imgBlurString,
+				ImageDominantColor: dominantColor,
+				User:               selectedUser,
 			}
 		}()
 
@@ -211,21 +258,22 @@ func getHistoryAsset(requestConfig config.Config, com *common.Common, requestID,
 			switch provider.DisplayAsset(requestID, deviceID).Type {
 			case source.TypeImage:
 				return fmt.Errorf("retrieving asset: %w", previewErr)
-			case source.TypeVideo:
-				wg.Wait()
-				return nil
 			default:
-				wg.Wait()
 				return nil
 			}
 		}
 
-		img, byteErr := utils.BytesToImage(imgBytes, requestConfig.UseOriginalImage)
+		img, mimeType, byteErr := utils.BytesToImage(imgBytes, requestConfig.UseOriginalImage)
 		if byteErr != nil {
 			return byteErr
 		}
 
-		imgString, base64Err := imageToBase64(img, requestConfig, requestID, deviceID, "Converted", false)
+		img = handleFaceProcessing(img, provider, requestConfig, requestMetadata{
+			requestID: requestID,
+			deviceID:  deviceID,
+		})
+
+		imgString, base64Err := imageToBase64(img, mimeType, requestConfig.Kiosk.DebugVerbose, requestID, deviceID, "Converted", false)
 		if base64Err != nil {
 			return fmt.Errorf("converting image to base64: %w", base64Err)
 		}
@@ -243,8 +291,6 @@ func getHistoryAsset(requestConfig config.Config, com *common.Common, requestID,
 			}
 		}
 
-		wg.Wait()
-
 		return nil
 	}
 }
@@ -260,7 +306,6 @@ func getHistoryAsset(requestConfig config.Config, com *common.Common, requestID,
 // - string: The found history entry, or empty string if none found
 // - int: The index of the found entry
 func findHistoryEntry(history []string, useNextImage bool) (string, int) {
-
 	historyLen := len(history)
 	entry := ""
 	entryIndex := 0
@@ -325,12 +370,11 @@ func historyAssetOffline(c *echo.Context, requestData *common.RouteRequestData, 
 		return loadMsgpackErr
 	}
 
+	viewData.Config = requestConfig
+
 	viewData.KioskVersion = KioskVersion
 	viewData.RequestID = requestData.RequestID
 	viewData.DeviceID = requestData.DeviceID
-	viewData.History = requestConfig.History
-	viewData.Theme = requestConfig.Theme
-	viewData.Kiosk.DemoMode = requestConfig.Kiosk.DemoMode
 
 	go webhooks.Trigger(com.Context(), requestData, KioskVersion, webhookEvent, viewData)
 

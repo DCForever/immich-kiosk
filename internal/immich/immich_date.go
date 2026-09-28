@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/google/go-querystring/query"
@@ -35,7 +35,6 @@ import (
 //
 // Returns an error if no valid assets are found after max retries
 func (a *Asset) RandomAssetInDateRange(dateRange, requestID, deviceID string, isPrefetch bool) error {
-
 	dateStart, dateEnd, dateErr := determineDateRange(dateRange)
 	if dateErr != nil {
 		return dateErr
@@ -59,22 +58,21 @@ func (a *Asset) RandomAssetInDateRange(dateRange, requestID, deviceID string, is
 			return fmt.Errorf("parsing url: %w", err)
 		}
 
+		filter := NewSearchFilterBuilder().
+			WithVideos(a.requestConfig.ShowVideos).
+			WithArchived(a.requestConfig.ShowArchived).
+			ExcludePeople(a.requestConfig.ExcludedPeople).
+			ExcludeAlbums(a.requestConfig.ExcludedAlbums).
+			ExcludeTags(a.requestConfig.ExcludedTags).
+			WithFilterDate(dateRange).
+			WithFilterFavorites(a.requestConfig.FilterFavorites).
+			Build()
+
 		requestBody := SearchRandomBody{
-			Type:        string(ImageType),
-			TakenAfter:  dateStart.Format(time.RFC3339),
-			TakenBefore: dateEnd.Format(time.RFC3339),
-			WithExif:    true,
-			WithPeople:  true,
-			Size:        a.requestConfig.Kiosk.FetchedAssetsSize,
-		}
-
-		// Include videos if show videos is enabled
-		if a.requestConfig.ShowVideos {
-			requestBody.Type = ""
-		}
-
-		if a.requestConfig.ShowArchived {
-			requestBody.WithArchived = true
+			Filter:     filter,
+			WithExif:   true,
+			WithPeople: true,
+			Size:       a.requestConfig.Kiosk.FetchedAssetsSize,
 		}
 
 		// convert body to queries so url is unique and can be cached
@@ -83,7 +81,7 @@ func (a *Asset) RandomAssetInDateRange(dateRange, requestID, deviceID string, is
 		apiURL := url.URL{
 			Scheme:   u.Scheme,
 			Host:     u.Host,
-			Path:     "api/search/random",
+			Path:     SearchRandomEndpoint,
 			RawQuery: fmt.Sprintf("kiosk=%x", sha256.Sum256([]byte(queries.Encode()))),
 		}
 
@@ -93,7 +91,7 @@ func (a *Asset) RandomAssetInDateRange(dateRange, requestID, deviceID string, is
 		}
 
 		immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, immichAssets)
-		apiBody, _, err := immichAPICall(a.ctx, http.MethodPost, apiURL.String(), jsonBody)
+		apiBody, _, _, err := immichAPICall(a.ctx, http.MethodPost, apiURL.String(), jsonBody)
 		if err != nil {
 			_, _, err = immichAPIFail(immichAssets, err, apiBody, apiURL.String())
 			return err
@@ -138,7 +136,7 @@ func (a *Asset) RandomAssetInDateRange(dateRange, requestID, deviceID string, is
 				}
 
 				// replace cache with used asset(s) removed
-				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration)
+				cache.Set(apiCacheKey, jsonBytes, a.requestConfig.Duration, a.requestConfig.CacheDuration)
 			}
 
 			asset.BucketID = dateRange
@@ -215,7 +213,6 @@ func processTodayDateRange() (time.Time, time.Time) {
 //	"2023-01-01_to_today" -> Jan 1 2023 00:00:00 to current date 23:59:59.999999999
 //	"today_to_2023-12-31" -> current date 00:00:00 to Dec 31 2023 23:59:59.999999999
 func processDateRange(dateRange string) (time.Time, time.Time, error) {
-
 	var err error
 
 	dateStart, dateEnd := processTodayDateRange()
@@ -263,7 +260,6 @@ func extractDays(s string) (int, error) {
 // and returns a time range from X days ago to now.
 // Returns an error if the number of days cannot be extracted from the string.
 func processLastDays(dateRange string) (time.Time, time.Time, error) {
-
 	dateStart, dateEnd := processTodayDateRange()
 
 	days, err := extractDays(dateRange)

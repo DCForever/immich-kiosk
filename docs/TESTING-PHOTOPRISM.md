@@ -101,10 +101,10 @@ See [FEATURES-BY-SOURCE.md](FEATURES-BY-SOURCE.md) for a table of what works wit
 
 ## 8. Known limitations (PhotoPrism source)
 
-- **People** – Not supported (filter/weighting skipped).
-- **Memories** – Not supported.
-- **Star rating** – Not supported.
-- **Like/Hide/Tag** – Buttons work in the UI but do not change state in PhotoPrism (no-ops).
+- **People** – Supported by subject name when the PhotoPrism subjects API is available.
+- **Memories** – Supported. The collage uses PhotoPrism search filters for the same calendar day, then the ISO week, then the month, and shows 3–16 photos.
+- **Star rating** – Not supported. Rating requests return not implemented and do not write a rating.
+- **Like/Hide/Tag/Archive** – Intentional no-ops. They do not change state in PhotoPrism.
 - **Videos** – Supported if PhotoPrism returns them from the photos API; playback uses PhotoPrism’s video endpoint.
 
 If you see “no photos” or empty slides, check that PhotoPrism has indexed photos and that the token has access. Use `KIOSK_LOG_LEVEL=debug` to see API requests and any errors.

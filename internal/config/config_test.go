@@ -9,15 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 
+	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestConfigWithOverrides testing whether ImmichURL and ImmichApiKey are immutable
 func TestImmichURLImmichApiKeyImmutability(t *testing.T) {
-
 	originalURL := "https://my-server.com"
 	originalAPI := "123456"
 	originalUsersAPIKeys := map[string]string{"default": "123456"}
@@ -76,8 +76,7 @@ func TestImmichURLImmichMultiplePerson(t *testing.T) {
 
 // TestMalformedURLs testing urls without scheme or ports
 func TestMalformedURLs(t *testing.T) {
-
-	var tests = []struct {
+	tests := []struct {
 		URL  string
 		Want string
 	}{
@@ -89,7 +88,6 @@ func TestMalformedURLs(t *testing.T) {
 	}
 
 	for _, test := range tests {
-
 		t.Run(test.URL, func(t *testing.T) {
 			t.Setenv("KIOSK_IMMICH_URL", test.URL)
 			t.Setenv("KIOSK_IMMICH_API_KEY", "12345")
@@ -106,7 +104,6 @@ func TestMalformedURLs(t *testing.T) {
 
 // TestImmichURLImmichMultipleAlbum tests the addition and overriding of multiple albums in the config
 func TestImmichURLImmichMultipleAlbum(t *testing.T) {
-
 	// configWithBase
 	configWithBase := New()
 	configWithBase.Albums = []string{"BASE_ALBUM"}
@@ -361,6 +358,148 @@ func TestCheckWeatherLocations(t *testing.T) {
 				assert.Empty(t, output)
 			} else {
 				assert.NotEmpty(t, output)
+			}
+		})
+	}
+}
+
+func TestConfig_checkIDs(t *testing.T) {
+	tests := []struct {
+		name          string
+		key           string
+		ids           []string
+		allowSuffix   bool
+		allowKeywords bool
+		wantWarn      bool
+		wantValues    []string // ids expected to appear in the warning output
+	}{
+		{
+			name:          "valid uuid",
+			key:           "album_ids",
+			ids:           []string{"550e8400-e29b-41d4-a716-446655440000"},
+			allowSuffix:   true,
+			allowKeywords: true,
+			wantWarn:      false,
+		},
+		{
+			name:          "valid uuid with suffix",
+			key:           "album_ids",
+			ids:           []string{"550e8400-e29b-41d4-a716-446655440000@user"},
+			allowSuffix:   true,
+			allowKeywords: true,
+			wantWarn:      false,
+		},
+		{
+			name:          "keyword all",
+			key:           "album_ids",
+			ids:           []string{kiosk.AlbumKeywordAll},
+			allowSuffix:   true,
+			allowKeywords: true,
+			wantWarn:      false,
+		},
+		{
+			name: "keyword owned/shared/favourites/favorites",
+			key:  "album_ids",
+			ids: []string{
+				kiosk.AlbumKeywordOwned,
+				kiosk.AlbumKeywordShared,
+				kiosk.AlbumKeywordFavourites,
+				kiosk.AlbumKeywordFavorites,
+			},
+			allowSuffix:   true,
+			allowKeywords: true,
+			wantWarn:      false,
+		},
+		{
+			name:          "invalid id",
+			key:           "album_ids",
+			ids:           []string{"not-a-uuid"},
+			allowSuffix:   true,
+			allowKeywords: true,
+			wantWarn:      true,
+			wantValues:    []string{"not-a-uuid"},
+		},
+		{
+			name:          "mixed valid and invalid",
+			key:           "person_ids",
+			ids:           []string{"550e8400-e29b-41d4-a716-446655440000", "garbage", kiosk.AlbumKeywordAll},
+			allowSuffix:   true,
+			allowKeywords: true,
+			wantWarn:      true,
+			wantValues:    []string{"garbage"},
+		},
+		{
+			name: "keywords",
+			key:  "keywords",
+			ids: []string{
+				kiosk.AlbumKeywordAll,
+				kiosk.AlbumKeywordFavorites,
+				kiosk.AlbumKeywordFavourites,
+				kiosk.AlbumKeywordOwned,
+				kiosk.AlbumKeywordShared,
+				kiosk.PersonKeywordAll,
+			},
+			allowSuffix:   true,
+			allowKeywords: true,
+			wantWarn:      false,
+		},
+		{
+			name:          "empty slice",
+			key:           "album_ids",
+			ids:           []string{},
+			allowSuffix:   true,
+			allowKeywords: true,
+			wantWarn:      false,
+		},
+		{
+			name:          "excluded album with suffix",
+			key:           "excluded_albums",
+			ids:           []string{"550e8400-e29b-41d4-a716-446655440000@user"},
+			allowSuffix:   false,
+			allowKeywords: false,
+			wantWarn:      true,
+		},
+		{
+			name:          "keyword rejected when keywords disallowed",
+			key:           "excluded_albums",
+			ids:           []string{kiosk.AlbumKeywordAll},
+			allowSuffix:   false,
+			allowKeywords: false,
+			wantWarn:      true,
+			wantValues:    []string{kiosk.AlbumKeywordAll},
+		},
+		{
+			name:          "person keyword rejected when keywords disallowed",
+			key:           "excluded_people",
+			ids:           []string{kiosk.PersonKeywordAll},
+			allowSuffix:   false,
+			allowKeywords: false,
+			wantWarn:      true,
+			wantValues:    []string{kiosk.PersonKeywordAll},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			log.SetOutput(&buf)
+			defer log.SetOutput(os.Stderr)
+
+			c := &Config{}
+			c.checkIDs(tt.key, tt.ids, tt.allowSuffix, tt.allowKeywords)
+
+			out := buf.String()
+
+			if tt.wantWarn && !strings.Contains(out, "Invalid ID format") {
+				t.Errorf("expected warning log, got none. output: %q", out)
+			}
+			if !tt.wantWarn && strings.Contains(out, "Invalid ID format") {
+				t.Errorf("expected no warning log, got: %q", out)
+			}
+			for _, v := range tt.wantValues {
+				if !strings.Contains(out, v) {
+					t.Errorf("expected log output to contain %q, got: %q", v, out)
+				}
 			}
 		})
 	}

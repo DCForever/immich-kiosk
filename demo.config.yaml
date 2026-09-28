@@ -22,8 +22,7 @@ transition: cross-fade # cross-fade, fade or none
 show_progress_bar: true # display a progress bar
 image_fit: cover # how the image fits the screen. Options are none, contain and cover
 image_effect: smart-zoom
-
-albums: 75c4860f-d31c-4dac-9831-0e67c7ab7668
+image_effect_amount: 200
 
 ## Image METADATA
 show_album_name: true
@@ -58,6 +57,10 @@ weather:
       unit: imperial
       lang: en
       default: false
+      show:
+        humidity: true
+        wind: true
+        visibility: true
 
     - name: Tokyo
       lat: 35.6895
@@ -66,6 +69,8 @@ weather:
       unit: metric
       lang: en
       default: false
+      show:
+        humidity: true
 
 use_offline_mode: true
 
@@ -75,20 +80,28 @@ offline_mode:
   max_size: 1gb
   expiration_hours: 0
 
-kiosk:
-  port: 3000
-
-  http_timeout: -1
-
-  redirects:
+redirects:
+  items:
     - name: curated
       url: /?weather=rotate
 
-    - name: all
-      url: /?album=none&use_offline_mode=false
+    - name: bubble-theme
+      url: /?weather=rotate&theme=bubble
+      category: themes
+
+    - name: solid-theme
+      url: /?weather=rotate&theme=solid
+      category: themes
+
+    - name: random
+      url: /?album=none&use_offline_mode=false&image_effect_amount=200
 
     - name: simple
       url: /?image_effect=none&layout=single&image_fit=contain&transition=none&disable_ui=true&show_more_info=false&use_offline_mode=false
 
-    - name: solid-theme
-      url: /?theme=solid&use_offline_mode=false
+kiosk:
+  port: 3000
+
+  disable_config_endpoint: true
+
+  http_timeout: -1

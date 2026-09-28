@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/birthdate"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/config"
@@ -169,7 +169,7 @@ func (p *Provider) fetchPhotosWithCache(albumUID, order, label, dateFilter, pers
 							DownloadToken: batch.DownloadToken,
 						}
 						jsonBytes, _ := json.Marshal(rest)
-						cache.Set(cacheKey, jsonBytes, p.cfg.Duration)
+						cache.Set(cacheKey, jsonBytes, p.cfg.Duration, p.cfg.CacheDuration)
 					} else {
 						cache.Delete(cacheKey)
 					}
@@ -200,7 +200,7 @@ func (p *Provider) fetchPhotosWithCache(albumUID, order, label, dateFilter, pers
 			DownloadToken: download,
 		}
 		jsonBytes, _ := json.Marshal(rest)
-		cache.Set(cacheKey, jsonBytes, p.cfg.Duration)
+		cache.Set(cacheKey, jsonBytes, p.cfg.Duration, p.cfg.CacheDuration)
 	}
 	p.enrichCurrentPhotoWithMarkers()
 	return nil
@@ -395,9 +395,10 @@ func (p *Provider) RandomAssetOfPerson(personID, requestID, deviceID string, isP
 	return nil
 }
 
-// RandomMemoryAsset is not supported by PhotoPrism.
+// RandomMemoryAsset is unused for PhotoPrism. Memories are served as a collage
+// through MemoriesCollage, not as a single random memory asset.
 func (p *Provider) RandomMemoryAsset(requestID, deviceID string) error {
-	return fmt.Errorf("photoprism: memories not supported")
+	return source.ErrMemoriesNotSupported
 }
 
 const (
@@ -492,8 +493,8 @@ func (p *Provider) memoriesCollageExact(requestID, deviceID string) (source.Memo
 
 		return source.MemoriesCollage{
 			Year:      year,
-			Assets:   displayAssets,
-			YearsAgo: yearsAgo,
+			Assets:    displayAssets,
+			YearsAgo:  yearsAgo,
 			TimeRange: source.TimeRangeExactDate,
 		}, nil
 	}
@@ -575,8 +576,8 @@ func (p *Provider) memoriesCollageWeek(requestID, deviceID string) (source.Memor
 
 		return source.MemoriesCollage{
 			Year:      year,
-			Assets:   displayAssets,
-			YearsAgo: yearsAgo,
+			Assets:    displayAssets,
+			YearsAgo:  yearsAgo,
 			TimeRange: source.TimeRangeWeek,
 		}, nil
 	}
@@ -658,8 +659,8 @@ func (p *Provider) memoriesCollageMonth(requestID, deviceID string) (source.Memo
 
 		return source.MemoriesCollage{
 			Year:      year,
-			Assets:   displayAssets,
-			YearsAgo: yearsAgo,
+			Assets:    displayAssets,
+			YearsAgo:  yearsAgo,
 			TimeRange: source.TimeRangeMonth,
 		}, nil
 	}
@@ -732,22 +733,22 @@ func (p *Provider) photoToDisplayAsset(ph *Photo, bucket kiosk.Source, bucketID 
 	}
 	exif := source.ExifInfo{
 		Description:      ph.Description,
-		DateTimeOriginal:  ph.TakenAt,
-		Make:              ph.CameraMake,
-		Model:             ph.CameraModel,
-		LensModel:         ph.LensModel,
-		Iso:               ph.Iso,
-		FocalLength:       float64(ph.FocalLength),
-		FNumber:           ph.FNumber,
-		ExposureTime:      ph.Exposure,
-		ExifImageWidth:    ph.Width,
-		ExifImageHeight:   ph.Height,
-		Latitude:          ph.Lat,
-		Longitude:         ph.Lng,
-		City:              ph.PlaceCity,
-		State:             ph.PlaceState,
-		Country:           ph.PlaceCountry,
-		TimeZone:          ph.TimeZone,
+		DateTimeOriginal: ph.TakenAt,
+		Make:             ph.CameraMake,
+		Model:            ph.CameraModel,
+		LensModel:        ph.LensModel,
+		Iso:              ph.Iso,
+		FocalLength:      float64(ph.FocalLength),
+		FNumber:          ph.FNumber,
+		ExposureTime:     ph.Exposure,
+		ExifImageWidth:   ph.Width,
+		ExifImageHeight:  ph.Height,
+		Latitude:         ph.Lat,
+		Longitude:        ph.Lng,
+		City:             ph.PlaceCity,
+		State:            ph.PlaceState,
+		Country:          ph.PlaceCountry,
+		TimeZone:         ph.TimeZone,
 	}
 	people := photoMarkersToPeople(ph)
 	if p.birthdateLoader != nil {
@@ -1016,10 +1017,10 @@ func (p *Provider) Video() ([]byte, string, error) {
 	return p.client.getBytes(p.ctx, path)
 }
 
-func (p *Provider) AddTag(tag source.Tag) error       { return nil }
-func (p *Provider) RemoveTag(tag source.Tag) error   { return nil }
-func (p *Provider) FavouriteStatus(deviceID string, favourite bool) error { return nil }
-func (p *Provider) AddToKioskLikedAlbum(requestID, deviceID string) error { return nil }
+func (p *Provider) AddTag(tag source.Tag) error                                { return nil }
+func (p *Provider) RemoveTag(tag source.Tag) error                             { return nil }
+func (p *Provider) FavouriteStatus(deviceID string, favourite bool) error      { return nil }
+func (p *Provider) AddToKioskLikedAlbum(requestID, deviceID string) error      { return nil }
 func (p *Provider) RemoveFromKioskLikedAlbum(requestID, deviceID string) error { return nil }
-func (p *Provider) ArchiveStatus(deviceID string, archive bool) error { return nil }
-func (p *Provider) RemoveAssetCache(deviceID string) error { return nil }
+func (p *Provider) ArchiveStatus(deviceID string, archive bool) error          { return nil }
+func (p *Provider) RemoveAssetCache(deviceID string) error                     { return nil }

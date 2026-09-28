@@ -28,8 +28,13 @@ templ Head(viewData common.ViewData) {
 	<link rel="icon" type="image/png" sizes="16x16" href="/assets/images/favicon-16x16.png"/>
 	if viewData.HideCursor {
 		<style>
-			html, body {
-			    cursor: none;
+			html,
+			body,
+			*,
+			*::before,
+			*::after,
+			*:hover {
+			    cursor: none !important;
 			}
 		</style>
 	}
@@ -45,7 +50,7 @@ templ Head(viewData common.ViewData) {
 	}
 	@templ.Raw(burnInOpacity(viewData.BurnInOpacity))
 	if len(viewData.CustomCSS) > 0 && viewData.Config.CustomCSS {
-		@templ.Raw(customCss(viewData.CustomCSS))
+		@templ.Raw(AddCustomCss(viewData.CustomCSS))
 	}
 }
 
@@ -440,8 +445,8 @@ func imageZoomKeyframes(zoomAmount int, useGpu bool) string {
 	return fmt.Sprintf(template, formattedScale)
 }
 
-// customCss wraps CSS content in style tags and removes null bytes
-func customCss(css []byte) string {
+// AddCustomCss wraps CSS content in style tags and removes null bytes
+func AddCustomCss(css []byte) string {
 	css = bytes.ReplaceAll(css, []byte{0}, []byte{})
 	return fmt.Sprintf("<style id='custom-css-style-tag'>%s</style>", css)
 }

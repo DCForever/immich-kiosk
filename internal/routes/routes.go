@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"sync"
 
+	"charm.land/log/v2"
 	"github.com/a-h/templ"
-	"github.com/charmbracelet/log"
 	"github.com/labstack/echo/v5"
 
 	"github.com/damongolding/immich-kiosk/internal/common"
@@ -64,7 +64,6 @@ func ShouldDrawFacesOnImages() bool {
 //   - *common.RouteRequestData: Processed request data and configuration
 //   - error: Any errors encountered during initialization
 func InitializeRequestData(c *echo.Context, baseConfig *config.Config) (*common.RouteRequestData, error) {
-
 	kioskDeviceVersion := c.Request().Header.Get("kiosk-version")
 	deviceID := c.Request().Header.Get("kiosk-device-id")
 	requestID := utils.ColorizeRequestID(c.Response().Header().Get(echo.HeaderXRequestID))

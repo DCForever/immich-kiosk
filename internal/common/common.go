@@ -11,7 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/collage"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
@@ -44,10 +44,9 @@ func New() *Common {
 // initializeSecret generates and sets a secret token that is shared between application components
 // this shared secret is used for secure communication and authentication between services
 func (c *Common) initializeSecret() error {
-
 	secret, err := utils.GenerateSharedSecret()
 	if err != nil {
-		return fmt.Errorf("failed to generate shared secret: %w", err)
+		return fmt.Errorf("generating shared secret: %w", err)
 	}
 	c.secret = secret
 
@@ -85,27 +84,27 @@ type RouteRequestData struct {
 
 // ViewImageData contains the image data and metadata for displaying an image in the view
 type ViewImageData struct {
-	ImageData          string       // ImageData contains the image as base64 data
-	ImageBlurData      string       // ImageBlurData contains the blurred image as base64 data
-	ImageDate          string       // ImageDate contains the date of the image
-	User               string       // User the user api key used
+	ImageData          string              // ImageData contains the image as base64 data
+	ImageBlurData      string              // ImageBlurData contains the blurred image as base64 data
+	ImageDate          string              // ImageDate contains the date of the image
+	User               string              // User the user api key used
 	Asset              source.DisplayAsset // Asset contains backend-agnostic asset data for display
-	ImageDominantColor color.RGBA   // ImageDominantColor contains the dominant color of the image
+	ImageDominantColor color.RGBA          // ImageDominantColor contains the dominant color of the image
 }
 
 // ViewData contains all the data needed to render a view in the application
 type ViewData struct {
-	KioskVersion  string          // KioskVersion contains the current build version of Kiosk
-	RequestID     string          // RequestID contains the unique identifier for the request
-	DeviceID      string          // DeviceID contains the unique identifier for the device
-	Assets        []ViewImageData // Assets contains the collection of assets to display in view
-	Queries       url.Values      // Queries contains the URL query parameters
-	CustomCSS     []byte          // CustomCSS contains custom CSS styling as bytes
-	MemoryCaption            string              // MemoryCaption is set for memories view (e.g. "Memories from X years ago")
-	LayoutVariant            string              // LayoutVariant is the collage layout variant (e.g. "a", "b", "c") for collage-{n}-{variant}
-	CollageLayout            *collage.LayoutResult // CollageLayout is the dynamic layout when non-nil; nil triggers fallback to collage-{n}
-	ShowMemoriesBackButton   bool                // ShowMemoriesBackButton when true shows back button (on-demand memories view)
-	config.Config                         // Config contains the instance configuration
+	KioskVersion           string                // KioskVersion contains the current build version of Kiosk
+	RequestID              string                // RequestID contains the unique identifier for the request
+	DeviceID               string                // DeviceID contains the unique identifier for the device
+	Assets                 []ViewImageData       // Assets contains the collection of assets to display in view
+	Queries                url.Values            // Queries contains the URL query parameters
+	CustomCSS              []byte                // CustomCSS contains custom CSS styling as bytes
+	MemoryCaption          string                // MemoryCaption is set for memories view (e.g. "Memories from X years ago")
+	LayoutVariant          string                // LayoutVariant is the collage layout variant (e.g. "a", "b", "c") for collage-{n}-{variant}
+	CollageLayout          *collage.LayoutResult // CollageLayout is the dynamic layout when non-nil; nil triggers fallback to collage-{n}
+	ShowMemoriesBackButton bool                  // ShowMemoriesBackButton when true shows back button (on-demand memories view)
+	config.Config                                // Config contains the instance configuration
 }
 
 type ViewImageDataOptions struct {
@@ -126,7 +125,6 @@ type ContextCopy struct {
 // This allows preserving context information without maintaining a reference to the original context
 // Returns a ContextCopy containing the URL and header information
 func CopyContext(c *echo.Context) ContextCopy {
-
 	ctxCopy := ContextCopy{
 		URL:            *c.Request().URL,
 		RequestHeader:  c.Request().Header.Clone(),
@@ -169,13 +167,26 @@ type URLBuilderRequest struct {
 	ShowVideos         *bool   `form:"show_videos" url:"show_videos,omitempty"`
 	LivePhotos         *bool   `form:"live_photos" url:"live_photos,omitempty"`
 	LivePhotoLoopDelay *uint64 `form:"live_photo_loop_delay" url:"live_photo_loop_delay,omitempty"`
+	ShowAnimatedGifs   *bool   `form:"show_animated_gifs" url:"show_animated_gifs,omitempty"`
 
 	// Clock
 	ShowTime    *bool   `form:"show_time" url:"show_time,omitempty"`
 	TimeFormat  *string `form:"time_format" url:"time_format,omitempty"`
+	ShowAmPm    *bool   `form:"show_am_pm" url:"show_am_pm,omitempty"`
 	ShowDate    *bool   `form:"show_date" url:"show_date,omitempty"`
 	DateFormat  *string `form:"date_format" url:"date_format,omitempty"`
 	ClockSource *string `form:"clock_source" url:"clock_source,omitempty"`
+
+	// Weather
+	Weather                     *string `form:"weather" url:"weather,omitempty"`
+	WeatherRotationInterval     *uint64 `form:"rotation_interval" url:"rotation_interval,omitempty"`
+	WeatherShowForecast         *bool   `form:"weather_show_forecast" url:"weather_show_forecast,omitempty"`
+	WeatherShowHumidity         *bool   `form:"weather_show_humidity" url:"weather_show_humidity,omitempty"`
+	WeatherShowWind             *bool   `form:"weather_show_wind" url:"weather_show_wind,omitempty"`
+	WeatherShowWindDirection    *bool   `form:"weather_show_wind_direction" url:"weather_show_wind_direction,omitempty"`
+	WeatherShowVisibility       *bool   `form:"weather_show_visibility" url:"weather_show_visibility,omitempty"`
+	WeatherShowTemperatureRange *bool   `form:"weather_show_temperature_range" url:"weather_show_temperature_range,omitempty"`
+	WeatherRoundTemperature     *bool   `form:"weather_round_temperature" url:"weather_round_temperature,omitempty"`
 
 	// UI
 	ShowClearCacheButton *bool   `form:"show_clear_cache_button" url:"show_clear_cache_button,omitempty"`
@@ -216,9 +227,13 @@ type URLBuilderRequest struct {
 	ShowImageID              *bool   `form:"show_image_id" url:"show_image_id,omitempty"`
 
 	// Show more overlay
-	ShowMoreInfo          *bool    `form:"show_more_info" url:"show_more_info,omitempty"`
-	ShowMoreInfoImageLink *bool    `form:"show_more_info_image_link" url:"show_more_info_image_link,omitempty"`
-	ShowMoreInfoQRCode    *bool    `form:"show_more_info_qr_code" url:"show_more_info_qr_code,omitempty"`
-	LikeButtonAction      []string `form:"like_button_action" url:"like_button_action,omitempty"`
-	HideButtonAction      []string `form:"hide_button_action" url:"hide_button_action,omitempty"`
+	MoreInfoDisplay          *bool    `form:"more_info_display" url:"more_info_display,omitempty"`
+	MoreInfoLikeButtonAction []string `form:"more_info_like_button_action" url:"more_info_like_button_action,omitempty"`
+	MoreInfoHideButtonAction []string `form:"more_info_hide_button_action" url:"more_info_hide_button_action,omitempty"`
+
+	MoreInfoShowAssetLink  *bool `form:"more_info_show_asset_link" url:"more_info_show_asset_link,omitempty"`
+	MoreInfoShowQRCode     *bool `form:"more_info_show_qr_code" url:"more_info_show_qr_code,omitempty"`
+	MoreInfoRating         *bool `form:"more_info_show_rating" url:"more_info_show_rating,omitempty"`
+	MoreInfoShowLikeButton *bool `form:"more_info_show_like_button" url:"more_info_show_like_button,omitempty"`
+	MoreInfoShowHideButton *bool `form:"more_info_show_hide_button" url:"more_info_show_hide_button,omitempty"`
 }

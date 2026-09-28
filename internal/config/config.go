@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"reflect"
@@ -32,7 +33,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/goodsign/monday"
 	"github.com/mcuadros/go-defaults"
@@ -84,20 +85,41 @@ type OfflineMode struct {
 	Enabled bool `yaml:"enabled" mapstructure:"enabled" default:"false"`
 }
 
-// Redirect represents a URL redirection configuration with a friendly name.
-type Redirect struct {
+type Redirects struct {
+	ShowAlbums bool           `yaml:"show_albums" mapstructure:"show_albums" default:"false"`
+	Items      []RedirectItem `yaml:"items" mapstructure:"items" default:"[]"`
+}
+
+// RedirectItem represents a URL redirection configuration with a friendly name.
+type RedirectItem struct {
 	// Name is the friendly identifier used to access the redirect
 	Name string `yaml:"name" mapstructure:"name" redact:"true"`
 	// URL is the destination address for the redirect
 	URL string `yaml:"url" mapstructure:"url" redact:"true"`
 	// Type specifies the redirect behaviour (e.g., "internal", "external")
 	Type string `yaml:"type" mapstructure:"type"`
+	// Category: an optional category for grouping redirects
+	Category string `yaml:"category" mapstructure:"category" redact:"true"`
+}
+
+type MoreInfoShowOptions struct {
+	AssetLink  bool `yaml:"asset_link" mapstructure:"asset_link" query:"more_info_show_asset_link" form:"more_info_show_asset_link" default:"true"`
+	QRCode     bool `yaml:"qr_code" mapstructure:"qr_code" query:"more_info_show_qr_code" form:"more_info_show_qr_code" default:"true"`
+	Rating     bool `yaml:"rating" mapstructure:"rating" query:"more_info_show_rating" form:"more_info_show_rating" default:"true"`
+	LikeButton bool `yaml:"like_button" mapstructure:"like_button" query:"more_info_show_like_button" form:"more_info_show_like_button" default:"true"`
+	HideButton bool `yaml:"hide_button" mapstructure:"hide_button" query:"more_info_show_hide_button" form:"more_info_show_hide_button" default:"true"`
+}
+
+type MoreInfo struct {
+	Display bool `yaml:"display" mapstructure:"display" query:"more_info_display" form:"more_info_display" default:"true"`
+	// LikeButtonAction indicates the action to take when the like button is clicked
+	LikeButtonAction []string `json:"likeButtonAction" yaml:"like_button_action" mapstructure:"like_button_action" query:"more_info_like_button_action" form:"more_info_like_button_action" default:"[favorite]"`
+	// HideButtonAction indicates the action to take when the hide button is clicked
+	HideButtonAction []string            `json:"hideButtonAction" yaml:"hide_button_action" mapstructure:"hide_button_action" query:"more_info_hide_button_action" form:"more_info_hide_button_action" default:"[tag]"`
+	Show             MoreInfoShowOptions `yaml:"show" mapstructure:"show"`
 }
 
 type KioskSettings struct {
-	// RedirectsMap provides O(1) lookup of redirect URLs by their friendly name
-	RedirectsMap map[string]Redirect `json:"-" yaml:"-"`
-
 	// Version
 	Version string `json:"version" yaml:"version"`
 
@@ -106,8 +128,7 @@ type KioskSettings struct {
 	// Password the password used to add authentication to the frontend
 	Password string `json:"-" yaml:"password" mapstructure:"password" default:"" redact:"true"`
 
-	// Redirects defines a list of URL redirections with friendly names
-	Redirects []Redirect `yaml:"redirects" mapstructure:"redirects" default:"[]"`
+	RedirectsDeprecated []RedirectItem `json:"redirects" yaml:"redirects" mapstructure:"redirects"`
 
 	// Port which port to use
 	Port int `json:"port" yaml:"port" mapstructure:"port" default:"3000"`
@@ -162,16 +183,26 @@ type WeatherConfig struct {
 	HasDefault bool `json:"-" yaml:"-" default:"false"`
 }
 
+type WeatherLocationStatOptions struct {
+	Humidity         bool `yaml:"humidity" mapstructure:"humidity" default:"false"`
+	Wind             bool `yaml:"wind" mapstructure:"wind" default:"false"`
+	WindDirection    bool `yaml:"wind_direction" mapstructure:"wind_direction" default:"false"`
+	Visibility       bool `yaml:"visibility" mapstructure:"visibility" default:"false"`
+	TemperatureRange bool `yaml:"temperature_range" mapstructure:"temperature_range" default:"false"`
+}
+
 type WeatherLocation struct {
-	Name      string `yaml:"name" mapstructure:"name" redact:"true"`
-	Lat       string `yaml:"lat" mapstructure:"lat" redact:"true"`
-	Lon       string `yaml:"lon" mapstructure:"lon" redact:"true"`
-	API       string `yaml:"api" mapstructure:"api" redact:"true"`
-	Unit      string `yaml:"unit" mapstructure:"unit" redact:"true"`
-	Lang      string `yaml:"lang" mapstructure:"lang" redact:"true"`
-	Forecast  bool   `yaml:"forecast" mapstructure:"forecast" default:"false"`
-	RoundTemp bool   `yaml:"round_temperature" mapstructure:"round_temperature" default:"false"`
-	Default   bool   `yaml:"default" mapstructure:"default"`
+	Name             string                     `yaml:"name" mapstructure:"name" redact:"true"`
+	Lat              string                     `yaml:"lat" mapstructure:"lat" redact:"true"`
+	Lon              string                     `yaml:"lon" mapstructure:"lon" redact:"true"`
+	API              string                     `yaml:"api" mapstructure:"api" redact:"true" msgpack:"-"`
+	Unit             string                     `yaml:"unit" mapstructure:"unit" redact:"true"`
+	Lang             string                     `yaml:"lang" mapstructure:"lang" redact:"true"`
+	Show             WeatherLocationStatOptions `yaml:"show" mapstructure:"show" default:""`
+	Forecast         bool                       `yaml:"forecast" mapstructure:"forecast" default:"false"`
+	RoundTemp        bool                       `yaml:"round_temperature" mapstructure:"round_temperature" default:"false"`
+	CustomWeatherURL string                     `yaml:"custom_weather_url" mapstructure:"custom_weather_url" redact:"true"`
+	Default          bool                       `yaml:"default" mapstructure:"default"`
 }
 
 type Webhook struct {
@@ -193,7 +224,6 @@ func (w Webhooks) ContainsEvent(event string) bool {
 
 // ClientData represents the client-specific dimensions received from the frontend.
 type ClientData struct {
-
 	// FullyVersion stores the version info for Fully Kiosk Browser
 	FullyVersion string `json:"fully_version" query:"fully_version" form:"fully_version"`
 	// FullyWebviewVersion stores the webview version for Fully Kiosk Browser
@@ -246,9 +276,9 @@ type Config struct {
 	mu *sync.RWMutex `json:"-" yaml:"-"`
 
 	// ImmichUsersAPIKeys a map of usernames to their respective api keys for accessing Immich
-	ImmichUsersAPIKeys map[string]string `json:"-" yaml:"immich_users_api_keys" mapstructure:"immich_users_api_keys" default:"{}" redact:"true"`
-	// User the user from ImmichUsersAPIKeys to use when fetching images. If not set, it will use the default ImmichAPIKey
-	User []string `json:"user" yaml:"user" mapstructure:"user" query:"user" form:"user" default:"[]" redact:"true"`
+	ImmichUsersAPIKeys map[string]string `json:"-" msgpack:"-" yaml:"immich_users_api_keys" mapstructure:"immich_users_api_keys" default:"{}" redact:"true"`
+	// URLParamUsers the user(s) submitted via URL query parameter
+	URLParamUsers []string `json:"user" yaml:"-" mapstructure:"-" query:"user" form:"user" default:"[]" redact:"true"`
 	// ReloadTimeStamp timestamp for when the last client reload was called for
 	ReloadTimeStamp string `json:"-" yaml:"-"`
 	// configHash stores the SHA-256 hash of the configuration file
@@ -263,7 +293,7 @@ type Config struct {
 	ClientData ClientData `yaml:"-"`
 
 	// ImmichAPIKey Immich key to access assets
-	ImmichAPIKey string `json:"-" yaml:"immich_api_key" mapstructure:"immich_api_key" default:"" redact:"true"`
+	ImmichAPIKey string `json:"-" msgpack:"-" yaml:"immich_api_key" mapstructure:"immich_api_key" default:"" redact:"true"`
 	// ImmichURL Immuch base url
 	ImmichURL string `json:"-" yaml:"immich_url" mapstructure:"immich_url" default:"" redact:"true"`
 
@@ -283,6 +313,10 @@ type Config struct {
 	ShowTime bool `json:"showTime" yaml:"show_time" mapstructure:"show_time" query:"show_time" form:"show_time" default:"false"`
 	// TimeFormat whether to use 12 of 24 hour format for clock
 	TimeFormat string `json:"timeFormat" yaml:"time_format" mapstructure:"time_format" query:"time_format" form:"time_format" default:"24"`
+	// ShowAmPm whether to display am/pm when using 12 hour format
+	ShowAmPm bool `json:"showAmPm" yaml:"show_am_pm" mapstructure:"show_am_pm" query:"show_am_pm" form:"show_am_pm" default:"true"`
+	// ShowSeconds whether to display seconds on the clock
+	ShowSeconds bool `json:"showSeconds" yaml:"show_seconds" mapstructure:"show_seconds" query:"show_seconds" form:"show_seconds" default:"false"`
 	// ShowDate whether to display date
 	ShowDate bool `json:"showDate" yaml:"show_date" mapstructure:"show_date" query:"show_date" form:"show_date" default:"false"`
 	//  DateFormat format for date
@@ -339,11 +373,18 @@ type Config struct {
 
 	// Memories show memories
 	Memories       bool    `json:"memories" yaml:"memories" mapstructure:"memories" query:"memories" form:"memories" default:"false"`
+	MemoriesOnly   bool    `json:"memoriesOnly" yaml:"memories_only" mapstructure:"memories_only" query:"memories_only" form:"memories_only" default:"false"`
 	PastMemoryDays int     `json:"pastMemoryDays" yaml:"past_memory_days" mapstructure:"past_memory_days" query:"past_memory_days" form:"past_memory_days" default:"0"`
 	MemoryWeight   float64 `json:"memoryWeight" yaml:"memory_weight" mapstructure:"memory_weight" default:"1.0"`
 
-	// DateFilter filter certain asset bucket assets by date
-	DateFilter string `json:"dateFilter" yaml:"date_filter" mapstructure:"date_filter" query:"date_filter" form:"date_filter" default:""`
+	// FilterDate filter certain asset bucket assets by date range
+	FilterDate string `json:"filterDate" yaml:"filter_date" mapstructure:"filter_date" query:"filter_date" form:"filter_date" default:""`
+	// FilterNewest filter certain asset bucket assets by the newest X assets
+	FilterNewest int `json:"filterNewest" yaml:"filter_newest" mapstructure:"filter_newest" query:"filter_newest" form:"filter_newest" default:"0"`
+	// FilterExcludeFaces filter certain asset bucket assets by the presence of faces
+	FilterExcludeFaces bool `json:"filterExcludeFaces" yaml:"filter_exclude_faces" mapstructure:"filter_exclude_faces" query:"filter_exclude_faces" form:"filter_exclude_faces" default:"false"`
+	// FilterFavorites filter certain asset bucket assets to only favorites
+	FilterFavorites bool `json:"filterFavorites" yaml:"filter_favorites" mapstructure:"filter_favorites" query:"filter_favorites" form:"filter_favorites" default:"false"`
 
 	// ShowClearCacheButton display a button to clear cache
 	ShowClearCacheButton bool `json:"showClearCacheButton" yaml:"show_clear_cache_button" mapstructure:"show_clear_cache_button" query:"show_clear_cache_button" form:"show_clear_cache_button" default:"false"`
@@ -388,12 +429,16 @@ type Config struct {
 	// SleepDisable disable sleep via url queries
 	DisableSleep bool `json:"disableSleep" yaml:"disable_sleep" query:"disable_sleep" form:"disable_sleep" default:"false"`
 
-	// Transition which transition to use none|fade|cross-fade
+	// Transition which transition to use none|fade|cross-fade|slide-(up|right|down|left|random)|push-(up|right|down|left|random)
 	Transition string `json:"transition" yaml:"transition" mapstructure:"transition" query:"transition" form:"transition" default:"" lowercase:"true"`
 	// FadeTransitionDuration sets the length of the fade transition
 	FadeTransitionDuration float32 `json:"fadeTransitionDuration" yaml:"fade_transition_duration" mapstructure:"fade_transition_duration" query:"fade_transition_duration" form:"fade_transition_duration" default:"1"`
 	// CrossFadeTransitionDuration sets the length of the cross-fade transition
 	CrossFadeTransitionDuration float32 `json:"crossFadeTransitionDuration" yaml:"cross_fade_transition_duration" mapstructure:"cross_fade_transition_duration" query:"cross_fade_transition_duration" form:"cross_fade_transition_duration" default:"1"`
+	// SlideTransitionDuration sets the length of the slide transition
+	SlideTransitionDuration float32 `json:"slideTransitionDuration" yaml:"slide_transition_duration" mapstructure:"slide_transition_duration" query:"slide_transition_duration" form:"slide_transition_duration" default:"2"`
+	// PushTransitionDuration sets the length of the push transition
+	PushTransitionDuration float32 `json:"pushTransitionDuration" yaml:"push_transition_duration" mapstructure:"push_transition_duration" query:"push_transition_duration" form:"push_transition_duration" default:"3"`
 
 	// ImageFit the fit style for main image
 	ImageFit string `json:"imageFit" yaml:"image_fit" mapstructure:"image_fit" query:"image_fit" form:"image_fit" default:"contain" lowercase:"true"`
@@ -411,6 +456,8 @@ type Config struct {
 	// LivePhotos show live photos
 	LivePhotos         bool `json:"livePhotos" yaml:"live_photos" mapstructure:"live_photos" query:"live_photos" form:"live_photos" default:"false"`
 	LivePhotoLoopDelay int  `json:"livePhotoLoopDelay" yaml:"live_photo_loop_delay" mapstructure:"live_photo_loop_delay" query:"live_photo_loop_delay" form:"live_photo_loop_delay" default:"0"`
+	// ShowAnimatedGifs show animated gifs
+	ShowAnimatedGifs bool `json:"showAnimatedGifs" yaml:"show_animated_gifs" mapstructure:"show_animated_gifs" query:"show_animated_gifs" form:"show_animated_gifs" default:"false"`
 
 	// ShowImageRating display stars is image is rated
 	ShowImageRating bool `json:"showImageRating" yaml:"show_image_rating" mapstructure:"show_image_rating" query:"show_image_rating" form:"show_image_rating" default:"false"`
@@ -456,19 +503,17 @@ type Config struct {
 	// ShowUser whether to display user
 	ShowUser bool `json:"showUser" yaml:"show_user" mapstructure:"show_user" query:"show_user" form:"show_user" default:"false"`
 
-	// ShowMoreInfo enables the display of additional information about the current image
-	ShowMoreInfo bool `json:"showMoreInfo" yaml:"show_more_info" mapstructure:"show_more_info" query:"show_more_info" form:"show_more_info" default:"true"`
-	// ShowMoreInfoImageLink shows a link to the original image in the additional information panel
-	ShowMoreInfoImageLink bool `json:"showMoreInfoImageLink" yaml:"show_more_info_image_link" mapstructure:"show_more_info_image_link" query:"show_more_info_image_link" form:"show_more_info_image_link" default:"true"`
-	// ShowMoreInfoQrCode displays a QR code linking to the original image in the additional information panel
-	ShowMoreInfoQrCode bool `json:"showMoreInfoQrCode" yaml:"show_more_info_qr_code" mapstructure:"show_more_info_qr_code" query:"show_more_info_qr_code" form:"show_more_info_qr_code" default:"true"`
+	MoreInfo MoreInfo `json:"moreInfo" yaml:"more_info" mapstructure:"more_info"`
 
-	// LikeButtonAction indicates the action to take when the like button is clicked
-	LikeButtonAction []string `json:"likeButtonAction" yaml:"like_button_action" mapstructure:"like_button_action" query:"like_button_action" form:"like_button_action" default:"[favorite]"`
-	// HideButtonAction indicates the action to take when the hide button is clicked
-	HideButtonAction []string `json:"hideButtonAction" yaml:"hide_button_action" mapstructure:"hide_button_action" query:"hide_button_action" form:"hide_button_action" default:"[tag]"`
+	ButtonOpenInApp bool `json:"buttonOpenInApp" yaml:"button_open_in_app" mapstructure:"button_open_in_app" query:"button_open_in_app" form:"button_open_in_app" default:"false"`
+	QrCodeOpenInApp bool `json:"qrCodeOpenInApp" yaml:"qr_code_open_in_app" mapstructure:"qr_code_open_in_app" query:"qr_code_open_in_app" form:"qr_code_open_in_app" default:"true"`
 
 	Weather WeatherConfig `json:"weather" yaml:"weather" mapstructure:"weather"`
+
+	// RedirectsMap provides O(1) lookup of redirect URLs by their friendly name
+	RedirectsMap map[string]RedirectItem `json:"-" yaml:"-"`
+	// Redirects defines a list of URL redirections with friendly names
+	Redirects Redirects `yaml:"redirects" mapstructure:"redirects" default:"[]"`
 
 	Iframe []string `json:"iframe" yaml:"iframe" mapstructure:"iframe" query:"iframe" form:"iframe" default:"[]"`
 
@@ -485,6 +530,9 @@ type Config struct {
 
 	OfflineMode    OfflineMode `json:"offlineMode" yaml:"offline_mode" mapstructure:"offline_mode"`
 	UseOfflineMode bool        `json:"useOfflineMode" yaml:"use_offline_mode" mapstructure:"use_offline_mode" query:"use_offline_mode" form:"use_offline_mode" default:"false"`
+
+	// CacheDuration user specified duration (in seconds) for which cache entries should be kept before expiring.
+	CacheDuration int `json:"cacheDuration" yaml:"cache_duration" mapstructure:"cache_duration" query:"cache_duration" form:"cache_duration" default:"0"`
 
 	// Kiosk settings that are unable to be changed via URL queries
 	Kiosk KioskSettings `json:"kiosk" yaml:"kiosk" mapstructure:"kiosk"`
@@ -526,6 +574,14 @@ func bindEnvironmentVariables(v *viper.Viper) error {
 		{"image_location.hide_city", "KIOSK_IMAGE_LOCATION_HIDE_CITY"},
 		{"image_location.hide_state", "KIOSK_IMAGE_LOCATION_HIDE_STATE"},
 		{"image_location.hide_country", "KIOSK_IMAGE_LOCATION_HIDE_COUNTRY"},
+		{"more_info.display", "KIOSK_MORE_INFO_DISPLAY"},
+		{"more_info.like_button_action", "KIOSK_MORE_INFO_LIKE_BUTTON_ACTION"},
+		{"more_info.hide_button_action", "KIOSK_MORE_INFO_HIDE_BUTTON_ACTION"},
+		{"more_info.show.asset_link", "KIOSK_MORE_INFO_SHOW_ASSET_LINK"},
+		{"more_info.show.qr_code", "KIOSK_MORE_INFO_SHOW_QR_CODE"},
+		{"more_info.show.rating", "KIOSK_MORE_INFO_SHOW_RATING"},
+		{"more_info.show.like_button", "KIOSK_MORE_INFO_SHOW_LIKE_BUTTON"},
+		{"more_info.show.hide_button", "KIOSK_MORE_INFO_SHOW_HIDE_BUTTON"},
 		{"kiosk.port", "KIOSK_PORT"},
 		{"kiosk.behind_proxy", "KIOSK_BEHIND_PROXY"},
 		{"kiosk.watch_config", "KIOSK_WATCH_CONFIG"},
@@ -571,7 +627,7 @@ func bindEnvironmentVariables(v *viper.Viper) error {
 func isValidYAML(filename string) error {
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("error reading file: %w", err)
+		return fmt.Errorf("reading file: %w", err)
 	}
 
 	var data any
@@ -582,9 +638,61 @@ func isValidYAML(filename string) error {
 	return nil
 }
 
+func configErrCheck(readInConfigErr error, configFileUsed string) error {
+	if readInConfigErr == nil {
+		return nil
+	}
+
+	var configFileNotFoundErr viper.ConfigFileNotFoundError
+	switch {
+	case errors.As(readInConfigErr, &configFileNotFoundErr):
+		err := configDirPermCheck()
+		if err != nil {
+			lowerErr := strings.ToLower(configFileNotFoundErr.Error())
+			return errors.Join(err, errors.New(lowerErr))
+		}
+
+		log.Info("Not using config.yaml")
+
+	case errors.Is(readInConfigErr, fs.ErrPermission):
+		fileInfo, err := os.Stat(configFileUsed)
+		if err != nil {
+			return fmt.Errorf("getting config file info: %w", err)
+		}
+
+		mode := fmt.Sprintf("%o", fileInfo.Mode().Perm())
+		return fmt.Errorf("config file permission is %s, it should be %o: %w", mode, os.FileMode(0o644), readInConfigErr)
+
+	case isValidYAML(configFileUsed) != nil:
+		return fmt.Errorf("invalid YAML: %w", readInConfigErr)
+	}
+
+	return nil
+}
+
+func configDirPermCheck() error {
+	dirInfo, err := os.Stat("./config")
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("getting config dir info: %w", err)
+	}
+
+	if !dirInfo.IsDir() {
+		return errors.New("./config exists but is not a directory")
+	}
+
+	mode := fmt.Sprintf("%o", dirInfo.Mode().Perm())
+	if mode != "755" {
+		return fmt.Errorf("config directory permission is %s, it should be %o", mode, os.FileMode(0o755))
+	}
+
+	return nil
+}
+
 // load loads yaml config file into memory, then loads ENV vars. ENV vars overwrites yaml settings.
 func (c *Config) Load() error {
-
 	if bindErr := bindEnvironmentVariables(c.V); bindErr != nil {
 		log.Error("binding environment variables", "err", bindErr)
 	}
@@ -606,24 +714,19 @@ func (c *Config) Load() error {
 	c.V.AutomaticEnv()
 
 	readInConfigErr := c.V.ReadInConfig()
+	readInConfigErr = configErrCheck(readInConfigErr, c.V.ConfigFileUsed())
 	if readInConfigErr != nil {
-		var configFileNotFoundErr viper.ConfigFileNotFoundError
-		switch {
-		case errors.As(readInConfigErr, &configFileNotFoundErr):
-			log.Info("Not using config.yaml")
-		case isValidYAML(c.V.ConfigFileUsed()) != nil:
-			log.Fatal(readInConfigErr)
-		}
-	} else {
-		level := strings.ToLower(strings.TrimSpace(c.V.GetString("kiosk.config_validation_level")))
-		if level != kiosk.ConfigValidationWarning && level != kiosk.ConfigValidationError && level != kiosk.ConfigValidationOff {
-			level = kiosk.ConfigValidationError
-		}
+		return readInConfigErr
+	}
 
-		valid := checkSchema(c.V.AllSettings(), level)
-		if !valid && level != kiosk.ConfigValidationWarning {
-			log.Fatal("Invalid configuration")
-		}
+	level := strings.ToLower(strings.TrimSpace(c.V.GetString("kiosk.config_validation_level")))
+	if level != kiosk.ConfigValidationWarning && level != kiosk.ConfigValidationError && level != kiosk.ConfigValidationOff {
+		level = kiosk.ConfigValidationError
+	}
+
+	valid := checkSchema(c.V.AllSettings(), level)
+	if !valid && level != kiosk.ConfigValidationWarning {
+		log.Fatal("Invalid configuration")
 	}
 
 	if err := c.V.Unmarshal(c); err != nil {
@@ -638,6 +741,12 @@ func (c *Config) Load() error {
 	c.checkUsersAPIKeys()
 	c.checkLowercaseTaggedFields()
 	c.checkAssetBuckets()
+	c.checkIDs("blacklist", c.Blacklist, false, false)
+	c.checkIDs("people", c.People, true, true)
+	c.checkIDs("excluded_people", c.ExcludedPeople, false, true)
+	c.checkIDs("albums", c.Albums, true, true)
+	c.checkIDs("excluded_albums", c.ExcludedAlbums, false, false)
+	c.checkIDs("excluded_partners", c.ExcludedPartners, false, false)
 	c.checkAlbumOrder()
 	c.checkExcludedAlbums()
 	c.checkTags()
@@ -652,6 +761,7 @@ func (c *Config) Load() error {
 	c.checkRedirects()
 	c.checkOffline()
 	c.checkBurnIn()
+	c.checkFilterNewest()
 
 	return nil
 }
@@ -682,7 +792,6 @@ func getHistory(queries url.Values) []string {
 
 // ConfigWithOverrides overwrites base config with ones supplied via URL queries
 func (c *Config) ConfigWithOverrides(queries url.Values, e *echo.Context) error {
-
 	if c.Kiosk.DisableURLQueries {
 		c.History = getHistory(queries)
 		return nil
@@ -712,6 +821,7 @@ func (c *Config) ConfigWithOverrides(queries url.Values, e *echo.Context) error 
 		return err
 	}
 
+	c.checkFilterNewest()
 	c.checkExcludedAlbums()
 
 	// Disabled features in demo mode
@@ -748,14 +858,15 @@ func (c *Config) String() string {
 	return string(out)
 }
 
-func (c *Config) SanitizedYaml() string {
-
+func (c *Config) SanitizedYaml(immichVersion string) string {
 	red := RedactedCopy(*c) // deep redacted clone
 	out, err := yaml.Marshal(red)
 	if err != nil {
 		log.Error("yaml marshal", "err", err)
 		return ""
 	}
+
+	out = append(out, []byte("immich_version: "+immichVersion+"\n")...)
 	return string(out)
 }
 

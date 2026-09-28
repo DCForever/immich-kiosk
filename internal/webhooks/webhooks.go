@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/source"
@@ -77,7 +77,6 @@ func newHTTPClient(timeout time.Duration) *http.Client {
 // event specifies which webhook event (NewAsset, PreviousAsset, etc) triggered this webhook.
 // viewData contains the images and other view context for the current request.
 func Trigger(ctx context.Context, requestData *common.RouteRequestData, kioskVersion string, event WebhookEvent, viewData common.ViewData) {
-
 	if viewData.Kiosk.DemoMode {
 		return
 	}

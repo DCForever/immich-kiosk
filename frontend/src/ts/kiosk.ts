@@ -1,5 +1,4 @@
 import { formatRFC3339 } from "date-fns/formatRFC3339";
-import DOMPurify from "dompurify";
 import htmx from "htmx.org";
 import type { TimeFormat } from "./clock";
 import { initClock } from "./clock";
@@ -17,7 +16,7 @@ import {
     toggleAssetOverlay,
     toggleRedirectsOverlay,
 } from "./menu";
-import { toggleMute } from "./mute";
+import { registerVideoMuteApi, toggleMute } from "./mute";
 import {
     initPolling,
     pausePolling,
@@ -28,6 +27,7 @@ import {
     triggerNewAsset,
     videoHandler,
 } from "./polling";
+import { tryRecoveryMode } from "./recovery";
 import { sleepMode } from "./sleep";
 import { preventSleep } from "./wakelock";
 import { weatherRotationPosition } from "./weather";
@@ -40,7 +40,6 @@ import {
 ("use strict");
 
 interface HTMXEvent extends Event {
-    preventDefault: () => void;
     detail: {
         successful: boolean;
         parameters: FormData;
@@ -75,6 +74,8 @@ type KioskData = {
     dateFormat: string;
     showTime: boolean;
     timeFormat: TimeFormat;
+    showSeconds: boolean;
+    showAmPm: boolean;
     clockSource: "client" | "server";
     transition: string;
     showMoreInfo: boolean;
@@ -93,6 +94,9 @@ const MAX_FRAMES: number = 2 as const;
 const TIMEOUT_RETRIES: number = 2 as const;
 const timeouts: Record<string, number> = {};
 
+const FAILED_REQUEST_RETRIES: number = 3 as const;
+let consecutiveFailedRequests = 0;
+
 // Parse kiosk data from the HTML element
 const kioskData: KioskData = JSON.parse(
     document.getElementById("kiosk-data")?.textContent || "{}",
@@ -109,8 +113,8 @@ const fullscreenButton = htmx.find(
 const fullScreenButtonSeperator = htmx.find(
     ".navigation--fullscreen-separator",
 ) as HTMLElement | null;
+const kioskContainer = htmx.find("#kiosk-container") as HTMLElement | null;
 const kiosk = htmx.find("#kiosk") as HTMLElement | null;
-const kioskQueries = htmx.findAll(".kiosk-param");
 const menu = htmx.find(".navigation") as HTMLElement | null;
 const menuInteraction = htmx.find(
     "#navigation-interaction-area--menu",
@@ -155,6 +159,8 @@ async function init(): Promise<void> {
         htmx.logAll();
     }
 
+    registerVideoMuteApi();
+
     const MILLISECONDS_PER_SECOND = 1000;
     const TIMEOUT_GRACE_FACTOR = 3;
 
@@ -176,6 +182,8 @@ async function init(): Promise<void> {
             kioskData.dateFormat,
             kioskData.showTime,
             kioskData.timeFormat,
+            kioskData.showSeconds,
+            kioskData.showAmPm,
             kioskData.langCode,
         );
     }
@@ -185,19 +193,35 @@ async function init(): Promise<void> {
     }
 
     if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/assets/js/sw.js").then(
-            () => {
-                console.log("ServiceWorker registration successful");
-            },
-            (err) => {
-                console.log("ServiceWorker registration failed: ", err);
-            },
-        );
+        navigator.serviceWorker
+            .register("/assets/js/sw.js", { scope: "/" })
+            .then(
+                () => {
+                    console.log("ServiceWorker registration successful");
+                },
+                (err) => {
+                    console.log("ServiceWorker registration failed: ", err);
+                },
+            );
+
+        navigator.serviceWorker
+            .getRegistrations()
+            .then((registrations) => {
+                for (const registration of registrations) {
+                    if (!registration.scope.endsWith("/assets/js/")) {
+                        continue;
+                    }
+                    registration.unregister();
+                }
+            })
+            .catch(() => {
+                /* nothing we can do */
+            });
     }
 
     if (!fullscreenAPI.requestFullscreen) {
-        fullscreenButton && htmx.remove(fullscreenButton);
-        fullScreenButtonSeperator && htmx.remove(fullScreenButtonSeperator);
+        fullscreenButton?.remove();
+        fullScreenButtonSeperator?.remove();
     }
 
     if (pollInterval) {
@@ -377,25 +401,44 @@ function addEventListeners(): void {
             return;
         }
 
-        htmx.addClass(offlineSVG, "offline");
+        offlineSVG.classList.add("offline");
     });
 
     // Server online check. Fires after every AJAX request.
-    htmx.on("htmx:afterRequest", (e: HTMXEvent) => {
+    htmx.on("htmx:afterRequest", (event: Event) => {
+        const e = event as HTMXEvent;
         if (!offlineSVG) {
             console.error("offline svg missing");
             return;
         }
 
         if (e.detail.successful) {
-            htmx.removeClass(offlineSVG, "offline");
+            offlineSVG.classList.remove("offline");
             timeouts[e.detail.pathInfo.requestPath] = 0;
+            consecutiveFailedRequests = 0;
         } else {
-            htmx.addClass(offlineSVG, "offline");
+            offlineSVG.classList.add("offline");
+            consecutiveFailedRequests += 1;
+            if (consecutiveFailedRequests > FAILED_REQUEST_RETRIES) {
+                consecutiveFailedRequests = 0;
+                tryRecoveryMode();
+            }
         }
     });
 
-    htmx.on("htmx:timeout", (e: HTMXEvent) => {
+    htmx.on("htmx:afterRequest", (event: Event) => {
+        const e = event as HTMXEvent;
+        const path = e.detail?.pathInfo?.requestPath || "";
+
+        // Only restart polling for asset endpoints (new|offlie|previous)
+        if (/^\/asset\/(new|offline|previous)$/.test(path)) {
+            startPolling();
+        }
+    });
+
+    htmx.on("htmx:timeout", (event: Event) => {
+        const e = event as HTMXEvent;
+
         let currentTimeout = timeouts[e.detail.pathInfo.requestPath];
 
         currentTimeout =
@@ -406,7 +449,9 @@ function addEventListeners(): void {
         timeouts[e.detail.pathInfo.requestPath] = currentTimeout;
 
         if (currentTimeout > TIMEOUT_RETRIES) {
-            window.location.reload();
+            // window.location.reload();
+            consecutiveFailedRequests = 0;
+            tryRecoveryMode();
         }
     });
 
@@ -421,6 +466,10 @@ function addEventListeners(): void {
 
     document.addEventListener("keydown", (e) => {
         if (e.target !== document.body) return;
+
+        const isMoreInfoOpen = document.body.classList.contains("more-info");
+        const isRedirectsOpen =
+            document.body.classList.contains("redirects-open");
 
         switch (e.code) {
             case "KeyP":
@@ -452,10 +501,18 @@ function addEventListeners(): void {
                 keyboardActionMute(e);
                 break;
 
+            case "KeyF":
+                if (!e.ctrlKey && !e.metaKey) {
+                    keyboardActionFullscreen(e);
+                }
+                break;
+
             case "ArrowUp":
+                if (isMoreInfoOpen || isRedirectsOpen) return;
                 handleCustomKeyboardAction(e, kioskData.upArrowAction);
                 break;
             case "ArrowDown":
+                if (isMoreInfoOpen || isRedirectsOpen) return;
                 handleCustomKeyboardAction(e, kioskData.downArrowAction);
                 break;
         }
@@ -506,7 +563,7 @@ async function cleanupFrames(): Promise<void> {
     const kioskScripts = htmx.findAll(kiosk as HTMLElement, "script");
     if (kioskScripts?.length) {
         kioskScripts.forEach((s) => {
-            htmx.remove(s, 1000);
+            setTimeout(() => s.remove(), 1000);
         });
     }
 
@@ -517,8 +574,11 @@ async function cleanupFrames(): Promise<void> {
     }
 
     if (frames.length > MAX_FRAMES) {
+        const toRemove = kioskData.transition.startsWith("push")
+            ? frames.length - 1
+            : 0;
         try {
-            htmx.remove(frames[0]);
+            frames[toRemove].remove();
         } catch (error) {
             console.error("Failed to remove frame:", error);
         }
@@ -536,6 +596,13 @@ async function cleanupFrames(): Promise<void> {
  * @throws {Error} If request lock is already set
  */
 function setRequestLock(e: HTMXEvent): void {
+    const path = e.detail?.pathInfo?.requestPath || "";
+
+    // Do not lock for non-asset requests (new|offline|previous)
+    if (!/^\/asset\/(new|offline|previous)$/.test(path)) {
+        return;
+    }
+
     if (requestInFlight) {
         e.preventDefault();
         return;
@@ -627,34 +694,12 @@ function clientData(): BrowserData {
     return data;
 }
 
-// Add kiosk query parameters to HTMX requests
-if (kioskQueries.length > 0) {
-    document.body.addEventListener("htmx:configRequest", (e: HTMXEvent) => {
-        if (!e.detail?.parameters) {
-            console.warn("Request parameters object not found");
-            return;
-        }
-
-        try {
-            kioskQueries.forEach((q: HTMLInputElement) => {
-                if (!(q instanceof HTMLInputElement)) {
-                    console.warn(`Element ${q} is not an input`);
-                    return;
-                }
-
-                if (!q.name || !q.value) {
-                    console.debug(`Skipping invalid input: ${q}`);
-                    return;
-                }
-
-                const sanitizedValue = DOMPurify.sanitize(q.value);
-
-                e.detail.parameters.append(q.name, sanitizedValue);
-            });
-        } catch (error) {
-            console.error("Error processing parameters:", error);
-        }
-    });
+function kioskClass(
+    classOn: string | null = null,
+    classOff: string | null = null,
+): void {
+    if (classOff) kioskContainer?.classList.remove(classOff);
+    if (classOn) kioskContainer?.classList.add(classOn);
 }
 
 // Initialize Kiosk when the DOM is fully loaded
@@ -663,15 +708,16 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 export {
-    triggerNewAsset,
+    checkHistoryExists,
     cleanupFrames,
+    clientData,
+    kioskClass,
+    releaseRequestLock,
+    setRequestLock,
+    sleepMode,
     startPolling,
     stopPolling,
-    setRequestLock,
-    releaseRequestLock,
-    checkHistoryExists,
-    clientData,
+    triggerNewAsset,
     videoHandler,
-    sleepMode,
     weatherRotationPosition,
 };

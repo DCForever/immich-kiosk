@@ -5,13 +5,15 @@ import (
 
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/templates/components"
 	"github.com/damongolding/immich-kiosk/internal/templates/components/memories"
 	"github.com/damongolding/immich-kiosk/internal/templates/partials"
+	"strings"
 )
 
 func modifyGIFAssets(viewData *common.ViewData) {
 	for i, asset := range viewData.Assets {
-		if asset.Asset.OriginalMimeType == "image/gif" {
+		if strings.EqualFold(asset.Asset.OriginalMimeType, kiosk.MimeTypeGif) {
 			viewData.Assets[i].ImageData = fmt.Sprintf("/image/%s?use_original_image=true", asset.Asset.ID)
 		}
 	}
@@ -24,7 +26,7 @@ func modifyGIFAssets(viewData *common.ViewData) {
 // Parameters:
 //   - viewData: ViewData containing all necessary information for rendering the images.
 //   - secret: The secret key used for generating the signature.
-templ Image(viewData common.ViewData, secret string) {
+templ Image(viewData common.ViewData, secret string, JSScripts ...components.AssetScript) {
 	{{ modifyGIFAssets(&viewData) }}
 	if viewData.Layout == kiosk.LayoutCollage {
 		<div class="frame frame--image" data-duration={ fmt.Sprintf("%d", viewData.Duration) }>
@@ -36,7 +38,10 @@ templ Image(viewData common.ViewData, secret string) {
 		@layoutSplitView(viewData)
 	}
 	@partials.RenderHistory(viewData)
-	if viewData.ShowMoreInfo {
+	if viewData.MoreInfo.Display {
 		@partials.RenderMoreInfo(viewData, secret)
+	}
+	for _, s := range JSScripts {
+		@templ.JSFuncCall(s.FuncName, s.Args...)
 	}
 }

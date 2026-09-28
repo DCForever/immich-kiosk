@@ -12,12 +12,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/cache"
+	"github.com/damongolding/immich-kiosk/internal/i18n"
 	"github.com/damongolding/immich-kiosk/internal/immich_open_api"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
 	"github.com/damongolding/immich-kiosk/internal/source"
-	"github.com/dustin/go-humanize"
+	"github.com/damongolding/immich-kiosk/internal/utils"
 )
 
 const MaxPastMemoryDays = 365
@@ -74,7 +75,7 @@ func (a *Asset) memoriesWithPastDays(requestID, deviceID string, assetCount bool
 		Scheme:   u.Scheme,
 		Host:     u.Host,
 		Path:     path.Join("api", "memories"),
-		RawQuery: fmt.Sprintf("for=%s&pastDays=%d", url.PathEscape(startOfDay.Format("2006-01-02T15:04:05.000Z")), days),
+		RawQuery: fmt.Sprintf("for=%s&pastDays=%d", url.PathEscape(startOfDay.Format("2006-01-02")), days),
 	}
 
 	// If we want the memories assets count we will use a separate cache entry
@@ -88,7 +89,7 @@ func (a *Asset) memoriesWithPastDays(requestID, deviceID string, assetCount bool
 	cacheKey := cache.APICacheKey(apiURL, deviceID, a.requestConfig.SelectedUser)
 
 	if apiData, found := cache.Get(cacheKey); found {
-		log.Debug(requestID+" Cache hit", "url", apiURL)
+		log.Debug(requestID+" Cache hit", "url", utils.TruncateAfter(apiURL, "?"))
 		data, ok := apiData.([]byte)
 		if !ok {
 			return memories, apiURL, errors.New("could not parse past memories data")
@@ -117,7 +118,7 @@ func (a *Asset) memoriesWithPastDays(requestID, deviceID string, assetCount bool
 		return memories, apiURL, marshalErr
 	}
 
-	cache.Set(cacheKey, b, a.requestConfig.Duration)
+	cache.Set(cacheKey, b, a.requestConfig.Duration, a.requestConfig.CacheDuration)
 
 	return memories, apiURL, nil
 }
@@ -155,7 +156,7 @@ func (a *Asset) memories(requestID, deviceID string, assetCount bool, days int) 
 		Scheme:   u.Scheme,
 		Host:     u.Host,
 		Path:     path.Join("api", "memories"),
-		RawQuery: fmt.Sprintf("for=%s", url.PathEscape(startOfDay.Format("2006-01-02T15:04:05.000Z"))),
+		RawQuery: fmt.Sprintf("for=%s", url.PathEscape(startOfDay.Format("2006-01-02"))),
 	}
 
 	// If we want the memories assets count we will use a separate cache entry
@@ -165,7 +166,7 @@ func (a *Asset) memories(requestID, deviceID string, assetCount bool, days int) 
 	}
 
 	immichAPICall := withImmichAPICache(a.immichAPICall, requestID, deviceID, a.requestConfig, memories)
-	body, _, err := immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
+	body, _, _, err := immichAPICall(a.ctx, http.MethodGet, apiURL.String(), nil)
 	if err != nil {
 		return immichAPIFail(memories, err, body, apiURL.String())
 	}
@@ -228,7 +229,6 @@ func (a *Asset) MemoriesAssetsCount(requestID, deviceID string) int {
 // Returns:
 //   - error: Any error during cache update
 func updateMemoryCache(memories MemoriesResponse, pickedMemoryIndex, assetIndex int, apiCacheKey string, duration int) error {
-
 	// Deep copy the memories slice
 	assetsToCache := make(MemoriesResponse, len(memories))
 	for i, memory := range memories {
@@ -251,9 +251,21 @@ func updateMemoryCache(memories MemoriesResponse, pickedMemoryIndex, assetIndex 
 	}
 
 	// replace with cache minus used asset
-	cache.Set(apiCacheKey, jsonBytes, duration)
+	cache.Set(apiCacheKey, jsonBytes, duration, 0)
 
 	return nil
+}
+
+func yearsAgo(t time.Time) int {
+	now := time.Now()
+	years := now.Year() - t.Year()
+
+	// Adjust if the date hasn't occurred yet this year
+	if now.Month() < t.Month() || (now.Month() == t.Month() && now.Day() < t.Day()) {
+		years--
+	}
+
+	return years
 }
 
 // RandomMemoryAsset retrieves a random image from memory assets.
@@ -266,7 +278,6 @@ func updateMemoryCache(memories MemoriesResponse, pickedMemoryIndex, assetIndex 
 // Returns:
 //   - error: If unable to find valid image after max retries
 func (a *Asset) RandomMemoryAsset(requestID, deviceID string) error {
-
 	for range MaxRetries {
 
 		var memories []Memory
@@ -325,8 +336,18 @@ func (a *Asset) RandomMemoryAsset(requestID, deviceID string) error {
 			}
 
 			if memories[pickedMemoryIndex].Type == immich_open_api.OnThisDay {
-				asset.MemoryTitle = humanize.Time(memories[pickedMemoryIndex].Assets[assetIndex].LocalDateTime)
+				y := yearsAgo(memories[pickedMemoryIndex].Assets[assetIndex].LocalDateTime)
+				if y > 0 {
+					t := i18n.T()
+					if y == 1 {
+						asset.MemoryTitle = t("year_ago")
+					} else {
+						asset.MemoryTitle = fmt.Sprintf(t("years_ago"), y)
+					}
+				}
 			}
+
+			asset.BucketID = string(kiosk.SourceMemories)
 
 			*a = asset
 
@@ -351,7 +372,6 @@ func (a *Asset) RandomMemoryAsset(requestID, deviceID string) error {
 //   - Memory: the memory containing the asset (empty if not found)
 //   - int: the index of the asset within the memory (0 if not found)
 func (a *Asset) IsMemory() (bool, Memory, int) {
-
 	memLookUp := strconv.FormatInt(time.Now().Unix()/int64(5*60), 10)
 
 	var m []Memory

@@ -3,7 +3,7 @@ package routes
 import (
 	"net/http"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/labstack/echo/v5"
 
 	"github.com/damongolding/immich-kiosk/internal/config"
@@ -13,7 +13,6 @@ import (
 // Clock clock endpoint
 func Clock(baseConfig *config.Config) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-
 		requestData, err := InitializeRequestData(c, baseConfig)
 		if err != nil {
 			return err

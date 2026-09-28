@@ -28,7 +28,7 @@ class PollingController {
     private menuElement: HTMLElement | null = null;
     private currentProgressSource: ProgressSource | null = null;
     private video: HTMLVideoElement | null = null;
-    private playTimeout: number | null;
+    private playTimeout!: number | null;
 
     private constructor() {
         // Private constructor to enforce singleton pattern
@@ -101,7 +101,6 @@ class PollingController {
 
         if (this.progressBarElement) {
             this.progressBarElement.style.transform = `scaleX(${progress}) translateZ(0)`;
-            // this.progressBarElement.style.width = `${progress}%`;
         }
 
         this.animationFrameId = requestAnimationFrame(this.updateProgress);
@@ -203,7 +202,10 @@ class PollingController {
         if (!this.isPaused || this.animationFrameId !== null) return;
 
         if (this.currentProgressSource?.type === "video" && this.video) {
-            this.video.play();
+            this.video.play().catch((error) => {
+                console.error("Video playback error on resume:", error);
+                this.handleVideoError(error);
+            });
         } else {
             const elapsed =
                 resumeFromElapsedMs ?? this.pausedElapsedMs ?? 0;

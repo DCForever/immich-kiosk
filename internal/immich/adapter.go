@@ -87,6 +87,7 @@ func displayAssetFromImmich(a *Asset, requestID, deviceID string) source.Display
 		State:            a.ExifInfo.State,
 		TimeZone:         a.ExifInfo.TimeZone,
 	}
+	faceX, faceY := a.FacesCenterPoint()
 	return source.DisplayAsset{
 		ID:               a.ID,
 		Type:             source.AssetType(a.Type),
@@ -102,12 +103,14 @@ func displayAssetFromImmich(a *Asset, requestID, deviceID string) source.Display
 		ExifInfo:         exif,
 		Owner:            source.Owner{ID: a.Owner.ID, Email: a.Owner.Email, Name: a.Owner.Name},
 		IsFavorite:       a.IsFavorite,
-		IsPortrait:        a.IsPortrait,
+		IsPortrait:       a.IsPortrait,
 		IsLandscape:      a.IsLandscape,
-		Bucket:        a.Bucket,
-		BucketID:      a.BucketID,
-		SelectedUser:  a.requestConfig.SelectedUser,
-		UserOwnsAsset: a.UserOwnsAsset(requestID, deviceID),
+		Bucket:           a.Bucket,
+		BucketID:         a.BucketID,
+		FaceCenterX:      faceX,
+		FaceCenterY:      faceY,
+		SelectedUser:     a.requestConfig.SelectedUser,
+		UserOwnsAsset:    a.UserOwnsAsset(requestID, deviceID),
 	}
 }
 
@@ -125,7 +128,10 @@ func (ad *Adapter) RandomAssetFromFavourites(requestID, deviceID string, isPrefe
 }
 
 func (ad *Adapter) AssetFromAlbum(albumID, order string, requestID, deviceID string) error {
-	return ad.asset.AssetFromAlbum(albumID, assetOrder(order), requestID, deviceID)
+	if order != "" {
+		ad.asset.requestConfig.AlbumOrder = order
+	}
+	return ad.asset.AssetFromAlbum(albumID, requestID, deviceID)
 }
 
 func (ad *Adapter) RandomAssetInDateRange(dateRange, requestID, deviceID string, isPrefetch bool) error {

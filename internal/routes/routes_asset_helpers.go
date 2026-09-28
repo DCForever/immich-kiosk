@@ -8,19 +8,20 @@ import (
 	"image/color"
 	"math/rand/v2"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/cache"
 	"github.com/damongolding/immich-kiosk/internal/collage"
 	"github.com/damongolding/immich-kiosk/internal/common"
 	"github.com/damongolding/immich-kiosk/internal/config"
 	"github.com/damongolding/immich-kiosk/internal/i18n"
 	"github.com/damongolding/immich-kiosk/internal/immich"
-	"github.com/damongolding/immich-kiosk/internal/photoprism"
 	"github.com/damongolding/immich-kiosk/internal/kiosk"
+	"github.com/damongolding/immich-kiosk/internal/photoprism"
 	"github.com/damongolding/immich-kiosk/internal/source"
 	imageComponent "github.com/damongolding/immich-kiosk/internal/templates/components/image"
 	videoComponent "github.com/damongolding/immich-kiosk/internal/templates/components/video"
@@ -56,80 +57,136 @@ func getProvider(ctx context.Context, cfg config.Config) source.ProviderOps {
 //   - A slice of AssetWithWeighting containing the weightings for each asset source
 //   - An error if any database queries fail
 func gatherAssetBuckets(provider source.ProviderOps, requestConfig config.Config, requestID, deviceID string) ([]utils.AssetWithWeighting, error) {
-
 	assets := []utils.AssetWithWeighting{}
+	filterNewest := requestConfig.FilterNewest > 0
 
-	// People bucket
-	for _, person := range requestConfig.People {
-		if person == "" || strings.EqualFold(person, "none") {
-			continue
-		}
-
-		personTmp, _ := provider.ApplyUserFromAssetID(person)
-
-		personAssetCount, personCountErr := provider.PersonAssetCount(personTmp, requestID, deviceID)
-		if personCountErr != nil {
-			if provider.SelectedUser() != "" {
-				return nil, fmt.Errorf("user '<b>%s</b>' has no Person '%s'. error='%w'", provider.SelectedUser(), personTmp, personCountErr)
-			}
-			return nil, fmt.Errorf("getting person image count: %w", personCountErr)
-		}
-
-		if personAssetCount == 0 {
-			log.Error("No assets found for", "person", personTmp)
-			continue
-		}
-
-		assets = append(assets, utils.AssetWithWeighting{
-			Asset:  utils.WeightedAsset{Type: kiosk.SourcePerson, ID: person},
-			Weight: personAssetCount,
-		})
+	d := gatherData{
+		assets:        &assets,
+		filterNewest:  filterNewest,
+		requestID:     requestID,
+		deviceID:      deviceID,
+		provider:      provider,
+		requestConfig: requestConfig,
 	}
 
-	// Albums bucket
-	for _, album := range requestConfig.Albums {
-		if album == "" || strings.EqualFold(album, "none") {
-			continue
-		}
-
-		albumTmp, _ := provider.ApplyUserFromAssetID(album)
-
-		albumAssetCount, albumCountErr := provider.AlbumImageCount(albumTmp, requestID, deviceID)
-		if albumCountErr != nil {
-			if provider.SelectedUser() != "" {
-				return nil, fmt.Errorf("user '<b>%s</b>' has no Album '%s'. error='%w'", provider.SelectedUser(), albumTmp, albumCountErr)
-			}
-			return nil, fmt.Errorf("getting album asset count: %w", albumCountErr)
-		}
-
-		if albumAssetCount == 0 {
-			log.Error("No assets found for", "album", albumTmp)
-			continue
-		}
-
-		assets = append(assets, utils.AssetWithWeighting{
-			Asset:  utils.WeightedAsset{Type: kiosk.SourceAlbum, ID: album},
-			Weight: albumAssetCount,
-		})
+	if err := gatherPeople(&d); err != nil {
+		return nil, err
+	}
+	if err := gatherAlbums(&d); err != nil {
+		return nil, err
 	}
 
-	// Use the default user for the rest of the request (tags, dates, memories)
 	provider.ApplyDefaultUser()
 
-	// Tags bucket
-	requestConfig.Tags = provider.ExpandTagPatterns(requestConfig.Tags, requestID, deviceID)
+	if err := gatherTags(&d); err != nil {
+		return nil, err
+	}
+	gatherDates(&d)
 
-	for _, tag := range requestConfig.Tags {
+	if requestConfig.Rating > -1 {
+		if ratedErr := gatherRatedAssets(&d); ratedErr != nil {
+			log.Error("gathering rated assets", "err", ratedErr)
+		}
+	}
+
+	if requestConfig.Memories {
+		appendMemoriesBucket(&d)
+	}
+
+	return assets, nil
+}
+
+type gatherData struct {
+	assets        *[]utils.AssetWithWeighting
+	filterNewest  bool
+	requestID     string
+	deviceID      string
+	provider      source.ProviderOps
+	requestConfig config.Config
+}
+
+type gatherPeopleAlbumsConfig struct {
+	sourceType    kiosk.Source
+	items         []string
+	countFn       func(id, requestID, deviceID string) (int, error)
+	notFoundMsg   string
+	userErrorFmt  string
+	countErrorFmt string
+}
+
+func gatherPeopleAlbums(d *gatherData, cfg gatherPeopleAlbumsConfig) error {
+	for _, item := range cfg.items {
+		if item == "" || strings.EqualFold(item, "none") {
+			continue
+		}
+
+		if d.provider.SelectedUser() != "" && !strings.Contains(item, kiosk.MultipleUserIndicator) {
+			item = fmt.Sprintf("%s%s%s", item, kiosk.MultipleUserIndicator, d.provider.SelectedUser())
+		}
+
+		itemTmp, _ := d.provider.ApplyUserFromAssetID(item)
+
+		assetCount := d.requestConfig.FilterNewest
+		if !d.filterNewest {
+			var countErr error
+			assetCount, countErr = cfg.countFn(itemTmp, d.requestID, d.deviceID)
+			if countErr != nil {
+				if d.provider.SelectedUser() != "" {
+					return fmt.Errorf(cfg.userErrorFmt, d.provider.SelectedUser(), itemTmp, countErr)
+				}
+				return fmt.Errorf(cfg.countErrorFmt, countErr)
+			}
+		}
+
+		if assetCount == 0 {
+			log.Error("No assets found for", cfg.notFoundMsg, itemTmp)
+			continue
+		}
+
+		*d.assets = append(*d.assets, utils.AssetWithWeighting{
+			Asset:  utils.WeightedAsset{Type: cfg.sourceType, ID: item},
+			Weight: assetCount,
+		})
+	}
+	return nil
+}
+
+func gatherPeople(d *gatherData) error {
+	return gatherPeopleAlbums(d, gatherPeopleAlbumsConfig{
+		sourceType:    kiosk.SourcePerson,
+		items:         d.requestConfig.People,
+		countFn:       d.provider.PersonAssetCount,
+		notFoundMsg:   "person",
+		userErrorFmt:  "user '<b>%s</b>' has no Person '%s'. error='%w'",
+		countErrorFmt: "getting person image count: %w",
+	})
+}
+
+func gatherAlbums(d *gatherData) error {
+	return gatherPeopleAlbums(d, gatherPeopleAlbumsConfig{
+		sourceType:    kiosk.SourceAlbum,
+		items:         d.requestConfig.Albums,
+		countFn:       d.provider.AlbumImageCount,
+		notFoundMsg:   "album",
+		userErrorFmt:  "user '<b>%s</b>' has no Album '%s'. error='%w'",
+		countErrorFmt: "getting album asset count: %w",
+	})
+}
+
+func gatherTags(d *gatherData) error {
+	d.requestConfig.Tags = d.provider.ExpandTagPatterns(d.requestConfig.Tags, d.requestID, d.deviceID)
+
+	for _, tag := range d.requestConfig.Tags {
 		if tag == "" || strings.EqualFold(tag, "none") {
 			continue
 		}
 
-		if strings.Contains(tag, "@") {
+		if strings.Contains(tag, kiosk.MultipleUserIndicator) {
 			log.Warn("Tags with multi user information are not currently supported")
-			tag, _, _ = strings.Cut(tag, "@")
+			tag, _, _ = strings.Cut(tag, kiosk.MultipleUserIndicator)
 		}
 
-		tags, _, tagsErr := provider.AllTags(requestID, deviceID)
+		tags, _, tagsErr := d.provider.AllTags(d.requestID, d.deviceID)
 		if tagsErr != nil {
 			log.Error("getting tags", "err", tagsErr)
 			continue
@@ -141,12 +198,16 @@ func gatherAssetBuckets(provider source.ProviderOps, requestConfig config.Config
 			continue
 		}
 
-		taggedAssetsCount, tagCountErr := provider.AssetsWithTagCount(tagData.ID, requestID, deviceID)
-		if tagCountErr != nil {
-			if requestConfig.SelectedUser != "" {
-				return nil, fmt.Errorf("user '<b>%s</b>' has no assets with tag '%s'. error='%w'", requestConfig.SelectedUser, tagData.Value, tagCountErr)
+		taggedAssetsCount := d.requestConfig.FilterNewest
+		if !d.filterNewest {
+			var tagCountErr error
+			taggedAssetsCount, tagCountErr = d.provider.AssetsWithTagCount(tagData.ID, d.requestID, d.deviceID)
+			if tagCountErr != nil {
+				if d.requestConfig.SelectedUser != "" {
+					return fmt.Errorf("user '<b>%s</b>' has no assets with tag '%s'. error='%w'", d.requestConfig.SelectedUser, tagData.Value, tagCountErr)
+				}
+				return fmt.Errorf("getting tagged asset count: %w", tagCountErr)
 			}
-			return nil, fmt.Errorf("getting tagged asset count: %w", tagCountErr)
 		}
 
 		if taggedAssetsCount == 0 {
@@ -154,76 +215,81 @@ func gatherAssetBuckets(provider source.ProviderOps, requestConfig config.Config
 			continue
 		}
 
-		assets = append(assets, utils.AssetWithWeighting{
+		*d.assets = append(*d.assets, utils.AssetWithWeighting{
 			Asset:  utils.WeightedAsset{Type: kiosk.SourceTag, ID: tagData.ID},
 			Weight: taggedAssetsCount,
 		})
 	}
+	return nil
+}
 
-	// Dates bucket
-	for _, date := range requestConfig.Dates {
+func gatherDates(d *gatherData) {
+	for _, date := range d.requestConfig.Dates {
 		if date == "" || strings.EqualFold(date, "none") {
 			continue
 		}
 
-		if strings.Contains(date, "@") {
+		if strings.Contains(date, kiosk.MultipleUserIndicator) {
 			log.Warn("Dates with multi user information are not currently supported")
-			date, _, _ = strings.Cut(date, "@")
+			date, _, _ = strings.Cut(date, kiosk.MultipleUserIndicator)
 		}
 
-		// use FetchedAssetsSize as a weighting for date ranges
-		assets = append(assets, utils.AssetWithWeighting{
+		dateWeight := d.requestConfig.Kiosk.FetchedAssetsSize
+		if d.filterNewest {
+			dateWeight = d.requestConfig.FilterNewest
+		}
+
+		*d.assets = append(*d.assets, utils.AssetWithWeighting{
 			Asset:  utils.WeightedAsset{Type: kiosk.SourceDateRange, ID: date},
-			Weight: requestConfig.Kiosk.FetchedAssetsSize,
+			Weight: dateWeight,
 		})
 	}
-
-	// Rating bucket
-	if requestConfig.Rating > -1 {
-		ratedErr := gatherRatedAssets(provider, requestConfig, requestID, deviceID, &assets)
-		if ratedErr != nil {
-			log.Error(ratedErr)
-		}
-	}
-
-	// Memories bucket
-	if requestConfig.Memories {
-		memories := provider.MemoriesAssetsCount(requestID, deviceID)
-		if memories == 0 {
-			log.Warn("No assets found for memories")
-		} else {
-			assets = append(assets, utils.AssetWithWeighting{
-				Asset:   utils.WeightedAsset{Type: kiosk.SourceMemories, ID: "memories"},
-				Weight:  memories,
-				Penalty: requestConfig.MemoryWeight,
-			})
-		}
-	}
-
-	return assets, nil
 }
 
-func gatherRatedAssets(provider source.ProviderOps, requestConfig config.Config, requestID, deviceID string, assets *[]utils.AssetWithWeighting) error {
-	wantedRating := requestConfig.Rating
+func gatherRatedAssets(d *gatherData) error {
+	wantedRating := d.requestConfig.Rating
 
-	ratedAssetsCount, ratedCountErr := provider.AssetsWithRatingCount(wantedRating, requestID, deviceID)
-	if ratedCountErr != nil {
-		if requestConfig.SelectedUser != "" {
-			return fmt.Errorf("user '<b>%s</b>' has no assets with rating '%f'. error='%w'", requestConfig.SelectedUser, wantedRating, ratedCountErr)
+	ratedAssetsCount := d.requestConfig.FilterNewest
+	if !d.filterNewest {
+		var ratedCountErr error
+		ratedAssetsCount, ratedCountErr = d.provider.AssetsWithRatingCount(wantedRating, d.requestID, d.deviceID)
+		if ratedCountErr != nil {
+			if d.requestConfig.SelectedUser != "" {
+				return fmt.Errorf("user '<b>%s</b>' has no assets with rating '%f'. error='%w'", d.requestConfig.SelectedUser, wantedRating, ratedCountErr)
+			}
+			return fmt.Errorf("getting rated asset count: %w", ratedCountErr)
 		}
-		return fmt.Errorf("getting rated asset count: %w", ratedCountErr)
 	}
 
 	if ratedAssetsCount > 0 {
-		*assets = append(*assets, utils.AssetWithWeighting{
-			Asset:  utils.WeightedAsset{Type: kiosk.SourceRating, ID: fmt.Sprintf("rating-%.2f", requestConfig.Rating)},
+		*d.assets = append(*d.assets, utils.AssetWithWeighting{
+			Asset:  utils.WeightedAsset{Type: kiosk.SourceRating, ID: fmt.Sprintf("rating-%.2f", d.requestConfig.Rating)},
 			Weight: ratedAssetsCount,
 		})
 	} else {
 		log.Error("No assets found with", "rating", wantedRating)
 	}
-
 	return nil
+}
+
+func appendMemoriesBucket(d *gatherData) {
+	if len(*d.assets) == 0 && !d.requestConfig.MemoriesOnly {
+		*d.assets = append(*d.assets, utils.AssetWithWeighting{
+			Asset:  utils.WeightedAsset{Type: kiosk.SourceRandom, ID: string(kiosk.SourceRandom)},
+			Weight: d.requestConfig.Kiosk.FetchedAssetsSize,
+		})
+	}
+
+	memories := d.provider.MemoriesAssetsCount(d.requestID, d.deviceID)
+	if memories == 0 {
+		log.Warn("No assets found for memories")
+		return
+	}
+	*d.assets = append(*d.assets, utils.AssetWithWeighting{
+		Asset:   utils.WeightedAsset{Type: kiosk.SourceMemories, ID: string(kiosk.SourceMemories)},
+		Weight:  memories,
+		Penalty: d.requestConfig.MemoryWeight,
+	})
 }
 
 // isSleepMode checks if the kiosk should currently be in sleep mode based on configured sleep times
@@ -319,7 +385,7 @@ func fetchImagePreview(provider source.ProviderOps, isOriginal bool, requestID, 
 		return nil, fmt.Errorf("getting image preview: %w", err)
 	}
 
-	img, err := utils.BytesToImage(imgBytes, isOriginal)
+	img, _, err := utils.BytesToImage(imgBytes, isOriginal)
 	if err != nil {
 		return nil, err
 	}
@@ -402,12 +468,16 @@ func processImage(provider source.ProviderOps, requestConfig config.Config, requ
 			isDownloaded := VideoManager.IsDownloaded(immichAsset.LivePhotoVideoID)
 			isDownloading := VideoManager.IsDownloading(immichAsset.LivePhotoVideoID)
 			if !isDownloaded && !isDownloading {
+				videoID := displayAsset.LivePhotoVideoID
 				livePhoto := immich.New(context.TODO(), requestConfig)
-				livePhoto.ID = displayAsset.LivePhotoVideoID
+				livePhoto.ID = videoID
+				if user := immichAsset.SelectedUser(); user != "" && !strings.Contains(videoID, kiosk.MultipleUserIndicator) {
+					_, _ = livePhoto.ApplyUserFromAssetID(fmt.Sprintf("%s%s%s", videoID, kiosk.MultipleUserIndicator, user))
+				}
 				if err := livePhoto.AssetInfo(requestID, deviceID); err != nil {
 					return nil, err
 				}
-				livePhotoDisplay := source.DisplayAsset{ID: displayAsset.LivePhotoVideoID}
+				livePhotoDisplay := source.DisplayAsset{ID: livePhoto.ID}
 				go VideoManager.DownloadVideo(livePhoto, livePhotoDisplay, requestConfig, deviceID, "")
 			}
 		}
@@ -417,15 +487,18 @@ func processImage(provider source.ProviderOps, requestConfig config.Config, requ
 
 // imageToBase64 converts image bytes to a base64 string and logs the processing time.
 // It returns the base64 string and an error if conversion fails.
-func imageToBase64(img image.Image, config config.Config, requestID, deviceID string, action string, isPrefetch bool) (string, error) {
+func imageToBase64(img image.Image, mimeType string, verboseLogging bool, requestID, deviceID string, action string, isPrefetch bool) (string, error) {
 	startTime := time.Now()
+	if mimeType == "" {
+		mimeType = kiosk.MimeTypeJpeg
+	}
 
-	imgBytes, err := utils.ImageToBase64(img)
+	imgBytes, err := utils.ImageToBase64(img, mimeType)
 	if err != nil {
 		return "", fmt.Errorf("converting image to base64: %w", err)
 	}
 
-	logImageProcessing(config, requestID, deviceID, isPrefetch, action, startTime)
+	logImageProcessing(verboseLogging, requestID, deviceID, isPrefetch, action, startTime)
 	return imgBytes, nil
 }
 
@@ -463,14 +536,14 @@ func processBlurredImage(img image.Image, assetType immich.AssetType, config con
 		return "", fmt.Errorf("blurring image: %w", err)
 	}
 
-	logImageProcessing(config, requestID, deviceID, isPrefetch, "Blurred", startTime)
+	logImageProcessing(config.Kiosk.DebugVerbose, requestID, deviceID, isPrefetch, "Blurred", startTime)
 
-	return imageToBase64(imgBlur, config, requestID, deviceID, "Converted blurred", isPrefetch)
+	return imageToBase64(imgBlur, kiosk.MimeTypeJpeg, config.Kiosk.DebugVerbose, requestID, deviceID, "Converted blurred", isPrefetch)
 }
 
 // logImageProcessing logs the time taken for image processing if debug verbose is enabled.
-func logImageProcessing(config config.Config, requestID, deviceID string, isPrefetch bool, action string, startTime time.Time) {
-	if !config.Kiosk.DebugVerbose {
+func logImageProcessing(verboseLogging bool, requestID, deviceID string, isPrefetch bool, action string, startTime time.Time) {
+	if !verboseLogging {
 		return
 	}
 
@@ -545,13 +618,13 @@ func processViewImageData(requestConfig config.Config, c common.ContextCopy, isP
 	}
 
 	setupRequestConfig(&requestConfig)
-	provider := getProvider(context.Background(), requestConfig)
-	if options.ImageOrientation == "PORTRAIT" || options.ImageOrientation == "LANDSCAPE" {
-		provider.SetRatioWanted(options.ImageOrientation)
-	}
-
 	if options.RelativeAssetWanted {
 		handleRelativeAssetConfig(&requestConfig, options)
+	}
+
+	provider := getProvider(context.Background(), requestConfig)
+	if options.ImageOrientation == string(immich.PortraitOrientation) || options.ImageOrientation == string(immich.LandscapeOrientation) {
+		provider.SetRatioWanted(options.ImageOrientation)
 	}
 
 	img, err := processAsset(provider, requestConfig, metadata.requestID, metadata.deviceID, metadata.urlString, isPrefetch)
@@ -569,26 +642,30 @@ func processViewImageData(requestConfig config.Config, c common.ContextCopy, isP
 	}
 
 	displayAsset := provider.DisplayAsset(metadata.requestID, metadata.deviceID)
-	imgString, imgBlurString, dominantColor, err := convertImages(img, immich.AssetType(displayAsset.Type), requestConfig, metadata, isPrefetch)
+	mimeType := kiosk.MimeTypeJpeg
+	if requestConfig.UseOriginalImage && slices.Contains(kiosk.SupportedImageMimeTypes, displayAsset.OriginalMimeType) {
+		mimeType = displayAsset.OriginalMimeType
+	}
+	imgString, imgBlurString, dominantColor, err := convertImages(img, immich.AssetType(displayAsset.Type), mimeType, requestConfig, metadata, isPrefetch)
 	if err != nil {
 		return common.ViewImageData{}, err
 	}
 
 	return common.ViewImageData{
-		Asset:               displayAsset,
-		ImageData:           imgString,
-		ImageBlurData:       imgBlurString,
-		ImageDominantColor:  dominantColor,
-		User:                provider.SelectedUser(),
+		Asset:              displayAsset,
+		ImageData:          imgString,
+		ImageBlurData:      imgBlurString,
+		ImageDominantColor: dominantColor,
+		User:               provider.SelectedUser(),
 	}, nil
 }
 
 // setupRequestConfig configures the selected user for the request by picking a random
 // user from the config if multiple users are provided, otherwise sets to empty string
 func setupRequestConfig(config *config.Config) {
-	if len(config.User) > 0 {
-		randomIndex := rand.IntN(len(config.User))
-		config.SelectedUser = config.User[randomIndex]
+	if len(config.URLParamUsers) > 0 {
+		randomIndex := rand.IntN(len(config.URLParamUsers))
+		config.SelectedUser = config.URLParamUsers[randomIndex]
 	} else {
 		config.SelectedUser = ""
 	}
@@ -611,6 +688,7 @@ func handleRelativeAssetConfig(config *config.Config, options common.ViewImageDa
 		config.Tags = append(config.Tags, options.RelativeAssetBucketID)
 	case kiosk.SourceMemories:
 		config.Memories = true
+		config.MemoriesOnly = true
 	case kiosk.SourceRandom:
 	}
 }
@@ -621,8 +699,10 @@ func handleRelativeAssetConfig(config *config.Config, options common.ViewImageDa
 func handleFaceProcessing(img image.Image, provider source.ProviderOps, config config.Config, metadata requestMetadata) image.Image {
 	if ad, ok := provider.(*immich.Adapter); ok {
 		asset := ad.Asset()
-		if strings.EqualFold(config.ImageEffect, "smart-zoom") && len(asset.People)+len(asset.UnassignedFaces) == 0 {
-			asset.CheckForFaces(metadata.requestID, metadata.deviceID)
+		smartZoom := strings.EqualFold(config.ImageEffect, "smart-zoom")
+		smartCover := strings.EqualFold(config.ImageFit, "cover") && !strings.EqualFold(config.ImageEffect, "zoom")
+		if smartZoom || smartCover {
+			asset.AddFaces(metadata.requestID, metadata.deviceID)
 		}
 		if ShouldDrawFacesOnImages() {
 			log.Debug("Drawing faces")
@@ -634,11 +714,10 @@ func handleFaceProcessing(img image.Image, provider source.ProviderOps, config c
 
 // convertImages converts the provided image to base64 strings for both normal and blurred versions.
 // Returns the base64 encoded normal image, blurred image, and any error that occurred.
-func convertImages(img image.Image, assetType immich.AssetType, config config.Config, metadata requestMetadata, isPrefetch bool) (string, string, color.RGBA, error) {
-
+func convertImages(img image.Image, assetType immich.AssetType, mimeType string, config config.Config, metadata requestMetadata, isPrefetch bool) (string, string, color.RGBA, error) {
 	var dominantColor color.RGBA
 
-	imgString, err := imageToBase64(img, config, metadata.requestID, metadata.deviceID, "Converted", isPrefetch)
+	imgString, err := imageToBase64(img, mimeType, config.Kiosk.DebugVerbose, metadata.requestID, metadata.deviceID, "Converted", isPrefetch)
 	if err != nil {
 		return "", "", dominantColor, err
 	}
@@ -719,7 +798,7 @@ func renderCachedViewData(c *echo.Context, cachedViewData []common.ViewData, req
 	cacheKey := cache.ViewCacheKey(c.Request().URL.String(), deviceID)
 
 	viewDataToRender := cachedViewData[0]
-	cache.Set(cacheKey, cachedViewData[1:], requestConfig.Duration)
+	cache.Set(cacheKey, cachedViewData[1:], requestConfig.Duration, requestConfig.CacheDuration)
 
 	// Update history which will be outdated in cache
 	utils.TrimHistory(&requestConfig.History, kiosk.HistoryLimit)
@@ -738,10 +817,16 @@ func renderCachedViewData(c *echo.Context, cachedViewData []common.ViewData, req
 func fetchSecondSplitViewAsset(viewData *common.ViewData, viewDataSplitView common.ViewImageData, requestConfig config.Config, c common.ContextCopy, isPrefetch bool, options common.ViewImageDataOptions) error {
 	const maxImageRetrievalAttempts = 3
 
+	requestConfig.SelectedUser = viewDataSplitView.User
+
 	for range maxImageRetrievalAttempts {
 		viewDataSplitViewSecond, err := ProcessViewImageDataWithOptions(requestConfig, c, isPrefetch, options)
 		if err != nil {
 			return err
+		}
+
+		if options.RelativeAssetWanted && viewDataSplitViewSecond.Asset.Bucket != options.RelativeAssetBucket {
+			continue
 		}
 
 		if viewDataSplitView.Asset.ID != viewDataSplitViewSecond.Asset.ID {
@@ -857,7 +942,7 @@ func generateViewData(requestConfig config.Config, c common.ContextCopy, request
 			if err == nil {
 				return collageData, nil
 			}
-			// Memories failed (e.g. PhotoPrism); fall through with memories disabled
+			// No memories for this range; fall through with memories disabled
 			requestConfig.Memories = false
 		} else if requestConfig.Kiosk.AssetWeighting {
 			assets, assetsErr := gatherAssetBuckets(provider, requestConfig, requestID, deviceID)

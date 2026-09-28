@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 )
 
 type LoginResponse struct {
@@ -36,20 +36,19 @@ type ValidateResponse struct {
 	AuthStatus bool `json:"authStatus"`
 }
 
-const demoImmichURL = "https://demo.immich.app"
-
-var demoTokenMutex sync.RWMutex
-var DemoToken string
+const DemoImmichURL = "https://demo.immich.app"
 
 var (
-	httpClient = &http.Client{
-		Timeout: 30 * time.Second,
-	}
+	demoTokenMutex sync.RWMutex
+	DemoToken      string
 )
 
-func ValidateToken(ctx context.Context, token string) bool {
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
 
-	demoURL := demoImmichURL
+func ValidateToken(ctx context.Context, token string) bool {
+	demoURL := DemoImmichURL
 	if os.Getenv("KIOSK_IMMICH_URL") != "" {
 		demoURL = os.Getenv("KIOSK_IMMICH_URL")
 	}
@@ -119,7 +118,7 @@ func Login(ctx context.Context, refresh bool) (string, error) {
 		return "", err
 	}
 
-	demoURL := demoImmichURL
+	demoURL := DemoImmichURL
 	if os.Getenv("KIOSK_IMMICH_URL") != "" {
 		demoURL = os.Getenv("KIOSK_IMMICH_URL")
 	}

@@ -1,6 +1,7 @@
 package partials
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -123,6 +124,32 @@ func TestCalculateAge(t *testing.T) {
 			got := calculateAge(tt.assetDate, tt.birthDate, tt.addYearUnit, tt.switchToYears)
 			if got != tt.want {
 				t.Errorf("calculateAge() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTrimFloatToString(t *testing.T) {
+	tests := []struct {
+		input    float64
+		expected string
+	}{
+		{123.456, "123.46"},
+		{123.400, "123.4"},
+		{123.004, "123"},
+		{123.000, "123"},
+		{0.004, "0"},
+		{0.0, "0"},
+		{-123.456, "-123.46"},
+		{-123.400, "-123.4"},
+		{-123.000, "-123"},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%f", test.input), func(t *testing.T) {
+			result := trimFloatToString(test.input)
+			if result != test.expected {
+				t.Errorf("trimFloatToString(%f) = %s; expected %s", test.input, result, test.expected)
 			}
 		})
 	}

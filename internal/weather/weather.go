@@ -5,26 +5,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/damongolding/immich-kiosk/internal/config"
 )
 
 const (
-	MetricSystem         = "metric"
-	ImperialSystem       = "imperial"
-	APINameKeyword       = "-api"
-	WeatherRotation      = "rotate"
-	WeatherParam         = "weather"
-	WeatherRotationParam = "weather_rotation"
+	MetricSystem                     = "metric"
+	ImperialSystem                   = "imperial"
+	APINameKeyword                   = "-api"
+	WeatherRotation                  = "rotate"
+	WeatherParam                     = "weather"
+	WeatherRotationParam             = "weather_rotation"
+	WeatherRotationIntervalParam     = "rotation_interval"
+	WeatherShowHumidityParam         = "weather_show_humidity"
+	WeatherShowWindParam             = "weather_show_wind"
+	WeatherShowWindDirectionParam    = "weather_show_wind_direction"
+	WeatherShowVisibilityParam       = "weather_show_visibility"
+	WeatherShowTemperatureRangeParam = "weather_show_temperature_range"
+	WeatherShowForecastParam         = "weather_show_forecast"
+	WeatherRoundTemperatureParam     = "weather_round_temperature"
+
+	VarCompassDirection = "Var"
 )
 
 var (
@@ -98,15 +110,24 @@ func (s *LocationRotate) Next(i int) (int, string) {
 
 var LocationRotator = &LocationRotate{}
 
+type ForecastData struct {
+	Daily       []DailySummary
+	Next24hHigh float64
+	Next24hLow  float64
+}
+
 type Location struct {
-	Name      string
-	Lat       string
-	Lon       string
-	API       string
-	Unit      string
-	Lang      string
-	Forecast  []DailySummary
-	RoundTemp bool
+	Name             string
+	Lat              string
+	Lon              string
+	API              string
+	Unit             string
+	Lang             string
+	Show             config.WeatherLocationStatOptions
+	ShowForecast     bool
+	Forecast         ForecastData
+	RoundTemp        bool
+	CustomWeatherURL string
 	Weather
 }
 
@@ -208,13 +229,16 @@ func addWeatherLocation(ctx context.Context, location config.WeatherLocation, wi
 	}
 
 	w := &Location{
-		Name:      location.Name,
-		Lat:       location.Lat,
-		Lon:       location.Lon,
-		API:       location.API,
-		Unit:      location.Unit,
-		Lang:      location.Lang,
-		RoundTemp: location.RoundTemp,
+		Name:             location.Name,
+		Lat:              location.Lat,
+		Lon:              location.Lon,
+		API:              location.API,
+		Unit:             location.Unit,
+		Lang:             location.Lang,
+		RoundTemp:        location.RoundTemp,
+		CustomWeatherURL: location.CustomWeatherURL,
+		ShowForecast:     location.Forecast,
+		Show:             location.Show,
 	}
 
 	weatherDataStore.Store(strings.ToLower(w.Name), *w)
@@ -279,6 +303,17 @@ func AddWeatherLocation(ctx context.Context, location config.WeatherLocation) {
 // AddWeatherLocationWithForecast adds a new location and enables periodic forecast updates.
 func AddWeatherLocationWithForecast(ctx context.Context, location config.WeatherLocation) {
 	addWeatherLocation(ctx, location, true)
+}
+
+// CompassDirection converts the wind direction in degrees to a cardinal or intercardinal direction string (N, NE, E, SE, S, SW, W, NW).
+// Returns "Var" if the degree value is outside the 0–360 range.
+func (w Wind) CompassDirection() string {
+	if w.Deg < 0 || w.Deg > 360 {
+		return VarCompassDirection
+	}
+	directions := []string{"N", "NE", "E", "SE", "S", "SW", "W", "NW"}
+	idx := int(math.Round(float64(w.Deg)/45)) % 8
+	return directions[idx]
 }
 
 // CurrentWeather retrieves the current weather data for a given location name.
@@ -374,10 +409,74 @@ func (w *Location) fetchWeatherData(ctx context.Context, endpoint string, result
 	return nil
 }
 
+func (w *Location) fetchCustomWeatherData(ctx context.Context, customURL string, result any) error {
+	client := httpClient
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, customURL, nil)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	req.Header.Add("Accept", "application/json")
+
+	var res *http.Response
+	for attempt := range 3 {
+		res, err = client.Do(req)
+		if err == nil {
+			break
+		}
+		// Log attempts as 1-based for clarity
+		log.Error("Request failed, retrying", "attempt", attempt+1, "url", customURL, "err", err)
+
+		backoff := time.Duration(1<<attempt) * time.Second
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff):
+		}
+	}
+
+	if err != nil {
+		log.Error("Request failed after retries", "url", customURL, "err", err)
+		return err
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		bodyPreview, _ := io.ReadAll(io.LimitReader(res.Body, 1024))
+		err = fmt.Errorf("unexpected status code: %d, body: %s",
+			res.StatusCode, strings.TrimSpace(string(bodyPreview)))
+		log.Error("Custom API error",
+			"url", customURL,
+			"status", res.StatusCode,
+			"body", string(bodyPreview))
+		return err
+	}
+
+	decErr := json.NewDecoder(res.Body).Decode(result)
+	if decErr != nil {
+		log.Error("fetchCustomWeatherData", "err", decErr)
+		return decErr
+	}
+
+	return nil
+}
+
 // updateWeather fetches new weather data from the OpenWeatherMap API for this location.
 // Returns the updated Location and any error that occurred.
 func (w *Location) updateWeather(ctx context.Context) (Location, error) {
 	var newWeather Weather
+
+	if w.CustomWeatherURL != "" {
+		err := w.fetchCustomWeatherData(ctx, w.CustomWeatherURL, &newWeather)
+		if err != nil {
+			return *w, err
+		}
+		w.Weather = newWeather
+		return *w, nil
+	}
+
 	err := w.fetchWeatherData(ctx, "weather", &newWeather)
 	if err != nil {
 		return *w, err
@@ -390,6 +489,16 @@ func (w *Location) updateWeather(ctx context.Context) (Location, error) {
 // Returns the updated Location and any error that occurred.
 func (w *Location) updateForecast(ctx context.Context) (Location, error) {
 	var newForecast Forecast
+
+	if w.CustomWeatherURL != "" {
+		err := w.fetchCustomWeatherData(ctx, w.CustomWeatherURL, &newForecast)
+		if err != nil {
+			return *w, err
+		}
+		w.Forecast = processForecast(newForecast, w.Timezone)
+		return *w, nil
+	}
+
 	err := w.fetchWeatherData(ctx, "forecast", &newForecast)
 	if err != nil {
 		return *w, err
@@ -398,7 +507,7 @@ func (w *Location) updateForecast(ctx context.Context) (Location, error) {
 	return *w, nil
 }
 
-func processForecast(forecast Forecast, tzOffsetSeconds int) []DailySummary {
+func processForecast(forecast Forecast, tzOffsetSeconds int) ForecastData {
 	loc := time.FixedZone("owm", tzOffsetSeconds)
 	// Today’s date at midnight in location zone
 	now := time.Now().In(loc)
@@ -468,6 +577,68 @@ func processForecast(forecast Forecast, tzOffsetSeconds int) []DailySummary {
 	})
 
 	n := min(3, len(summaries))
-	return summaries[:n]
+	high, low := computeNext24hTempRange(forecast)
+	return ForecastData{
+		Daily:       summaries[:n],
+		Next24hHigh: high,
+		Next24hLow:  low,
+	}
+}
 
+// computeNext24hTempRange scans the next 24 hours of forecast intervals and returns
+// the highest TempMax and lowest TempMin found. This gives a rolling "high/low for
+// the next 24 hours" that is always meaningful regardless of time of day.
+func computeNext24hTempRange(forecast Forecast) (float64, float64) {
+	now := time.Now()
+	cutoff := now.Add(24 * time.Hour)
+
+	var high, low float64
+	initialized := false
+	for _, item := range forecast.List {
+		itemTime := time.Unix(item.DT, 0)
+		if itemTime.Before(now) || itemTime.After(cutoff) {
+			continue
+		}
+		if !initialized {
+			high = item.Main.TempMax
+			low = item.Main.TempMin
+			initialized = true
+		} else {
+			if item.Main.TempMax > high {
+				high = item.Main.TempMax
+			}
+			if item.Main.TempMin < low {
+				low = item.Main.TempMin
+			}
+		}
+	}
+	return high, low
+}
+
+// ApplyURLOverrides applies per-request weather display options without
+// changing the stored weather data or the global configuration.
+func ApplyURLOverrides(location Location, values url.Values) Location {
+	applyBool := func(key string, field *bool) {
+		param := values.Get(key)
+		if param == "" {
+			return
+		}
+
+		value, err := strconv.ParseBool(param)
+		if err != nil {
+			return
+		}
+
+		*field = value
+	}
+
+	applyBool(WeatherShowHumidityParam, &location.Show.Humidity)
+	applyBool(WeatherShowWindParam, &location.Show.Wind)
+	applyBool(WeatherShowWindDirectionParam, &location.Show.WindDirection)
+	applyBool(WeatherShowVisibilityParam, &location.Show.Visibility)
+	applyBool(WeatherShowTemperatureRangeParam, &location.Show.TemperatureRange)
+	applyBool(WeatherShowForecastParam, &location.ShowForecast)
+	applyBool(WeatherRoundTemperatureParam, &location.RoundTemp)
+
+	return location
 }

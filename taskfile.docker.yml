@@ -1,33 +1,52 @@
 version: "3"
 
+silent: true
+
 tasks:
   # Docker tasks
-  docker-image:
+  docker:build:
     desc: Build docker image locally
-    deps: [build]
     cmds:
-      - orb start
       - docker build --no-cache --build-arg VERSION={{.VERSION}} --load -t damongolding/immich-kiosk:{{.VERSION}} -t damongolding/immich-kiosk:latest .
-      - orb stop
 
-  docker-buildx:
+  docker:start:
+    desc: Start colima. I can never remember the name
+    cmds:
+      - colima start
+
+  docker:stop:
+    desc: Stop colima. I can never remember the name
+    cmds:
+      - colima stop
+
+      -
+  docker:build-orb:
+    desc: Build docker image locally
+    cmds:
+      - cmd: orb start
+        if: "command -v orb >/dev/null 2>&1"
+      - docker build --no-cache --build-arg VERSION={{.VERSION}} --load -t damongolding/immich-kiosk:{{.VERSION}} -t damongolding/immich-kiosk:latest .
+
+  docker:buildx:
     desc: Create and install docker buildx builder
     cmds:
       - docker buildx create --name multiplatform --driver docker-container --use
 
-  dev-push:
+  docker:dev-push-orb:
     desc: Build and push development multi-arch docker image
-    deps: [build]
     cmds:
       - cmd: orb start
-        if: 'command -v orb >/dev/null 2>&1'
+        if: "command -v orb >/dev/null 2>&1"
       - docker build --build-arg VERSION={{.VERSION}}-DEVELOPMENT --platform linux/amd64,linux/arm64 --push -t ghcr.io/damongolding/immich-kiosk-development:{{.VERSION}} -t ghcr.io/damongolding/immich-kiosk-development:latest .
       - cmd: orb stop
-        if: 'command -v orb >/dev/null 2>&1'
+        if: "command -v orb >/dev/null 2>&1"
 
-
-  push:
+  docker:dev-push:
     desc: Build and push development multi-arch docker image
-    deps: [build]
+    cmds:
+      - docker build --build-arg VERSION={{.VERSION}}-DEVELOPMENT --platform linux/amd64,linux/arm64 --push -t ghcr.io/damongolding/immich-kiosk-development:{{.VERSION}} -t ghcr.io/damongolding/immich-kiosk-development:latest .
+
+  docker:push:
+    desc: Build and push development multi-arch docker image
     cmds:
       - docker build --build-arg VERSION={{.VERSION}}-DEVELOPMENT --platform linux/amd64,linux/arm64 --push -t ghcr.io/damongolding/immich-kiosk:{{.VERSION}} -t ghcr.io/damongolding/immich-kiosk:latest .

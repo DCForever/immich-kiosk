@@ -1,16 +1,15 @@
 # Frontend Base Image
-FROM oven/bun:1 AS frontend-base
+FROM node:26-alpine AS frontend-build
 
 COPY . /app
 WORKDIR /app/frontend
 
-FROM frontend-base AS frontend-build
-RUN bun install --frozen-lockfile
-RUN bun run css && bun run js && bun run url-builder
-
+RUN npm install -g @go-task/cli
+RUN npm ci
+RUN task frontend
 
 # Go Builder
-FROM --platform=$BUILDPLATFORM golang:1.26.0-bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:1.27.1-bookworm AS build
 
 ARG VERSION=demo
 ARG TARGETOS
@@ -25,22 +24,21 @@ COPY --from=frontend-build /app/frontend/public/assets/js/ /app/frontend/public/
 RUN go mod download
 RUN go tool templ generate
 
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -a -installsuffix cgo -ldflags "-X main.version=${VERSION}" -o dist/kiosk .
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -a -installsuffix cgo -ldflags "-X main.version=${VERSION} -X github.com/damongolding/immich-kiosk/internal/utils.runningInContainer=true -s -w" -o dist/kiosk .
 
 # Release
-FROM alpine:3.22.2
+FROM gcr.io/distroless/static-debian13:nonroot
 
 ENV TZ=Europe/London
-
 ENV TERM=xterm-256color
 ENV DEBUG_COLORS=true
 ENV COLORTERM=truecolor
-
-RUN apk add --no-cache tzdata ca-certificates curl && update-ca-certificates
 
 WORKDIR /
 
 COPY --from=build /app/demo.config.yaml .
 COPY --from=build /app/dist/kiosk .
+
+USER nonroot
 
 ENTRYPOINT ["/kiosk"]
